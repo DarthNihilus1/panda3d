@@ -1,16 +1,15 @@
-// Filename: interrogate.cxx
-// Created by:  drose (31Jul00)
-//
-////////////////////////////////////////////////////////////////////
-//
-// PANDA 3D SOFTWARE
-// Copyright (c) Carnegie Mellon University.  All rights reserved.
-//
-// All use of this software is subject to the terms of the revised BSD
-// license.  You should have received a copy of this license along
-// with this source code in a file named "LICENSE."
-//
-////////////////////////////////////////////////////////////////////
+/**
+ * PANDA 3D SOFTWARE
+ * Copyright (c) Carnegie Mellon University.  All rights reserved.
+ *
+ * All use of this software is subject to the terms of the revised BSD
+ * license.  You should have received a copy of this license along
+ * with this source code in a file named "LICENSE."
+ *
+ * @file interrogate.cxx
+ * @author drose
+ * @date 2000-07-31
+ */
 
 #include "interrogate.h"
 #include "interrogateBuilder.h"
@@ -20,8 +19,10 @@
 #include "pnotify.h"
 #include "panda_getopt_long.h"
 #include "preprocess_argv.h"
-#include "pystub.h"
 #include <time.h>
+
+using std::cerr;
+using std::string;
 
 CPPParser parser;
 
@@ -84,32 +85,32 @@ enum CommandOptions {
 };
 
 static struct option long_options[] = {
-  { "oc", required_argument, NULL, CO_oc },
-  { "od", required_argument, NULL, CO_od },
-  { "srcdir", required_argument, NULL, CO_srcdir },
-  { "module", required_argument, NULL, CO_module },
-  { "library", required_argument, NULL, CO_library },
-  { "do-module", no_argument, NULL, CO_do_module },
-  { "fptrs", no_argument, NULL, CO_fptrs },
-  { "fnames", no_argument, NULL, CO_fnames },
-  { "string", no_argument, NULL, CO_string },
-  { "refcount", no_argument, NULL, CO_refcount },
-  { "assert", no_argument, NULL, CO_assert },
-  { "true-names", no_argument, NULL, CO_true_names },
-  { "c", no_argument, NULL, CO_c },
-  { "python", no_argument, NULL, CO_python },
-  { "python-obj", no_argument, NULL, CO_python_obj },
-  { "python-native", no_argument, NULL, CO_python_native },
-  { "track-interpreter", no_argument, NULL, CO_track_interpreter },
-  { "unique-names", no_argument, NULL, CO_unique_names },
-  { "nodb", no_argument, NULL, CO_nodb },
-  { "longlong", required_argument, NULL, CO_longlong },
-  { "promiscuous", no_argument, NULL, CO_promiscuous },
-  { "spam", no_argument, NULL, CO_spam },
-  { "noangles", no_argument, NULL, CO_noangles },
-  { "nomangle", no_argument, NULL, CO_nomangle },
-  { "help", no_argument, NULL, CO_help },
-  { NULL }
+  { "oc", required_argument, nullptr, CO_oc },
+  { "od", required_argument, nullptr, CO_od },
+  { "srcdir", required_argument, nullptr, CO_srcdir },
+  { "module", required_argument, nullptr, CO_module },
+  { "library", required_argument, nullptr, CO_library },
+  { "do-module", no_argument, nullptr, CO_do_module },
+  { "fptrs", no_argument, nullptr, CO_fptrs },
+  { "fnames", no_argument, nullptr, CO_fnames },
+  { "string", no_argument, nullptr, CO_string },
+  { "refcount", no_argument, nullptr, CO_refcount },
+  { "assert", no_argument, nullptr, CO_assert },
+  { "true-names", no_argument, nullptr, CO_true_names },
+  { "c", no_argument, nullptr, CO_c },
+  { "python", no_argument, nullptr, CO_python },
+  { "python-obj", no_argument, nullptr, CO_python_obj },
+  { "python-native", no_argument, nullptr, CO_python_native },
+  { "track-interpreter", no_argument, nullptr, CO_track_interpreter },
+  { "unique-names", no_argument, nullptr, CO_unique_names },
+  { "nodb", no_argument, nullptr, CO_nodb },
+  { "longlong", required_argument, nullptr, CO_longlong },
+  { "promiscuous", no_argument, nullptr, CO_promiscuous },
+  { "spam", no_argument, nullptr, CO_spam },
+  { "noangles", no_argument, nullptr, CO_noangles },
+  { "nomangle", no_argument, nullptr, CO_nomangle },
+  { "help", no_argument, nullptr, CO_help },
+  { nullptr }
 };
 
 void
@@ -272,10 +273,6 @@ void show_help() {
     << "        function wrappers already, from some external source.  This is most\n"
     << "        useful in conjunction with -true-names.\n\n"
 
-    << "  -longlong typename\n"
-    << "        Specify the name of the 64-bit integer type for the current compiler.\n"
-    << "        By default, this is \"long long\".\n\n"
-
     << "  -promiscuous\n"
     << "        Export *all* public symbols, functions, and classes seen, even those\n"
     << "        not explicitly marked to be published.\n\n"
@@ -311,14 +308,14 @@ predefine_macro(CPPParser& parser, const string& inoption) {
 
 int
 main(int argc, char **argv) {
-  // A call to pystub() to force libpystub.so to be linked in.
-  pystub();
-
   preprocess_argv(argc, argv);
   string command_line;
   int i;
   for (i = 0; i < argc; i++) {
-    command_line += string(argv[i]) + " ";
+    if (i > 0) {
+      command_line += ' ';
+    }
+    command_line += string(argv[i]);
   }
 
   Filename fn;
@@ -326,7 +323,7 @@ main(int argc, char **argv) {
   extern int optind;
   int flag;
 
-  flag = getopt_long_only(argc, argv, short_options, long_options, NULL);
+  flag = getopt_long_only(argc, argv, short_options, long_options, nullptr);
   while (flag != EOF) {
     switch (flag) {
     case 'I':
@@ -436,6 +433,7 @@ main(int argc, char **argv) {
       break;
 
     case CO_longlong:
+      cerr << "Warning: ignoring deprecated -longlong option.\n";
       cpp_longlong_keyword = optarg;
       break;
 
@@ -463,7 +461,7 @@ main(int argc, char **argv) {
     default:
       exit(1);
     }
-    flag = getopt_long_only(argc, argv, short_options, long_options, NULL);
+    flag = getopt_long_only(argc, argv, short_options, long_options, nullptr);
   }
 
   argc -= (optind-1);
@@ -482,15 +480,13 @@ main(int argc, char **argv) {
     }
   }
 
-//  if(!output_code_filename.empty())
-//  {
-//    output_include_filename = output_code_filename.get_fullpath_wo_extension() +".h";
-//    printf(" Include File Will be Set to %s \n",output_include_filename.c_str());
-//  }
+// if(!output_code_filename.empty()) { output_include_filename =
+// output_code_filename.get_fullpath_wo_extension() +".h"; printf(" Include
+// File Will be Set to %s \n",output_include_filename.c_str()); }
 
   output_code_filename.set_text();
   output_data_filename.set_text();
-//  output_include_filename.set_text();
+// output_include_filename.set_text();
   output_data_basename = output_data_filename.get_basename();
 
   if (output_function_names && true_wrapper_names) {
@@ -501,7 +497,7 @@ main(int argc, char **argv) {
     exit(1);
   }
 
-  if (!build_c_wrappers && !build_python_wrappers && 
+  if (!build_c_wrappers && !build_python_wrappers &&
       !build_python_obj_wrappers &&!build_python_native) {
     build_c_wrappers = true;
   }
@@ -520,17 +516,16 @@ main(int argc, char **argv) {
       cerr << "Error parsing file: '" << argv[i] << "'\n";
       exit(1);
     }
-    builder.add_source_file(filename);
+    builder.add_source_file(filename.to_os_generic());
   }
 
-  // Now that we've parsed all the source code, change the way things
-  // are output from now on so we can compile our generated code using
-  // VC++.  Sheesh.
+  // Now that we've parsed all the source code, change the way things are
+  // output from now on so we can compile our generated code using VC++.
+  // Sheesh.
 
-  // Actually, don't do this any more, since it bitches some of the
-  // logic (particularly with locating alt names), and it shouldn't be
-  // necessary with modern VC++.
-  //  cppparser_output_class_keyword = false;
+  // Actually, don't do this any more, since it bitches some of the logic
+  // (particularly with locating alt names), and it shouldn't be necessary
+  // with modern VC++. cppparser_output_class_keyword = false;
 
   // Now look for the .N files.
   for (i = 1; i < argc; ++i) {
@@ -546,17 +541,17 @@ main(int argc, char **argv) {
 
   builder.build();
 
-  // Make up a file identifier.  This is just some bogus number that
-  // should be the same in both the compiled-in code and in the
-  // database, so we can check synchronicity at load time.
-  int file_identifier = time((time_t *)NULL);
+  // Make up a file identifier.  This is just some bogus number that should be
+  // the same in both the compiled-in code and in the database, so we can
+  // check synchronicity at load time.
+  int file_identifier = time(nullptr);
   InterrogateModuleDef *def = builder.make_module_def(file_identifier);
-    
-  pofstream * the_output_include = NULL;
-  pofstream output_include;
-  
 
-  if (1==2 && !output_include_filename.empty()) 
+  pofstream * the_output_include = nullptr;
+  pofstream output_include;
+
+
+  if (1==2 && !output_include_filename.empty())
   {
     output_include_filename.open_write(output_include);
 
@@ -571,13 +566,15 @@ main(int argc, char **argv) {
       << " */\n\n";
 
 
-    if (output_include.fail()) 
+    if (output_include.fail())
     {
       nout << "Unable to write to " << output_include_filename << "\n";
       exit(-1);
-    } 
+    }
     the_output_include = &output_include;
   }
+
+  int status = 0;
 
   // Now output all of the wrapper functions.
   if (!output_code_filename.empty())
@@ -592,7 +589,7 @@ main(int argc, char **argv) {
       << " *\n"
       << " */\n\n";
 
-    if(the_output_include != NULL)
+    if(the_output_include != nullptr)
     {
         output_code << "#include \""<<output_include_filename<<"\"\n";
         *the_output_include << "#include \"" << output_include_filename.get_fullpath_wo_extension() << "_pynative.h\"\n";
@@ -600,13 +597,14 @@ main(int argc, char **argv) {
 
     if (output_code.fail()) {
       nout << "Unable to write to " << output_code_filename << "\n";
+      status = -1;
     } else {
       builder.write_code(output_code,the_output_include, def);
     }
   }
 
 
-  if(the_output_include != NULL)
+  if(the_output_include != nullptr)
       *the_output_include << "#endif  // #define   " << output_include_filename.get_basename_wo_extension() << "__HH__\n";
 
   // And now output the bulk of the database.
@@ -614,13 +612,13 @@ main(int argc, char **argv) {
     pofstream output_data;
     output_data_filename.open_write(output_data);
 
-    if (output_data.fail()) 
-    {
+    if (output_data.fail()) {
       nout << "Unable to write to " << output_data_filename << "\n";
+      status = -1;
     } else {
       InterrogateDatabase::get_ptr()->write(output_data, def);
     }
   }
 
-  return (0);
+  return status;
 }

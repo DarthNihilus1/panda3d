@@ -1,16 +1,15 @@
-// Filename: config_interval.h
-// Created by:  drose (27Aug02)
-//
-////////////////////////////////////////////////////////////////////
-//
-// PANDA 3D SOFTWARE
-// Copyright (c) Carnegie Mellon University.  All rights reserved.
-//
-// All use of this software is subject to the terms of the revised BSD
-// license.  You should have received a copy of this license along
-// with this source code in a file named "LICENSE."
-//
-////////////////////////////////////////////////////////////////////
+/**
+ * PANDA 3D SOFTWARE
+ * Copyright (c) Carnegie Mellon University.  All rights reserved.
+ *
+ * All use of this software is subject to the terms of the revised BSD
+ * license.  You should have received a copy of this license along
+ * with this source code in a file named "LICENSE."
+ *
+ * @file config_motiontrail.h
+ * @author drose
+ * @date 2002-08-27
+ */
 
 #ifndef CONFIG_MOTIONTRAIL_H
 #define CONFIG_MOTIONTRAIL_H
@@ -21,8 +20,8 @@
 
 #include "cMotionTrail.h"
 
-NotifyCategoryDecl(motiontrail, EXPCL_DIRECT, EXPTP_DIRECT);
+NotifyCategoryDecl(motiontrail, EXPCL_DIRECT_MOTIONTRAIL, EXPTP_DIRECT_MOTIONTRAIL);
 
-extern EXPCL_DIRECT void init_libmotiontrail();
+extern EXPCL_DIRECT_MOTIONTRAIL void init_libmotiontrail();
 
 #endif

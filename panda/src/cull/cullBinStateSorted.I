@@ -1,57 +1,48 @@
-// Filename: cullBinStateSorted.I
-// Created by:  drose (22Mar05)
-//
-////////////////////////////////////////////////////////////////////
-//
-// PANDA 3D SOFTWARE
-// Copyright (c) Carnegie Mellon University.  All rights reserved.
-//
-// All use of this software is subject to the terms of the revised BSD
-// license.  You should have received a copy of this license along
-// with this source code in a file named "LICENSE."
-//
-////////////////////////////////////////////////////////////////////
+/**
+ * PANDA 3D SOFTWARE
+ * Copyright (c) Carnegie Mellon University.  All rights reserved.
+ *
+ * All use of this software is subject to the terms of the revised BSD
+ * license.  You should have received a copy of this license along
+ * with this source code in a file named "LICENSE."
+ *
+ * @file cullBinStateSorted.I
+ * @author drose
+ * @date 2005-03-22
+ */
 
-
-////////////////////////////////////////////////////////////////////
-//     Function: CullBinStateSorted::Constructor
-//       Access: Public
-//  Description: 
-////////////////////////////////////////////////////////////////////
+/**
+ *
+ */
 INLINE CullBinStateSorted::
-CullBinStateSorted(const string &name, GraphicsStateGuardianBase *gsg,
+CullBinStateSorted(const std::string &name, GraphicsStateGuardianBase *gsg,
                    const PStatCollector &draw_region_pcollector) :
   CullBin(name, BT_state_sorted, gsg, draw_region_pcollector),
   _objects(get_class_type())
 {
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: CullBinStateSorted::ObjectData::Constructor
-//       Access: Public
-//  Description: 
-////////////////////////////////////////////////////////////////////
+/**
+ *
+ */
 INLINE CullBinStateSorted::ObjectData::
 ObjectData(CullableObject *object) :
   _object(object)
 {
-  if (object->_munged_data == NULL) {
-    _format = NULL;
+  if (object->_munged_data == nullptr) {
+    _format = nullptr;
   } else {
     _format = object->_munged_data->get_format();
   }
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: CullBinStateSorted::ObjectData::operator <
-//       Access: Public
-//  Description: Specifies the correct sort ordering for these
-//               objects.
-////////////////////////////////////////////////////////////////////
+/**
+ * Specifies the correct sort ordering for these objects.
+ */
 INLINE bool CullBinStateSorted::ObjectData::
 operator < (const ObjectData &other) const {
-  // Group by state changes, in approximate order from heaviest
-  // change to lightest change.
+  // Group by state changes, in approximate order from heaviest change to
+  // lightest change.
   const RenderState *sa = _object->_state;
   const RenderState *sb = other._object->_state;
   int compare = sa->compare_sort(*sb);
@@ -76,4 +67,3 @@ operator < (const ObjectData &other) const {
 
   return 0;
 }
-

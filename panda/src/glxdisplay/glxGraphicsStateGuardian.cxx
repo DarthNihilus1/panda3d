@@ -1,16 +1,15 @@
-// Filename: glxGraphicsStateGuardian.cxx
-// Created by:  drose (27Jan03)
-//
-////////////////////////////////////////////////////////////////////
-//
-// PANDA 3D SOFTWARE
-// Copyright (c) Carnegie Mellon University.  All rights reserved.
-//
-// All use of this software is subject to the terms of the revised BSD
-// license.  You should have received a copy of this license along
-// with this source code in a file named "LICENSE."
-//
-////////////////////////////////////////////////////////////////////
+/**
+ * PANDA 3D SOFTWARE
+ * Copyright (c) Carnegie Mellon University.  All rights reserved.
+ *
+ * All use of this software is subject to the terms of the revised BSD
+ * license.  You should have received a copy of this license along
+ * with this source code in a file named "LICENSE."
+ *
+ * @file glxGraphicsStateGuardian.cxx
+ * @author drose
+ * @date 2003-01-27
+ */
 
 #include "glxGraphicsStateGuardian.h"
 #include "config_glxdisplay.h"
@@ -19,26 +18,26 @@
 
 #include <dlfcn.h>
 
+using std::string;
+
 
 TypeHandle glxGraphicsStateGuardian::_type_handle;
 
-////////////////////////////////////////////////////////////////////
-//     Function: glxGraphicsStateGuardian::Constructor
-//       Access: Public
-//  Description:
-////////////////////////////////////////////////////////////////////
+/**
+ *
+ */
 glxGraphicsStateGuardian::
 glxGraphicsStateGuardian(GraphicsEngine *engine, GraphicsPipe *pipe,
                          glxGraphicsStateGuardian *share_with) :
   PosixGraphicsStateGuardian(engine, pipe)
 {
-  _share_context=0;
-  _context=0;
-  _display=0;
+  _share_context=nullptr;
+  _context=nullptr;
+  _display=nullptr;
   _screen=0;
-  _visual=0;
-  _visuals=0;
-  _fbconfig=0;
+  _visual=nullptr;
+  _visuals=nullptr;
+  _fbconfig=nullptr;
   _context_has_pbuffer = false;
   _context_has_pixmap = false;
   _slow = false;
@@ -48,41 +47,39 @@ glxGraphicsStateGuardian(GraphicsEngine *engine, GraphicsPipe *pipe,
   _supports_pbuffer = false;
   _uses_sgix_pbuffer = false;
 
-  if (share_with != (glxGraphicsStateGuardian *)NULL) {
+  if (share_with != nullptr) {
     _prepared_objects = share_with->get_prepared_objects();
     _share_context = share_with->_context;
   }
 
   _checked_get_proc_address = false;
-  _glXGetProcAddress = NULL;
-  _temp_context = (GLXContext)NULL;
-  _temp_xwindow = (X11_Window)NULL;
-  _temp_colormap = (Colormap)NULL;
+  _glXGetProcAddress = nullptr;
+  _temp_context = (GLXContext)nullptr;
+  _temp_xwindow = (X11_Window)nullptr;
+  _temp_colormap = (Colormap)nullptr;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: glxGraphicsStateGuardian::Destructor
-//       Access: Public
-//  Description:
-////////////////////////////////////////////////////////////////////
+/**
+ *
+ */
 glxGraphicsStateGuardian::
 ~glxGraphicsStateGuardian() {
+  // Actually, the lock might have already destructed, so we can't reliably
+  // grab the X11 lock here.
+  //LightReMutexHolder holder(glxGraphicsPipe::_x_mutex);
   destroy_temp_xwindow();
-  if (_visuals != (XVisualInfo *)NULL) {
+  if (_visuals != nullptr) {
     XFree(_visuals);
   }
-  if (_context != (GLXContext)NULL) {
+  if (_context != (GLXContext)nullptr) {
     glXDestroyContext(_display, _context);
-    _context = (GLXContext)NULL;
+    _context = (GLXContext)nullptr;
   }
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: glxGraphicsStateGuardian::get_properties
-//       Access: Public
-//  Description: Gets the FrameBufferProperties to match the
-//               indicated visual.
-////////////////////////////////////////////////////////////////////
+/**
+ * Gets the FrameBufferProperties to match the indicated visual.
+ */
 void glxGraphicsStateGuardian::
 get_properties(FrameBufferProperties &properties, XVisualInfo *visual) {
 
@@ -109,9 +106,9 @@ get_properties(FrameBufferProperties &properties, XVisualInfo *visual) {
   properties.clear();
 
   if (use_gl == 0) {
-    // If we return a set of properties without setting either
-    // rgb_color or indexed_color, then this indicates a visual
-    // that's no good for any kind of rendering.
+    // If we return a set of properties without setting either rgb_color or
+    // indexed_color, then this indicates a visual that's no good for any kind
+    // of rendering.
     return;
   }
 
@@ -137,12 +134,9 @@ get_properties(FrameBufferProperties &properties, XVisualInfo *visual) {
   properties.set_force_hardware(1);
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: glxGraphicsStateGuardian::get_properties_advanced
-//       Access: Public
-//  Description: Gets the FrameBufferProperties to match the
-//               indicated GLXFBConfig
-////////////////////////////////////////////////////////////////////
+/**
+ * Gets the FrameBufferProperties to match the indicated GLXFBConfig
+ */
 void glxGraphicsStateGuardian::
 get_properties_advanced(FrameBufferProperties &properties,
                         bool &context_has_pbuffer, bool &context_has_pixmap,
@@ -224,60 +218,55 @@ get_properties_advanced(FrameBufferProperties &properties,
   }
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: glxGraphicsStateGuardian::choose_pixel_format
-//       Access: Public
-//  Description: Selects a visual or fbconfig for all the windows
-//               and buffers that use this gsg.  Also creates the GL
-//               context and obtains the visual.
-////////////////////////////////////////////////////////////////////
+/**
+ * Selects a visual or fbconfig for all the windows and buffers that use this
+ * gsg.  Also creates the GL context and obtains the visual.
+ */
 void glxGraphicsStateGuardian::
 choose_pixel_format(const FrameBufferProperties &properties,
                     X11_Display *display,
                     int screen, bool need_pbuffer, bool need_pixmap) {
 
+  LightReMutexHolder holder(glxGraphicsPipe::_x_mutex);
   _display = display;
   _screen = screen;
-  _context = 0;
-  _fbconfig = 0;
-  _visual = 0;
-  if (_visuals != (XVisualInfo *)NULL) {
+  _context = nullptr;
+  _fbconfig = nullptr;
+  _visual = nullptr;
+  if (_visuals != nullptr) {
     XFree(_visuals);
-    _visuals = NULL;
+    _visuals = nullptr;
   }
 
   _fbprops.clear();
 
-  // First, attempt to create a context using the XVisual interface.
-  // We need this before we can query the FBConfig interface, because
-  // we need an OpenGL context to get the required extension function
-  // pointers.
+  // First, attempt to create a context using the XVisual interface.  We need
+  // this before we can query the FBConfig interface, because we need an
+  // OpenGL context to get the required extension function pointers.
   destroy_temp_xwindow();
   choose_temp_visual(properties);
-  if (_temp_context == NULL) {
+  if (_temp_context == nullptr) {
     // No good.
     return;
   }
 
-  // Now we have to initialize the context so we can query its
-  // capabilities and extensions.  This also means creating a
-  // temporary window, so we have something to bind the context to and
-  // make it current.
+  // Now we have to initialize the context so we can query its capabilities
+  // and extensions.  This also means creating a temporary window, so we have
+  // something to bind the context to and make it current.
   init_temp_context();
 
   if (!_supports_fbconfig) {
-    // We have a good OpenGL context, but it doesn't support the
-    // FBConfig interface, so we'll stop there.
+    // We have a good OpenGL context, but it doesn't support the FBConfig
+    // interface, so we'll stop there.
     glxdisplay_cat.debug()
       <<" No FBConfig supported; using XVisual only.\n"
       << _fbprops << "\n";
 
     _context = _temp_context;
-    _temp_context = (GLXContext)NULL;
+    _temp_context = (GLXContext)nullptr;
 
-    // By convention, every indirect XVisual that can render to a
-    // window can also render to a GLXPixmap.  Direct visuals we're
-    // not as sure about.
+    // By convention, every indirect XVisual that can render to a window can
+    // also render to a GLXPixmap.  Direct visuals we're not as sure about.
     _context_has_pixmap = !glXIsDirect(_display, _context);
 
     // Pbuffers aren't supported at all with the XVisual interface.
@@ -285,10 +274,10 @@ choose_pixel_format(const FrameBufferProperties &properties,
     return;
   }
 
-  // The OpenGL context supports the FBConfig interface, so we can use
-  // that more advanced interface to choose the actual window format
-  // we'll use.  FBConfig provides for more options than the older
-  // XVisual interface, so we'd much rather use it if it's available.
+  // The OpenGL context supports the FBConfig interface, so we can use that
+  // more advanced interface to choose the actual window format we'll use.
+  // FBConfig provides for more options than the older XVisual interface, so
+  // we'd much rather use it if it's available.
 
   int best_quality = 0;
   int best_result = 0;
@@ -314,7 +303,7 @@ choose_pixel_format(const FrameBufferProperties &properties,
   GLXFBConfig *configs =
     _glXChooseFBConfig(_display, _screen, attrib_list, &num_configs);
 
-  if (configs != 0) {
+  if (configs != nullptr) {
     bool context_has_pbuffer, context_has_pixmap, slow;
     int quality, i;
     for (i = 0; i < num_configs; ++i) {
@@ -349,9 +338,9 @@ choose_pixel_format(const FrameBufferProperties &properties,
   if (best_quality > 0) {
     _fbconfig = configs[best_result];
 
-    if (_glXCreateContextAttribs != NULL) {
-      // NB.  This is a wholly different type of attrib list
-      // than below, the same values are not used!
+    if (_glXCreateContextAttribs != nullptr) {
+      // NB.  This is a wholly different type of attrib list than below, the
+      // same values are not used!
       n = 0;
       attrib_list[n++] = GLX_RENDER_TYPE;
       attrib_list[n++] = render_type;
@@ -363,9 +352,20 @@ choose_pixel_format(const FrameBufferProperties &properties,
           attrib_list[n++] = gl_version[1];
         }
       }
+      int flags = 0;
       if (gl_debug) {
+        flags |= GLX_CONTEXT_DEBUG_BIT_ARB;
+      }
+      if (gl_forward_compatible) {
+        flags |= GLX_CONTEXT_FORWARD_COMPATIBLE_BIT_ARB;
+        if (gl_version.get_num_words() == 0 || gl_version[0] < 2) {
+          glxdisplay_cat.error()
+            << "gl-forward-compatible requires gl-version >= 3 0\n";
+        }
+      }
+      if (flags != 0) {
         attrib_list[n++] = GLX_CONTEXT_FLAGS_ARB;
-        attrib_list[n++] = GLX_CONTEXT_DEBUG_BIT_ARB;
+        attrib_list[n++] = flags;
       }
       attrib_list[n] = None;
       _context = _glXCreateContextAttribs(_display, _fbconfig, _share_context,
@@ -379,9 +379,9 @@ choose_pixel_format(const FrameBufferProperties &properties,
     if (_context) {
       mark_new();
 
-      if (_visuals != (XVisualInfo *)NULL) {
+      if (_visuals != nullptr) {
         XFree(_visuals);
-        _visuals = NULL;
+        _visuals = nullptr;
       }
       _visuals = _glXGetVisualFromFBConfig(_display, _fbconfig);
       _visual = _visuals;
@@ -408,10 +408,10 @@ choose_pixel_format(const FrameBufferProperties &properties,
     // This really shouldn't happen, so I'm not too careful about cleanup.
     glxdisplay_cat.error()
       << "Could not create FBConfig context!\n";
-    _fbconfig = 0;
-    _context = 0;
-    _visual = 0;
-    _visuals = 0;
+    _fbconfig = nullptr;
+    _context = nullptr;
+    _visual = nullptr;
+    _visuals = nullptr;
   }
 
   glxdisplay_cat.warning()
@@ -419,23 +419,20 @@ choose_pixel_format(const FrameBufferProperties &properties,
     << _fbprops << "\n";
 
   _context = _temp_context;
-  _temp_context = (GLXContext)NULL;
+  _temp_context = (GLXContext)nullptr;
 
-  // By convention, every indirect XVisual that can render to a
-  // window can also render to a GLXPixmap.  Direct visuals we're
-  // not as sure about.
+  // By convention, every indirect XVisual that can render to a window can
+  // also render to a GLXPixmap.  Direct visuals we're not as sure about.
   _context_has_pixmap = !glXIsDirect(_display, _context);
 
   // Pbuffers aren't supported at all with the XVisual interface.
   _context_has_pbuffer = false;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: glxGraphicsStateGuardian::glx_is_at_least_version
-//       Access: Public
-//  Description: Returns true if the runtime GLX version number is at
-//               least the indicated value, false otherwise.
-////////////////////////////////////////////////////////////////////
+/**
+ * Returns true if the runtime GLX version number is at least the indicated
+ * value, false otherwise.
+ */
 bool glxGraphicsStateGuardian::
 glx_is_at_least_version(int major_version, int minor_version) const {
   if (_glx_version_major < major_version) {
@@ -450,11 +447,9 @@ glx_is_at_least_version(int major_version, int minor_version) const {
   return true;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: glxGraphicsStateGuardian::gl_flush
-//       Access: Protected, Virtual
-//  Description: Calls glFlush().
-////////////////////////////////////////////////////////////////////
+/**
+ * Calls glFlush().
+ */
 void glxGraphicsStateGuardian::
 gl_flush() const {
   // This call requires synchronization with X.
@@ -462,11 +457,9 @@ gl_flush() const {
   PosixGraphicsStateGuardian::gl_flush();
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: glxGraphicsStateGuardian::gl_get_error
-//       Access: Protected, Virtual
-//  Description: Returns the result of glGetError().
-////////////////////////////////////////////////////////////////////
+/**
+ * Returns the result of glGetError().
+ */
 GLenum glxGraphicsStateGuardian::
 gl_get_error() const {
   // This call requires synchronization with X.
@@ -474,13 +467,12 @@ gl_get_error() const {
   return PosixGraphicsStateGuardian::gl_get_error();
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: glxGraphicsStateGuardian::query_gl_version
-//       Access: Protected, Virtual
-//  Description: Queries the runtime version of OpenGL in use.
-////////////////////////////////////////////////////////////////////
+/**
+ * Queries the runtime version of OpenGL in use.
+ */
 void glxGraphicsStateGuardian::
 query_gl_version() {
+  LightReMutexHolder holder(glxGraphicsPipe::_x_mutex);
   PosixGraphicsStateGuardian::query_gl_version();
 
   show_glx_client_string("GLX_VENDOR", GLX_VENDOR);
@@ -490,9 +482,9 @@ query_gl_version() {
 
   glXQueryVersion(_display, &_glx_version_major, &_glx_version_minor);
 
-  // We output to glgsg_cat instead of glxdisplay_cat, since this is
-  // where the GL version has been output, and it's nice to see the
-  // two of these together.
+  // We output to glgsg_cat instead of glxdisplay_cat, since this is where the
+  // GL version has been output, and it's nice to see the two of these
+  // together.
   if (glgsg_cat.is_debug()) {
     glgsg_cat.debug()
       << "GLX_VERSION = " << _glx_version_major << "." << _glx_version_minor
@@ -500,55 +492,50 @@ query_gl_version() {
   }
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: glxGraphicsStateGuardian::get_extra_extensions
-//       Access: Protected, Virtual
-//  Description: This may be redefined by a derived class (e.g. glx or
-//               wgl) to get whatever further extensions strings may
-//               be appropriate to that interface, in addition to the
-//               GL extension strings return by glGetString().
-////////////////////////////////////////////////////////////////////
+/**
+ * This may be redefined by a derived class (e.g.  glx or wgl) to get whatever
+ * further extensions strings may be appropriate to that interface, in
+ * addition to the GL extension strings return by glGetString().
+ */
 void glxGraphicsStateGuardian::
 get_extra_extensions() {
+  LightReMutexHolder holder(glxGraphicsPipe::_x_mutex);
   save_extensions(glXQueryExtensionsString(_display, _screen));
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: glxGraphicsStateGuardian::do_get_extension_func
-//       Access: Public, Virtual
-//  Description: Returns the pointer to the GL extension function with
-//               the indicated name.  It is the responsibility of the
-//               caller to ensure that the required extension is
-//               defined in the OpenGL runtime prior to calling this;
-//               it is an error to call this for a function that is
-//               not defined.
-////////////////////////////////////////////////////////////////////
+/**
+ * Returns the pointer to the GL extension function with the indicated name.
+ * It is the responsibility of the caller to ensure that the required
+ * extension is defined in the OpenGL runtime prior to calling this; it is an
+ * error to call this for a function that is not defined.
+ */
 void *glxGraphicsStateGuardian::
 do_get_extension_func(const char *name) {
-  nassertr(name != NULL, NULL);
+  nassertr(name != nullptr, nullptr);
 
   if (glx_get_proc_address) {
-    // First, check if we have glXGetProcAddress available.  This will
-    // be superior if we can get it.
+    LightReMutexHolder holder(glxGraphicsPipe::_x_mutex);
+
+    // First, check if we have glXGetProcAddress available.  This will be
+    // superior if we can get it.
 
 #if defined(LINK_IN_GLXGETPROCADDRESS) && defined(HAVE_GLXGETPROCADDRESS)
-      // If we are confident the system headers defined it, we can
-      // call it directly.  This is more reliable than trying to
-      // determine its address dynamically, but it may make
-      // libpandagl.so fail to load if the symbol isn't in the runtime
-      // library.
+      // If we are confident the system headers defined it, we can call it
+      // directly.  This is more reliable than trying to determine its address
+      // dynamically, but it may make libpandagl.so fail to load if the symbol
+      // isn't in the runtime library.
     return (void *)glXGetProcAddress((const GLubyte *)name);
 
 #elif defined(LINK_IN_GLXGETPROCADDRESS) && defined(HAVE_GLXGETPROCADDRESSARB)
-    // The ARB extension version is OK too.  Sometimes the prototype
-    // isn't supplied for some reason.
+    // The ARB extension version is OK too.  Sometimes the prototype isn't
+    // supplied for some reason.
     return (void *)glXGetProcAddressARB((const GLubyte *)name);
 
 #else
     // Otherwise, we have to fiddle around with the dynamic runtime.
 
     if (!_checked_get_proc_address) {
-      const char *funcName = NULL;
+      const char *funcName = nullptr;
 
       if (glx_is_at_least_version(1, 4)) {
         funcName = "glXGetProcAddress";
@@ -557,9 +544,9 @@ do_get_extension_func(const char *name) {
         funcName = "glXGetProcAddressARB";
       }
 
-      if (funcName != NULL) {
+      if (funcName != nullptr) {
         _glXGetProcAddress = (PFNGLXGETPROCADDRESSPROC)get_system_func(funcName);
-        if (_glXGetProcAddress == NULL) {
+        if (_glXGetProcAddress == nullptr) {
           glxdisplay_cat.warning()
             << "Couldn't load function " << funcName
             << ", GL extensions may be unavailable.\n";
@@ -570,7 +557,7 @@ do_get_extension_func(const char *name) {
     }
 
     // Use glxGetProcAddress() if we've got it; it should be more robust.
-    if (_glXGetProcAddress != NULL) {
+    if (_glXGetProcAddress != nullptr) {
       return (void *)_glXGetProcAddress((const GLubyte *)name);
     }
 #endif // HAVE_GLXGETPROCADDRESS
@@ -580,11 +567,9 @@ do_get_extension_func(const char *name) {
   return PosixGraphicsStateGuardian::do_get_extension_func(name);
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: glxGraphicsStateGuardian::query_glx_extensions
-//       Access: Private
-//  Description: Queries the GLX extension pointers.
-////////////////////////////////////////////////////////////////////
+/**
+ * Queries the GLX extension pointers.
+ */
 void glxGraphicsStateGuardian::
 query_glx_extensions() {
   _supports_swap_control = has_extension("GLX_SGI_swap_control");
@@ -592,7 +577,7 @@ query_glx_extensions() {
   if (_supports_swap_control) {
     _glXSwapIntervalSGI =
       (PFNGLXSWAPINTERVALSGIPROC)get_extension_func("glXSwapIntervalSGI");
-    if (_glXSwapIntervalSGI == NULL) {
+    if (_glXSwapIntervalSGI == nullptr) {
       glxdisplay_cat.error()
         << "Driver claims to support GLX_SGI_swap_control extension, but does not define all functions.\n";
       _supports_swap_control = false;
@@ -600,8 +585,8 @@ query_glx_extensions() {
   }
 
   if (_supports_swap_control) {
-    // Set the video-sync setting up front, if we have the extension
-    // that supports it.
+    // Set the video-sync setting up front, if we have the extension that
+    // supports it.
     _glXSwapIntervalSGI(sync_video ? 1 : 0);
   }
 
@@ -621,19 +606,19 @@ query_glx_extensions() {
       _glXCreatePixmap =
         (PFNGLXCREATEPIXMAPPROC)get_extension_func("glXCreatePixmap");
 
-      if (_glXChooseFBConfig == NULL ||
-          _glXCreateNewContext == NULL ||
-          _glXGetVisualFromFBConfig == NULL ||
-          _glXGetFBConfigAttrib == NULL ||
-          _glXCreatePixmap == NULL) {
+      if (_glXChooseFBConfig == nullptr ||
+          _glXCreateNewContext == nullptr ||
+          _glXGetVisualFromFBConfig == nullptr ||
+          _glXGetFBConfigAttrib == nullptr ||
+          _glXCreatePixmap == nullptr) {
         glxdisplay_cat.error()
           << "Driver claims to support GLX_fbconfig extension, but does not define all functions.\n";
         _supports_fbconfig = false;
       }
     } else if (has_extension("GLX_SGIX_fbconfig")) {
-      // Or maybe we have the old SGIX extension for FBConfig.  This is
-      // the same, but the function names are different--we just remap
-      // them to the same function pointers.
+      // Or maybe we have the old SGIX extension for FBConfig.  This is the
+      // same, but the function names are different--we just remap them to the
+      // same function pointers.
       _supports_fbconfig = true;
 
       _glXChooseFBConfig =
@@ -647,11 +632,11 @@ query_glx_extensions() {
       _glXCreatePixmap =
         (PFNGLXCREATEPIXMAPPROC)get_extension_func("glXCreateGLXPixmapWithConfigSGIX");
 
-      if (_glXChooseFBConfig == NULL ||
-          _glXCreateNewContext == NULL ||
-          _glXGetVisualFromFBConfig == NULL ||
-          _glXGetFBConfigAttrib == NULL ||
-          _glXCreatePixmap == NULL) {
+      if (_glXChooseFBConfig == nullptr ||
+          _glXCreateNewContext == nullptr ||
+          _glXGetVisualFromFBConfig == nullptr ||
+          _glXGetFBConfigAttrib == nullptr ||
+          _glXCreatePixmap == nullptr) {
         glxdisplay_cat.error()
           << "Driver claims to support GLX_SGIX_fbconfig extension, but does not define all functions.\n";
         _supports_fbconfig = false;
@@ -665,11 +650,11 @@ query_glx_extensions() {
 
       _glXCreatePbuffer =
         (PFNGLXCREATEPBUFFERPROC)get_extension_func("glXCreatePbuffer");
-      _glXCreateGLXPbufferSGIX = NULL;
+      _glXCreateGLXPbufferSGIX = nullptr;
       _glXDestroyPbuffer =
         (PFNGLXDESTROYPBUFFERPROC)get_extension_func("glXDestroyPbuffer");
-      if (_glXCreatePbuffer == NULL ||
-          _glXDestroyPbuffer == NULL) {
+      if (_glXCreatePbuffer == nullptr ||
+          _glXDestroyPbuffer == nullptr) {
         glxdisplay_cat.error()
           << "Driver claims to support GLX_pbuffer extension, but does not define all functions.\n";
         _supports_pbuffer = false;
@@ -679,16 +664,16 @@ query_glx_extensions() {
       // Or maybe we have the old SGIX extension for PBuffers.
       _uses_sgix_pbuffer = true;
 
-      // CreatePbuffer has a different form between SGIX and 1.3,
-      // however, so we must treat it specially.  But we can use the
-      // same function pointer for DestroyPbuffer.
-      _glXCreatePbuffer = NULL;
+      // CreatePbuffer has a different form between SGIX and 1.3, however, so
+      // we must treat it specially.  But we can use the same function pointer
+      // for DestroyPbuffer.
+      _glXCreatePbuffer = nullptr;
       _glXCreateGLXPbufferSGIX =
         (PFNGLXCREATEGLXPBUFFERSGIXPROC)get_extension_func("glXCreateGLXPbufferSGIX");
       _glXDestroyPbuffer =
         (PFNGLXDESTROYPBUFFERPROC)get_extension_func("glXDestroyGLXPbufferSGIX");
-      if (_glXCreateGLXPbufferSGIX == NULL ||
-          _glXDestroyPbuffer == NULL) {
+      if (_glXCreateGLXPbufferSGIX == nullptr ||
+          _glXDestroyPbuffer == nullptr) {
         glxdisplay_cat.error()
           << "Driver claims to support GLX_SGIX_pbuffer extension, but does not define all functions.\n";
         _supports_pbuffer = false;
@@ -699,7 +684,7 @@ query_glx_extensions() {
       _glXCreateContextAttribs =
         (PFNGLXCREATECONTEXTATTRIBSARBPROC)get_extension_func("glXCreateContextAttribsARB");
     } else {
-      _glXCreateContextAttribs = NULL;
+      _glXCreateContextAttribs = nullptr;
     }
   }
 
@@ -713,9 +698,8 @@ query_glx_extensions() {
       << " sgix = " << _uses_sgix_pbuffer << "\n";
   }
 
-  // If "Mesa" is present, assume software.  However, if "Mesa DRI" is
-  // found, it's actually a Mesa-based OpenGL layer running over a
-  // hardware driver.
+  // If "Mesa" is present, assume software.  However, if "Mesa DRI" is found,
+  // it's actually a Mesa-based OpenGL layer running over a hardware driver.
   if (_gl_renderer.find("Mesa") != string::npos &&
       _gl_renderer.find("Mesa DRI") == string::npos) {
     // It's Mesa, therefore probably a software context.
@@ -727,17 +711,14 @@ query_glx_extensions() {
   }
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: glxGraphicsStateGuardian::show_glx_client_string
-//       Access: Protected
-//  Description: Outputs the result of glxGetClientString() on the
-//               indicated tag.
-////////////////////////////////////////////////////////////////////
+/**
+ * Outputs the result of glxGetClientString() on the indicated tag.
+ */
 void glxGraphicsStateGuardian::
 show_glx_client_string(const string &name, int id) {
   if (glgsg_cat.is_debug()) {
     const char *text = glXGetClientString(_display, id);
-    if (text == (const char *)NULL) {
+    if (text == nullptr) {
       glgsg_cat.debug()
         << "Unable to query " << name << " (client)\n";
     } else {
@@ -747,17 +728,14 @@ show_glx_client_string(const string &name, int id) {
   }
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: glxGraphicsStateGuardian::show_glx_server_string
-//       Access: Protected
-//  Description: Outputs the result of glxQueryServerString() on the
-//               indicated tag.
-////////////////////////////////////////////////////////////////////
+/**
+ * Outputs the result of glxQueryServerString() on the indicated tag.
+ */
 void glxGraphicsStateGuardian::
 show_glx_server_string(const string &name, int id) {
   if (glgsg_cat.is_debug()) {
     const char *text = glXQueryServerString(_display, _screen, id);
-    if (text == (const char *)NULL) {
+    if (text == nullptr) {
       glgsg_cat.debug()
         << "Unable to query " << name << " (server)\n";
     } else {
@@ -767,31 +745,28 @@ show_glx_server_string(const string &name, int id) {
   }
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: glxGraphicsStateGuardian::choose_temp_visual
-//       Access: Private
-//  Description: Selects an XVisual for an initial OpenGL context.
-//               This may be called initially, to create the first
-//               context needed in order to create the fbconfig.  On
-//               successful return, _visual and _temp_context will be
-//               filled in with a non-NULL value.
-////////////////////////////////////////////////////////////////////
+/**
+ * Selects an XVisual for an initial OpenGL context.  This may be called
+ * initially, to create the first context needed in order to create the
+ * fbconfig.  On successful return, _visual and _temp_context will be filled
+ * in with a non-NULL value.
+ */
 void glxGraphicsStateGuardian::
 choose_temp_visual(const FrameBufferProperties &properties) {
-  nassertv(_temp_context == (GLXContext)NULL);
+  nassertv(_temp_context == (GLXContext)nullptr);
 
   int best_quality = 0;
   int best_result = 0;
   FrameBufferProperties best_props;
 
   // Scan available visuals.
-  if (_visuals != (XVisualInfo *)NULL) {
+  if (_visuals != nullptr) {
     XFree(_visuals);
-    _visuals = NULL;
+    _visuals = nullptr;
   }
   int nvisuals = 0;
-  _visuals = XGetVisualInfo(_display, 0, 0, &nvisuals);
-  if (_visuals != 0) {
+  _visuals = XGetVisualInfo(_display, 0, nullptr, &nvisuals);
+  if (_visuals != nullptr) {
     for (int i = 0; i < nvisuals; i++) {
       FrameBufferProperties fbprops;
       get_properties(fbprops, _visuals + i);
@@ -817,13 +792,10 @@ choose_temp_visual(const FrameBufferProperties &properties) {
     << "Could not find a usable pixel format.\n";
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: glxGraphicsStateGuardian::init_temp_context
-//       Access: Private
-//  Description: Initializes the context created in
-//               choose_temp_visual() by creating a temporary window
-//               and binding the context to that window.
-////////////////////////////////////////////////////////////////////
+/**
+ * Initializes the context created in choose_temp_visual() by creating a
+ * temporary window and binding the context to that window.
+ */
 void glxGraphicsStateGuardian::
 init_temp_context() {
   x11GraphicsPipe *x11_pipe;
@@ -843,7 +815,7 @@ init_temp_context() {
     (_display, root_window, 0, 0, 100, 100,
      0, _visual->depth, InputOutput,
      visual, attrib_mask, &wa);
-  if (_temp_xwindow == (X11_Window)NULL) {
+  if (_temp_xwindow == (X11_Window)nullptr) {
     glxdisplay_cat.error()
       << "Could not create temporary window for context\n";
     return;
@@ -856,27 +828,24 @@ init_temp_context() {
   query_glx_extensions();
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: glxGraphicsStateGuardian::destroy_temp_xwindow
-//       Access: Private
-//  Description: Destroys the temporary unmapped window created by
-//               init_temp_context().
-////////////////////////////////////////////////////////////////////
+/**
+ * Destroys the temporary unmapped window created by init_temp_context().
+ */
 void glxGraphicsStateGuardian::
 destroy_temp_xwindow() {
-  glXMakeCurrent(_display, None, NULL);
+  glXMakeCurrent(_display, None, nullptr);
 
-  if (_temp_colormap != (Colormap)NULL) {
+  if (_temp_colormap != (Colormap)nullptr) {
     XFreeColormap(_display, _temp_colormap);
-    _temp_colormap = (Colormap)NULL;
+    _temp_colormap = (Colormap)nullptr;
   }
-  if (_temp_xwindow != (X11_Window)NULL) {
+  if (_temp_xwindow != (X11_Window)nullptr) {
     XDestroyWindow(_display, _temp_xwindow);
-    _temp_xwindow = (X11_Window)NULL;
+    _temp_xwindow = (X11_Window)nullptr;
   }
 
-  if (_temp_context != (GLXContext)NULL) {
+  if (_temp_context != (GLXContext)nullptr) {
     glXDestroyContext(_display, _temp_context);
-    _temp_context = (GLXContext)NULL;
+    _temp_context = (GLXContext)nullptr;
   }
 }

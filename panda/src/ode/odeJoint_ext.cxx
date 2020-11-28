@@ -1,16 +1,15 @@
-// Filename: odeJoint_ext.cxx
-// Created by:  rdb (11Dec13)
-//
-////////////////////////////////////////////////////////////////////
-//
-// PANDA 3D SOFTWARE
-// Copyright (c) Carnegie Mellon University.  All rights reserved.
-//
-// All use of this software is subject to the terms of the revised BSD
-// license.  You should have received a copy of this license along
-// with this source code in a file named "LICENSE."
-//
-////////////////////////////////////////////////////////////////////
+/**
+ * PANDA 3D SOFTWARE
+ * Copyright (c) Carnegie Mellon University.  All rights reserved.
+ *
+ * All use of this software is subject to the terms of the revised BSD
+ * license.  You should have received a copy of this license along
+ * with this source code in a file named "LICENSE."
+ *
+ * @file odeJoint_ext.cxx
+ * @author rdb
+ * @date 2013-12-11
+ */
 
 #include "odeJoint_ext.h"
 
@@ -30,6 +29,7 @@
 #include "odePlane2dJoint.h"
 
 #ifndef CPPPARSER
+extern Dtool_PyTypedObject Dtool_OdeBody;
 extern Dtool_PyTypedObject Dtool_OdeJoint;
 extern Dtool_PyTypedObject Dtool_OdeBallJoint;
 extern Dtool_PyTypedObject Dtool_OdeHingeJoint;
@@ -44,14 +44,28 @@ extern Dtool_PyTypedObject Dtool_OdeLMotorJoint;
 extern Dtool_PyTypedObject Dtool_OdePlane2dJoint;
 #endif
 
-////////////////////////////////////////////////////////////////////
-//     Function: OdeJoint::attach
-//       Access: Published
-//  Description: Attach two bodies together.  If either body is None,
-//               the other will be attached to the environment.
-////////////////////////////////////////////////////////////////////
+/**
+ * Attach two bodies together.  If either body is None, the other will be
+ * attached to the environment.
+ */
 void Extension<OdeJoint>::
-attach(const OdeBody *body1, const OdeBody *body2) {
+attach(PyObject *param1, PyObject *param2) {
+  const OdeBody *body1 = nullptr;
+  if (param1 != Py_None) {
+    body1 = (const OdeBody *)DTOOL_Call_GetPointerThisClass(param1, &Dtool_OdeBody, 1, "OdeJoint.attach", true, true);
+    if (body1 == nullptr) {
+      return;
+    }
+  }
+
+  const OdeBody *body2 = nullptr;
+  if (param2 != Py_None) {
+    body2 = (const OdeBody *)DTOOL_Call_GetPointerThisClass(param2, &Dtool_OdeBody, 2, "OdeJoint.attach", true, true);
+    if (body2 == nullptr) {
+      return;
+    }
+  }
+
   if (body1 && body2) {
     _this->attach_bodies(*body1, *body2);
 
@@ -63,12 +77,10 @@ attach(const OdeBody *body1, const OdeBody *body2) {
   }
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: OdeJoint::convert
-//       Access: Published
-//  Description: Do a sort of pseudo-downcast on this space in
-//               order to expose its specialized functions.
-////////////////////////////////////////////////////////////////////
+/**
+ * Do a sort of pseudo-downcast on this space in order to expose its
+ * specialized functions.
+ */
 PyObject *Extension<OdeJoint>::
 convert() const {
   Dtool_PyTypedObject *class_type;
@@ -131,8 +143,8 @@ convert() const {
     break;
 
   default:
-    // This shouldn't happen, but if it does, we
-    // should just return a regular OdeJoint.
+    // This shouldn't happen, but if it does, we should just return a regular
+    // OdeJoint.
     joint = new OdeJoint(_this->get_id());
     class_type = &Dtool_OdeJoint;
   }

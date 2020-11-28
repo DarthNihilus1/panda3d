@@ -1,53 +1,47 @@
-// Filename: physical.cxx
-// Created by:  charles (16Jun00)
-//
-////////////////////////////////////////////////////////////////////
-//
-// PANDA 3D SOFTWARE
-// Copyright (c) Carnegie Mellon University.  All rights reserved.
-//
-// All use of this software is subject to the terms of the revised BSD
-// license.  You should have received a copy of this license along
-// with this source code in a file named "LICENSE."
-//
-////////////////////////////////////////////////////////////////////
+/**
+ * PANDA 3D SOFTWARE
+ * Copyright (c) Carnegie Mellon University.  All rights reserved.
+ *
+ * All use of this software is subject to the terms of the revised BSD
+ * license.  You should have received a copy of this license along
+ * with this source code in a file named "LICENSE."
+ *
+ * @file physical.cxx
+ * @author charles
+ * @date 2000-06-16
+ */
 
 #include "pointerTo.h"
 
 #include "physical.h"
 #include "physicsManager.h"
 
+using std::ostream;
+
 TypeHandle Physical::_type_handle;
 
-////////////////////////////////////////////////////////////////////
-//     Function : Physical
-//       Access : Public
-//  Description : Default Constructor
-//
-//                The idea here is that most physicals will NOT 
-//                be collections of sets (i.e. particle systems 
-//                and whatever else).  Because of this, the default 
-//                constructor, unless otherwise specified, will 
-//                automatically allocate and initialize one 
-//                PhysicalObject.  This makes it easier for 
-//                high-level work.
-//
-//                pre-alloc is ONLY for multiple-object physicals, 
-//                and if true, fills the physics_object vector 
-//                with dead nodes, pre-allocating for the speed
-//                end of the speed-vs-overhead deal.
-////////////////////////////////////////////////////////////////////
+/**
+ * Default Constructor The idea here is that most physicals will NOT be
+ * collections of sets (i.e.  particle systems and whatever else).  Because of
+ * this, the default constructor, unless otherwise specified, will
+ * automatically allocate and initialize one PhysicalObject.  This makes it
+ * easier for high-level work.
+ *
+ * pre-alloc is ONLY for multiple-object physicals, and if true, fills the
+ * physics_object vector with dead nodes, pre-allocating for the speed end of
+ * the speed-vs-overhead deal.
+ */
 Physical::
-Physical(int total_objects, bool pre_alloc) {
-  _viscosity=0.0;
-  _physical_node = (PhysicalNode *) NULL;
-  _physics_manager = (PhysicsManager *) NULL;
+Physical(int total_objects, bool pre_alloc) :
+  _viscosity(0.0),
+  _physics_manager(nullptr),
+  _physical_node(nullptr) {
 
   if (total_objects == 1) {
     _phys_body = new PhysicsObject;
     add_physics_object(_phys_body);
   } else {
-    _phys_body = (PhysicsObject *) NULL;
+    _phys_body = nullptr;
     // allocate each object.
     if (pre_alloc == true) {
       for (int i = 0; i < total_objects; ++i) {
@@ -58,16 +52,14 @@ Physical(int total_objects, bool pre_alloc) {
   }
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function : Physical
-//       Access : Public
-//  Description : copy constructor (note- does deep copy of pn's)
-//                but does NOT attach itself to its template's
-//                physicsmanager.
-////////////////////////////////////////////////////////////////////
+/**
+ * copy constructor (note- does deep copy of pn's) but does NOT attach itself
+ * to its template's physicsmanager.
+ */
 Physical::
-Physical(const Physical& copy) {
-  _physics_manager = (PhysicsManager *) NULL;
+Physical(const Physical& copy) :
+  _physics_manager(nullptr),
+  _physical_node(nullptr) {
 
   // copy the forces.
   LinearForceVector::const_iterator lf_cur;
@@ -97,29 +89,26 @@ Physical(const Physical& copy) {
   if (_physics_objects.size() == 1)
     _phys_body = _physics_objects[0];
   else
-    _phys_body = (PhysicsObject *) NULL;
+    _phys_body = nullptr;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function : ~Physical
-//       Access : Public
-//  Description : destructor
-////////////////////////////////////////////////////////////////////
+/**
+ * destructor
+ */
 Physical::
 ~Physical() {
-  // note that this removes a physical from a physics manager.
-  // this is safe because the physics manager doesn't keep PT's to
-  // physicals, simply *'s, and also means that we don't have to tell
-  // the physics manager ourselves when one of our physicals is dead.
-  if (_physics_manager != (PhysicsManager *) NULL) {
+  // note that this removes a physical from a physics manager.  this is safe
+  // because the physics manager doesn't keep PT's to physicals, simply *'s,
+  // and also means that we don't have to tell the physics manager ourselves
+  // when one of our physicals is dead.
+  if (_physics_manager != nullptr) {
     _physics_manager->remove_physical(this);
   }
 }
 
-////////////////////////////////////////////////////////////////////
-//    Function : get_objects
-//      Access : Public
-////////////////////////////////////////////////////////////////////
+/**
+
+ */
 const PhysicsObjectCollection Physical::
 get_objects() const{
   PhysicsObjectCollection poc;
@@ -133,12 +122,9 @@ get_objects() const{
   return poc;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function : output
-//       Access : Public
-//  Description : Write a string representation of this instance to
-//                <out>.
-////////////////////////////////////////////////////////////////////
+/**
+ * Write a string representation of this instance to <out>.
+ */
 void Physical::
 output(ostream &out) const {
   #ifndef NDEBUG //[
@@ -146,14 +132,11 @@ output(ostream &out) const {
   #endif //] NDEBUG
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function : write_physics_objects
-//       Access : Public
-//  Description : Write a string representation of this instance to
-//                <out>.
-////////////////////////////////////////////////////////////////////
+/**
+ * Write a string representation of this instance to <out>.
+ */
 void Physical::
-write_physics_objects(ostream &out, unsigned int indent) const {
+write_physics_objects(ostream &out, int indent) const {
   #ifndef NDEBUG //[
   out.width(indent);
   out<<""<<"_physics_objects ("<<_physics_objects.size()<<" objects)\n";
@@ -165,14 +148,11 @@ write_physics_objects(ostream &out, unsigned int indent) const {
   #endif //] NDEBUG
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function : write_linear_forces
-//       Access : Public
-//  Description : Write a string representation of this instance to
-//                <out>.
-////////////////////////////////////////////////////////////////////
+/**
+ * Write a string representation of this instance to <out>.
+ */
 void Physical::
-write_linear_forces(ostream &out, unsigned int indent) const {
+write_linear_forces(ostream &out, int indent) const {
   #ifndef NDEBUG //[
   out.width(indent);
   out<<""<<"_linear_forces ("<<_linear_forces.size()<<" forces)\n";
@@ -184,14 +164,11 @@ write_linear_forces(ostream &out, unsigned int indent) const {
   #endif //] NDEBUG
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function : write_angular_forces
-//       Access : Public
-//  Description : Write a string representation of this instance to
-//                <out>.
-////////////////////////////////////////////////////////////////////
+/**
+ * Write a string representation of this instance to <out>.
+ */
 void Physical::
-write_angular_forces(ostream &out, unsigned int indent) const {
+write_angular_forces(ostream &out, int indent) const {
   #ifndef NDEBUG //[
   out.width(indent);
   out<<""<<"_angular_forces ("<<_angular_forces.size()<<" forces)\n";
@@ -203,14 +180,11 @@ write_angular_forces(ostream &out, unsigned int indent) const {
   #endif //] NDEBUG
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function : write
-//       Access : Public
-//  Description : Write a string representation of this instance to
-//                <out>.
-////////////////////////////////////////////////////////////////////
+/**
+ * Write a string representation of this instance to <out>.
+ */
 void Physical::
-write(ostream &out, unsigned int indent) const {
+write(ostream &out, int indent) const {
   #ifndef NDEBUG //[
   out.width(indent); out<<""<<"Physical\n";
   write_physics_objects(out, indent+2);

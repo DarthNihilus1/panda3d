@@ -1,16 +1,15 @@
-// Filename: config_display.cxx
-// Created by:  drose (06Oct99)
-//
-////////////////////////////////////////////////////////////////////
-//
-// PANDA 3D SOFTWARE
-// Copyright (c) Carnegie Mellon University.  All rights reserved.
-//
-// All use of this software is subject to the terms of the revised BSD
-// license.  You should have received a copy of this license along
-// with this source code in a file named "LICENSE."
-//
-////////////////////////////////////////////////////////////////////
+/**
+ * PANDA 3D SOFTWARE
+ * Copyright (c) Carnegie Mellon University.  All rights reserved.
+ *
+ * All use of this software is subject to the terms of the revised BSD
+ * license.  You should have received a copy of this license along
+ * with this source code in a file named "LICENSE."
+ *
+ * @file config_display.cxx
+ * @author drose
+ * @date 1999-10-06
+ */
 
 #include "config_display.h"
 #include "callbackGraphicsWindow.h"
@@ -22,15 +21,21 @@
 #include "graphicsPipe.h"
 #include "graphicsOutput.h"
 #include "graphicsBuffer.h"
-#include "graphicsWindow.h"
 #include "graphicsDevice.h"
+#include "graphicsWindow.h"
+#include "graphicsWindowInputDevice.h"
 #include "graphicsWindowProcCallbackData.h"
+#include "mouseAndKeyboard.h"
 #include "nativeWindowHandle.h"
 #include "parasiteBuffer.h"
 #include "pandaSystem.h"
 #include "stereoDisplayRegion.h"
 #include "subprocessWindow.h"
 #include "windowHandle.h"
+
+#if !defined(CPPPARSER) && !defined(LINK_ALL_STATIC) && !defined(BUILDING_PANDA_DISPLAY)
+  #error Buildsystem error: BUILDING_PANDA_DISPLAY not defined
+#endif
 
 ConfigureDef(config_display);
 NotifyCategoryDef(display, "");
@@ -52,11 +57,10 @@ ConfigVariableBool pstats_unused_states
           "of per-frame overhead to count these things up."));
 
 
-// Warning!  The code that uses this is currently experimental and
-// incomplete, and will almost certainly crash!  Do not set
-// threading-model to anything other than its default of a
-// single-threaded model unless you are developing Panda's threading
-// system!
+// Warning!  The code that uses this is currently experimental and incomplete,
+// and will almost certainly crash!  Do not set threading-model to anything
+// other than its default of a single-threaded model unless you are developing
+// Panda's threading system!
 ConfigVariableString threading_model
 ("threading-model", "",
  PRC_DESC("This is the default threading model to use for new windows.  Use "
@@ -300,6 +304,15 @@ ConfigVariableBool allow_incomplete_render
           "geometry is always paged in immediately when needed, holding up "
           "the frame render if necessary."));
 
+ConfigVariableBool old_alpha_blend
+("old-alpha-blend", false,
+ PRC_DESC("Set this to true to enable the old alpha blending behavior from "
+          "Panda 1.9 in which the alpha value written out to the framebuffer "
+          "is squared.  The new behavior is more intuitive when compositing "
+          "an semitransparent image produced using render-to-texture.  You "
+          "should generally leave this false unless you have an effect that "
+          "relies on the old behavior, or you suspect an implementation bug."));
+
 ConfigVariableInt win_size
 ("win-size", "800 600",
  PRC_DESC("This is the default size at which to open a new window.  This "
@@ -314,6 +327,13 @@ ConfigVariableInt win_origin
 
 ConfigVariableBool fullscreen
 ("fullscreen", false);
+
+ConfigVariableBool maximized
+("maximized", false,
+ PRC_DESC("Start the window in a maximized state as handled by the window"
+          "manager.  In comparison to the fullscreen setting, this will"
+          "usually not remove the window decoration and not occupy the"
+          "whole screen space."));
 
 ConfigVariableBool undecorated
 ("undecorated", false,
@@ -465,23 +485,12 @@ ConfigVariableBool sync_video
           "cheesy estimate of scene complexity.  Some drivers may ignore "
           "this request."));
 
-ConfigVariableBool basic_shaders_only
-("basic-shaders-only", false,
- PRC_DESC("Set this to true if you aren't interested in shader model three "
-          "and beyond.  Setting this flag will cause panda to disable "
-          "bleeding-edge shader functionality which tends to be unreliable "
-          "or broken.  At some point, when functionality that is currently "
-          "flaky becomes reliable, we may expand the definition of what "
-          "constitutes 'basic' shaders."));
-
-////////////////////////////////////////////////////////////////////
-//     Function: init_libdisplay
-//  Description: Initializes the library.  This must be called at
-//               least once before any of the functions or classes in
-//               this library can be used.  Normally it will be
-//               called by the static initializers and need not be
-//               called explicitly, but special cases exist.
-////////////////////////////////////////////////////////////////////
+/**
+ * Initializes the library.  This must be called at least once before any of
+ * the functions or classes in this library can be used.  Normally it will be
+ * called by the static initializers and need not be called explicitly, but
+ * special cases exist.
+ */
 void
 init_libdisplay() {
   static bool initialized = false;
@@ -501,7 +510,9 @@ init_libdisplay() {
   GraphicsPipe::init_type();
   GraphicsStateGuardian::init_type();
   GraphicsWindow::init_type();
+  GraphicsWindowInputDevice::init_type();
   GraphicsWindowProcCallbackData::init_type();
+  MouseAndKeyboard::init_type();
   NativeWindowHandle::init_type();
   ParasiteBuffer::init_type();
   StandardMunger::init_type();

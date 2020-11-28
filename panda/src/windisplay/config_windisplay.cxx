@@ -1,21 +1,24 @@
-// Filename: config_windisplay.cxx
-// Created by:  drose (20Dec02)
-//
-////////////////////////////////////////////////////////////////////
-//
-// PANDA 3D SOFTWARE
-// Copyright (c) Carnegie Mellon University.  All rights reserved.
-//
-// All use of this software is subject to the terms of the revised BSD
-// license.  You should have received a copy of this license along
-// with this source code in a file named "LICENSE."
-//
-////////////////////////////////////////////////////////////////////
+/**
+ * PANDA 3D SOFTWARE
+ * Copyright (c) Carnegie Mellon University.  All rights reserved.
+ *
+ * All use of this software is subject to the terms of the revised BSD
+ * license.  You should have received a copy of this license along
+ * with this source code in a file named "LICENSE."
+ *
+ * @file config_windisplay.cxx
+ * @author drose
+ * @date 2002-12-20
+ */
 
 #include "config_windisplay.h"
 #include "winGraphicsPipe.h"
 #include "winGraphicsWindow.h"
 #include "dconfig.h"
+
+#if !defined(CPPPARSER) && !defined(LINK_ALL_STATIC) && !defined(BUILDING_PANDAWIN)
+  #error Buildsystem error: BUILDING_PANDAWIN not defined
+#endif
 
 Configure(config_windisplay);
 NotifyCategoryDef(windisplay, "display");
@@ -83,14 +86,24 @@ ConfigVariableBool swapbuffer_framelock
 ("swapbuffer-framelock", false,
  PRC_DESC("Set this true to enable HW swapbuffer frame-lock on 3dlabs cards"));
 
-////////////////////////////////////////////////////////////////////
-//     Function: init_libwindisplay
-//  Description: Initializes the library.  This must be called at
-//               least once before any of the functions or classes in
-//               this library can be used.  Normally it will be
-//               called by the static initializers and need not be
-//               called explicitly, but special cases exist.
-////////////////////////////////////////////////////////////////////
+ConfigVariableBool paste_emit_keystrokes
+("paste-emit-keystrokes", true,
+ PRC_DESC("Handle paste events (Ctrl-V) as separate keystroke events for each "
+          "pasted character."));
+
+ConfigVariableBool disable_message_loop
+("disable-message-loop", false,
+ PRC_DESC("If this is false, Panda will process messages from the Windows "
+          "message loop, which is required for normal operation.  You may set "
+          "this to true if some other UI framework (such as Tcl/Tk) needs "
+          "exclusive ownership of the message loop."));
+
+/**
+ * Initializes the library.  This must be called at least once before any of
+ * the functions or classes in this library can be used.  Normally it will be
+ * called by the static initializers and need not be called explicitly, but
+ * special cases exist.
+ */
 void
 init_libwindisplay() {
   static bool initialized = false;

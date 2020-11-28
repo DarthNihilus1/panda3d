@@ -1,33 +1,31 @@
-// Filename: wglGraphicsStateGuardian.cxx
-// Created by:  drose (27Jan03)
-//
-////////////////////////////////////////////////////////////////////
-//
-// PANDA 3D SOFTWARE
-// Copyright (c) Carnegie Mellon University.  All rights reserved.
-//
-// All use of this software is subject to the terms of the revised BSD
-// license.  You should have received a copy of this license along
-// with this source code in a file named "LICENSE."
-//
-////////////////////////////////////////////////////////////////////
+/**
+ * PANDA 3D SOFTWARE
+ * Copyright (c) Carnegie Mellon University.  All rights reserved.
+ *
+ * All use of this software is subject to the terms of the revised BSD
+ * license.  You should have received a copy of this license along
+ * with this source code in a file named "LICENSE."
+ *
+ * @file wglGraphicsStateGuardian.cxx
+ * @author drose
+ * @date 2003-01-27
+ */
 
 #include "wglGraphicsStateGuardian.h"
 #include "config_wgldisplay.h"
 #include "wglGraphicsBuffer.h"
 #include "wglGraphicsPipe.h"
 #include "string_utils.h"
+#include <atomic>
 
 TypeHandle wglGraphicsStateGuardian::_type_handle;
 
 const char * const wglGraphicsStateGuardian::_twindow_class_name = "wglGraphicsStateGuardian";
 bool wglGraphicsStateGuardian::_twindow_class_registered = false;
 
-////////////////////////////////////////////////////////////////////
-//     Function: wglGraphicsStateGuardian::Constructor
-//       Access: Public
-//  Description:
-////////////////////////////////////////////////////////////////////
+/**
+ *
+ */
 wglGraphicsStateGuardian::
 wglGraphicsStateGuardian(GraphicsEngine *engine, GraphicsPipe *pipe,
                          wglGraphicsStateGuardian *share_with) :
@@ -35,7 +33,7 @@ wglGraphicsStateGuardian(GraphicsEngine *engine, GraphicsPipe *pipe,
   _share_with(share_with)
 {
   _made_context = false;
-  _context = (HGLRC)NULL;
+  _context = (HGLRC)nullptr;
 
   _twindow = (HWND)0;
   _twindow_dc = (HDC)0;
@@ -49,44 +47,36 @@ wglGraphicsStateGuardian(GraphicsEngine *engine, GraphicsPipe *pipe,
   _supports_wgl_multisample = false;
   _supports_wgl_render_texture = false;
 
-  _wglCreateContextAttribsARB = NULL;
+  _wglCreateContextAttribsARB = nullptr;
 
   get_gamma_table();
-  atexit(atexit_function);
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: wglGraphicsStateGuardian::Destructor
-//       Access: Public
-//  Description:
-////////////////////////////////////////////////////////////////////
+/**
+ *
+ */
 wglGraphicsStateGuardian::
 ~wglGraphicsStateGuardian() {
   release_twindow();
-  if (_context != (HGLRC)NULL) {
+  if (_context != (HGLRC)nullptr) {
     wglDeleteContext(_context);
-    _context = (HGLRC)NULL;
+    _context = (HGLRC)nullptr;
   }
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: wglGraphicsStateGuardian::fail_pfnum
-//       Access: Public
-//  Description: This is called by wglGraphicsWindow when it finds it
-//               cannot use the pfnum determined by the GSG.  Assuming
-//               this pfnum corresponds to an "advanced" frame buffer
-//               determined by wglChoosePixelFormatARB, this asks the
-//               GSG to swap out that pfnum for the earlier,
-//               "preliminary" pfnum determined via
-//               DescribePixelFormat().
-//
-//               This is a one-way operation.  Once called, you can
-//               never go back to the advanced pfnum.
-//
-//               This method returns true if a change was successfully
-//               made, or false if there was no second tier to fall
-//               back to.
-////////////////////////////////////////////////////////////////////
+/**
+ * This is called by wglGraphicsWindow when it finds it cannot use the pfnum
+ * determined by the GSG.  Assuming this pfnum corresponds to an "advanced"
+ * frame buffer determined by wglChoosePixelFormatARB, this asks the GSG to
+ * swap out that pfnum for the earlier, "preliminary" pfnum determined via
+ * DescribePixelFormat().
+ *
+ * This is a one-way operation.  Once called, you can never go back to the
+ * advanced pfnum.
+ *
+ * This method returns true if a change was successfully made, or false if
+ * there was no second tier to fall back to.
+ */
 bool wglGraphicsStateGuardian::
 fail_pfnum() {
   if (_pfnum == _pre_pfnum) {
@@ -99,12 +89,10 @@ fail_pfnum() {
   return true;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: wglGraphicsStateGuardian::get_properties
-//       Access: Private
-//  Description: Gets the FrameBufferProperties to match the
-//               indicated pixel format descriptor.
-////////////////////////////////////////////////////////////////////
+/**
+ * Gets the FrameBufferProperties to match the indicated pixel format
+ * descriptor.
+ */
 void wglGraphicsStateGuardian::
 get_properties(FrameBufferProperties &properties, HDC hdc, int pfnum) {
 
@@ -120,8 +108,8 @@ get_properties(FrameBufferProperties &properties, HDC hdc, int pfnum) {
 
   if (((pfd.dwFlags & PFD_SUPPORT_OPENGL) == 0)||
       ((pfd.dwFlags & PFD_DRAW_TO_WINDOW) == 0)) {
-    // Return without setting either RGB or Indexed Color.
-    // This indicates a window that can't do anything at all.
+    // Return without setting either RGB or Indexed Color.  This indicates a
+    // window that can't do anything at all.
     return;
   }
 
@@ -135,7 +123,6 @@ get_properties(FrameBufferProperties &properties, HDC hdc, int pfnum) {
                              pfd.cBlueBits, pfd.cAlphaBits);
   }
 
-  int mode = 0;
   if (pfd.dwFlags & PFD_DOUBLEBUFFER) {
     properties.set_back_buffers(1);
   }
@@ -158,13 +145,10 @@ get_properties(FrameBufferProperties &properties, HDC hdc, int pfnum) {
   // The basic API doesn't do accum or multisample.
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: wglGraphicsStateGuardian::get_properties_advanced
-//       Access: Private
-//  Description: Gets the FrameBufferProperties to match the
-//               indicated pixel format descriptor, using the WGL
-//               extensions.
-////////////////////////////////////////////////////////////////////
+/**
+ * Gets the FrameBufferProperties to match the indicated pixel format
+ * descriptor, using the WGL extensions.
+ */
 bool wglGraphicsStateGuardian::
 get_properties_advanced(FrameBufferProperties &properties,
                         HDC window_dc, int pfnum) {
@@ -208,7 +192,6 @@ get_properties_advanced(FrameBufferProperties &properties,
   properties.clear();
   properties.set_all_specified();
 
-  int frame_buffer_mode = 0;
   if (ivalue_list[acceleration_i] == WGL_NO_ACCELERATION_ARB) {
     properties.set_force_software(true);
   } else {
@@ -225,6 +208,10 @@ get_properties_advanced(FrameBufferProperties &properties,
                              ivalue_list[green_bits_i],
                              ivalue_list[blue_bits_i],
                              ivalue_list[alpha_bits_i]);
+
+    if (ivalue_list[pixel_type_i] == WGL_TYPE_RGBA_FLOAT_ARB) {
+      properties.set_float_color(true);
+    }
   }
 
   if (ivalue_list[double_buffer_i]) {
@@ -260,20 +247,16 @@ get_properties_advanced(FrameBufferProperties &properties,
   return true;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: wglGraphicsStateGuardian::choose_pixel_format
-//       Access: Private
-//  Description: Selects a pixel format for all the windows and
-//               buffers that use this gsg.
-////////////////////////////////////////////////////////////////////
+/**
+ * Selects a pixel format for all the windows and buffers that use this gsg.
+ */
 void wglGraphicsStateGuardian::
 choose_pixel_format(const FrameBufferProperties &properties,
                     bool need_pbuffer) {
 
-  //// Choose best format available using DescribePixelFormat.
-  //
-  // In the process, we need a DC to examine the available
-  // pixel formats.  We'll use the screen DC.
+  // Choose best format available using DescribePixelFormat.  In the process,
+  // we need a DC to examine the available pixel formats.  We'll use the
+  // screen DC.
 
   if (gl_force_pixfmt.has_value()) {
     wgldisplay_cat.info()
@@ -289,9 +272,9 @@ choose_pixel_format(const FrameBufferProperties &properties,
   int  best_quality = 0;
   FrameBufferProperties best_prop;
 
-  HDC hdc = GetDC(NULL);
+  HDC hdc = GetDC(nullptr);
 
-  int max_pfnum = DescribePixelFormat(hdc, 1, 0, NULL);
+  int max_pfnum = DescribePixelFormat(hdc, 1, 0, nullptr);
 
   for (int pfnum = 0; pfnum<max_pfnum; ++pfnum) {
     FrameBufferProperties pfprop;
@@ -304,7 +287,7 @@ choose_pixel_format(const FrameBufferProperties &properties,
     }
   }
 
-  ReleaseDC(NULL, hdc);
+  ReleaseDC(nullptr, hdc);
 
   _pfnum = best_pfnum;
   _pfnum_supports_pbuffer = false;
@@ -324,13 +307,11 @@ choose_pixel_format(const FrameBufferProperties &properties,
       << _pfnum_properties << "\n";
   }
 
-  //// See whether or not the wgl extensions are available.
-  //
-  // This routine is called before "reset".  So the extensions
-  // list is empty.  We need to create a twindow, make it current,
-  // fetch the extensions temporarily, get the few extensions
-  // we need, then clear the extensions list again in preparation
-  // for the reset.
+  // See whether or not the wgl extensions are available.  This routine is
+  // called before "reset".  So the extensions list is empty.  We need to
+  // create a twindow, make it current, fetch the extensions temporarily, get
+  // the few extensions we need, then clear the extensions list again in
+  // preparation for the reset.
 
   HDC twindow_dc = get_twindow_dc();
   if (twindow_dc == 0) {
@@ -342,7 +323,12 @@ choose_pixel_format(const FrameBufferProperties &properties,
     return;
   }
 
-  wglGraphicsPipe::wgl_make_current(twindow_dc, twindow_ctx, NULL);
+  if (!wglGraphicsPipe::wgl_make_current(twindow_dc, twindow_ctx, nullptr)) {
+    wgldisplay_cat.error()
+      << "Failed to make WGL context current.\n";
+    wglDeleteContext(twindow_ctx);
+    return;
+  }
 
   _extensions.clear();
   save_extensions((const char *)GLP(GetString)(GL_EXTENSIONS));
@@ -354,7 +340,7 @@ choose_pixel_format(const FrameBufferProperties &properties,
     _wglCreateContextAttribsARB =
       (PFNWGLCREATECONTEXTATTRIBSARBPROC)wglGetProcAddress("wglCreateContextAttribsARB");
   } else {
-    _wglCreateContextAttribsARB = NULL;
+    _wglCreateContextAttribsARB = nullptr;
   }
 
   _extensions.clear();
@@ -371,17 +357,16 @@ choose_pixel_format(const FrameBufferProperties &properties,
   _wglChoosePixelFormatARB =
     (PFNWGLCHOOSEPIXELFORMATARBPROC)wglGetProcAddress("wglChoosePixelFormatARB");
 
-  if (_wglGetPixelFormatAttribivARB == NULL ||
-      _wglGetPixelFormatAttribfvARB == NULL ||
-      _wglChoosePixelFormatARB == NULL) {
+  if (_wglGetPixelFormatAttribivARB == nullptr ||
+      _wglGetPixelFormatAttribfvARB == nullptr ||
+      _wglChoosePixelFormatARB == nullptr) {
     wgldisplay_cat.error()
       << "Driver claims to support WGL_ARB_pixel_format extension, but does not define all functions.\n";
     wglDeleteContext(twindow_ctx);
     return;
   }
 
-  //// Use the wgl extensions to find a better format.
-  //
+  // Use the wgl extensions to find a better format.
 
   static const int max_attrib_list = 64;
   int iattrib_list[max_attrib_list];
@@ -391,8 +376,11 @@ choose_pixel_format(const FrameBufferProperties &properties,
 
   iattrib_list[ni++] = WGL_SUPPORT_OPENGL_ARB;
   iattrib_list[ni++] = true;
-  iattrib_list[ni++] = WGL_PIXEL_TYPE_ARB;
-  iattrib_list[ni++] = WGL_TYPE_RGBA_ARB;
+
+  if (!properties.get_float_color()) {
+    iattrib_list[ni++] = WGL_PIXEL_TYPE_ARB;
+    iattrib_list[ni++] = WGL_TYPE_RGBA_ARB;
+  }
 
   if (need_pbuffer) {
     iattrib_list[ni++] = WGL_DRAW_TO_PBUFFER_ARB;
@@ -419,7 +407,7 @@ choose_pixel_format(const FrameBufferProperties &properties,
                                 max_pformats, pformat, (unsigned int *)&nformats)) {
     nformats = 0;
   }
-  nformats = min(nformats, max_pformats);
+  nformats = std::min(nformats, max_pformats);
 
   if (wgldisplay_cat.is_debug()) {
     wgldisplay_cat.debug()
@@ -468,12 +456,9 @@ choose_pixel_format(const FrameBufferProperties &properties,
   release_twindow();
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: wglGraphicsStateGuardian::reset
-//       Access: Public, Virtual
-//  Description: Resets all internal state as if the gsg were newly
-//               created.
-////////////////////////////////////////////////////////////////////
+/**
+ * Resets all internal state as if the gsg were newly created.
+ */
 void wglGraphicsStateGuardian::
 reset() {
   GLGraphicsStateGuardian::reset();
@@ -483,7 +468,7 @@ reset() {
   if (_supports_swap_control) {
     _wglSwapIntervalEXT =
       (PFNWGLSWAPINTERVALEXTPROC)wglGetProcAddress("wglSwapIntervalEXT");
-    if (_wglSwapIntervalEXT == NULL) {
+    if (_wglSwapIntervalEXT == nullptr) {
       wgldisplay_cat.error()
         << "Driver claims to support WGL_EXT_swap_control extension, but does not define all functions.\n";
       _supports_swap_control = false;
@@ -491,8 +476,8 @@ reset() {
   }
 
   if (_supports_swap_control) {
-    // Set the video-sync setting up front, if we have the extension
-    // that supports it.
+    // Set the video-sync setting up front, if we have the extension that
+    // supports it.
     _wglSwapIntervalEXT(sync_video ? 1 : 0);
   }
 
@@ -510,11 +495,11 @@ reset() {
     _wglQueryPbufferARB =
       (PFNWGLQUERYPBUFFERARBPROC)wglGetProcAddress("wglQueryPbufferARB");
 
-    if (_wglCreatePbufferARB == NULL ||
-        _wglGetPbufferDCARB == NULL ||
-        _wglReleasePbufferDCARB == NULL ||
-        _wglDestroyPbufferARB == NULL ||
-        _wglQueryPbufferARB == NULL) {
+    if (_wglCreatePbufferARB == nullptr ||
+        _wglGetPbufferDCARB == nullptr ||
+        _wglReleasePbufferDCARB == nullptr ||
+        _wglDestroyPbufferARB == nullptr ||
+        _wglQueryPbufferARB == nullptr) {
       wgldisplay_cat.error()
         << "Driver claims to support WGL_ARB_pbuffer extension, but does not define all functions.\n";
       _supports_pbuffer = false;
@@ -531,9 +516,9 @@ reset() {
     _wglChoosePixelFormatARB =
       (PFNWGLCHOOSEPIXELFORMATARBPROC)wglGetProcAddress("wglChoosePixelFormatARB");
 
-    if (_wglGetPixelFormatAttribivARB == NULL ||
-        _wglGetPixelFormatAttribfvARB == NULL ||
-        _wglChoosePixelFormatARB == NULL) {
+    if (_wglGetPixelFormatAttribivARB == nullptr ||
+        _wglGetPixelFormatAttribfvARB == nullptr ||
+        _wglChoosePixelFormatARB == nullptr) {
       wgldisplay_cat.error()
         << "Driver claims to support WGL_ARB_pixel_format extension, but does not define all functions.\n";
       _supports_pixel_format = false;
@@ -551,9 +536,9 @@ reset() {
       (PFNWGLRELEASETEXIMAGEARBPROC)wglGetProcAddress("wglReleaseTexImageARB");
     _wglSetPbufferAttribARB =
       (PFNWGLSETPBUFFERATTRIBARBPROC)wglGetProcAddress("wglSetPbufferAttribARB");
-    if (_wglBindTexImageARB == NULL ||
-        _wglReleaseTexImageARB == NULL ||
-        _wglSetPbufferAttribARB == NULL) {
+    if (_wglBindTexImageARB == nullptr ||
+        _wglReleaseTexImageARB == nullptr ||
+        _wglSetPbufferAttribARB == nullptr) {
       wgldisplay_cat.error()
         << "Driver claims to support WGL_ARB_render_texture, but does not define all functions.\n";
       _supports_wgl_render_texture = false;
@@ -561,24 +546,21 @@ reset() {
   }
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: wglGraphicsStateGuardian::get_extra_extensions
-//       Access: Protected, Virtual
-//  Description: This may be redefined by a derived class (e.g. glx or
-//               wgl) to get whatever further extensions strings may
-//               be appropriate to that interface, in addition to the
-//               GL extension strings return by glGetString().
-////////////////////////////////////////////////////////////////////
+/**
+ * This may be redefined by a derived class (e.g.  glx or wgl) to get whatever
+ * further extensions strings may be appropriate to that interface, in
+ * addition to the GL extension strings return by glGetString().
+ */
 void wglGraphicsStateGuardian::
 get_extra_extensions() {
-  // This is a little bit tricky, since the query function is itself
-  // an extension.
+  // This is a little bit tricky, since the query function is itself an
+  // extension.
 
-  // Look for the ARB flavor first, which wants one parameter, the HDC
-  // of the drawing context.
+  // Look for the ARB flavor first, which wants one parameter, the HDC of the
+  // drawing context.
   PFNWGLGETEXTENSIONSSTRINGARBPROC wglGetExtensionsStringARB =
     (PFNWGLGETEXTENSIONSSTRINGARBPROC)wglGetProcAddress("wglGetExtensionsStringARB");
-  if (wglGetExtensionsStringARB != NULL) {
+  if (wglGetExtensionsStringARB != nullptr) {
     HDC hdc = wglGetCurrentDC();
     if (hdc != 0) {
       save_extensions((const char *)wglGetExtensionsStringARB(hdc));
@@ -586,37 +568,29 @@ get_extra_extensions() {
     }
   }
 
-  // If that failed, look for the EXT flavor, which wants no
-  // parameters.
+  // If that failed, look for the EXT flavor, which wants no parameters.
   PFNWGLGETEXTENSIONSSTRINGEXTPROC wglGetExtensionsStringEXT =
     (PFNWGLGETEXTENSIONSSTRINGEXTPROC)wglGetProcAddress("wglGetExtensionsStringEXT");
-  if (wglGetExtensionsStringEXT != NULL) {
+  if (wglGetExtensionsStringEXT != nullptr) {
     save_extensions((const char *)wglGetExtensionsStringEXT());
   }
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: wglGraphicsStateGuardian::do_get_extension_func
-//       Access: Public, Virtual
-//  Description: Returns the pointer to the GL extension function with
-//               the indicated name.  It is the responsibility of the
-//               caller to ensure that the required extension is
-//               defined in the OpenGL runtime prior to calling this;
-//               it is an error to call this for a function that is
-//               not defined.
-////////////////////////////////////////////////////////////////////
+/**
+ * Returns the pointer to the GL extension function with the indicated name.
+ * It is the responsibility of the caller to ensure that the required
+ * extension is defined in the OpenGL runtime prior to calling this; it is an
+ * error to call this for a function that is not defined.
+ */
 void *wglGraphicsStateGuardian::
 do_get_extension_func(const char *name) {
   return (void*) wglGetProcAddress(name);
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: wglGraphicsStateGuardian::make_context
-//       Access: Private
-//  Description: Creates a suitable context for rendering into the
-//               given window.  This should only be called from the
-//               draw thread.
-////////////////////////////////////////////////////////////////////
+/**
+ * Creates a suitable context for rendering into the given window.  This
+ * should only be called from the draw thread.
+ */
 void wglGraphicsStateGuardian::
 make_context(HDC hdc) {
   // We should only call this once for a particular GSG.
@@ -627,12 +601,12 @@ make_context(HDC hdc) {
   // Attempt to create a context.
   wglGraphicsPipe::_current_valid = false;
 
-  if (_wglCreateContextAttribsARB != NULL) {
-    // We have a fancier version of wglCreateContext that allows us
-    // to specify what kind of OpenGL context we would like.
+  if (_wglCreateContextAttribsARB != nullptr) {
+    // We have a fancier version of wglCreateContext that allows us to specify
+    // what kind of OpenGL context we would like.
     int attrib_list[32];
     int n = 0;
-    attrib_list[0] = NULL;
+    attrib_list[0] = 0;
 
     if (gl_version.get_num_words() > 0) {
       attrib_list[n++] = WGL_CONTEXT_MAJOR_VERSION_ARB;
@@ -642,22 +616,33 @@ make_context(HDC hdc) {
         attrib_list[n++] = gl_version[1];
       }
     }
+    int flags = 0;
     if (gl_debug) {
+      flags |= WGL_CONTEXT_DEBUG_BIT_ARB;
+    }
+    if (gl_forward_compatible) {
+      flags |= WGL_CONTEXT_FORWARD_COMPATIBLE_BIT_ARB;
+      if (gl_version.get_num_words() == 0 || gl_version[0] < 2) {
+        wgldisplay_cat.error()
+          << "gl-forward-compatible requires gl-version >= 3 0\n";
+      }
+    }
+    if (flags != 0) {
       attrib_list[n++] = WGL_CONTEXT_FLAGS_ARB;
-      attrib_list[n++] = WGL_CONTEXT_DEBUG_BIT_ARB;
+      attrib_list[n++] = flags;
     }
 #ifndef SUPPORT_FIXED_FUNCTION
     attrib_list[n++] = WGL_CONTEXT_PROFILE_MASK_ARB;
     attrib_list[n++] = WGL_CONTEXT_CORE_PROFILE_BIT_ARB;
 #endif
-    attrib_list[n] = NULL;
+    attrib_list[n] = 0;
 
     _context = _wglCreateContextAttribsARB(hdc, 0, attrib_list);
   } else {
     _context = wglCreateContext(hdc);
   }
 
-  if (_context == NULL) {
+  if (_context == nullptr) {
     wgldisplay_cat.error()
       << "Could not create GL context.\n";
     _is_valid = false;
@@ -665,85 +650,72 @@ make_context(HDC hdc) {
   }
 
   // Now share texture context with the indicated GSG.
-  if (_share_with != (wglGraphicsStateGuardian *)NULL) {
+  if (_share_with != nullptr) {
     HGLRC share_context = _share_with->get_share_context();
-    if (share_context == NULL) {
-      // Whoops, the target context hasn't yet made its own context.
-      // In that case, it will share context with us.
+    if (share_context == nullptr) {
+      // Whoops, the target context hasn't yet made its own context.  In that
+      // case, it will share context with us.
       _share_with->redirect_share_pool(this);
 
     } else {
       if (!wglShareLists(share_context, _context)) {
         wgldisplay_cat.error()
           << "Could not share texture contexts between wglGraphicsStateGuardians.\n";
-        // Too bad we couldn't detect this error sooner.  Now there's
-        // really no way to tell the application it's hosed.
-	_is_valid = false;
+        // Too bad we couldn't detect this error sooner.  Now there's really
+        // no way to tell the application it's hosed.
+  _is_valid = false;
 
       } else {
         _prepared_objects = _share_with->get_prepared_objects();
       }
     }
 
-    _share_with = (wglGraphicsStateGuardian *)NULL;
+    _share_with = nullptr;
   }
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: wglGraphicsStateGuardian::get_share_context
-//       Access: Private
-//  Description: Returns a wgl context handle for the purpose of
-//               sharing texture context with this GSG.  This will
-//               either be the GSG's own context handle, if it exists
-//               yet, or the context handle of some other GSG that
-//               this GSG is planning to share with.  If this returns
-//               NULL, none of the GSG's in this share pool have yet
-//               created their context.
-////////////////////////////////////////////////////////////////////
+/**
+ * Returns a wgl context handle for the purpose of sharing texture context
+ * with this GSG.  This will either be the GSG's own context handle, if it
+ * exists yet, or the context handle of some other GSG that this GSG is
+ * planning to share with.  If this returns NULL, none of the GSG's in this
+ * share pool have yet created their context.
+ */
 HGLRC wglGraphicsStateGuardian::
 get_share_context() const {
   if (_made_context) {
     return _context;
   }
-  if (_share_with != (wglGraphicsStateGuardian *)NULL) {
+  if (_share_with != nullptr) {
     return _share_with->get_share_context();
   }
-  return NULL;
+  return nullptr;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: wglGraphicsStateGuardian::redirect_share_pool
-//       Access: Private
-//  Description: Directs the GSG (along with all GSG's it is planning
-//               to share a texture context with) to share texture
-//               context with the indicated GSG.
-//
-//               This assumes that this GSG's context has not yet been
-//               created, and neither have any of the GSG's it is
-//               planning to share texture context with; but the
-//               graphics context for the indicated GSG has already
-//               been created.
-////////////////////////////////////////////////////////////////////
+/**
+ * Directs the GSG (along with all GSG's it is planning to share a texture
+ * context with) to share texture context with the indicated GSG.
+ *
+ * This assumes that this GSG's context has not yet been created, and neither
+ * have any of the GSG's it is planning to share texture context with; but the
+ * graphics context for the indicated GSG has already been created.
+ */
 void wglGraphicsStateGuardian::
 redirect_share_pool(wglGraphicsStateGuardian *share_with) {
   nassertv(!_made_context);
-  if (_share_with != (wglGraphicsStateGuardian *)NULL) {
+  if (_share_with != nullptr) {
     _share_with->redirect_share_pool(share_with);
   } else {
     _share_with = share_with;
   }
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: wglGraphicsStateGuardian::make_twindow
-//       Access: Private
-//  Description: Creates an invisible window to associate with the GL
-//               context, even if we are not going to use it.  This is
-//               necessary because in the Windows OpenGL API, we have
-//               to create window before we can create a GL
-//               context--even before we can ask about what GL
-//               extensions are available!
-////////////////////////////////////////////////////////////////////
+/**
+ * Creates an invisible window to associate with the GL context, even if we
+ * are not going to use it.  This is necessary because in the Windows OpenGL
+ * API, we have to create window before we can create a GL context--even
+ * before we can ask about what GL extensions are available!
+ */
 bool wglGraphicsStateGuardian::
 make_twindow() {
   release_twindow();
@@ -751,13 +723,13 @@ make_twindow() {
   DWORD window_style = 0;
 
   register_twindow_class();
-  HINSTANCE hinstance = GetModuleHandle(NULL);
+  HINSTANCE hinstance = GetModuleHandle(nullptr);
   _twindow = CreateWindow(_twindow_class_name, "twindow", window_style,
-                          0, 0, 1, 1, NULL, NULL, hinstance, 0);
+                          0, 0, 1, 1, nullptr, nullptr, hinstance, 0);
 
   if (!_twindow) {
     wgldisplay_cat.error()
-      << "CreateWindow() failed!" << endl;
+      << "CreateWindow() failed!" << std::endl;
     return false;
   }
 
@@ -776,13 +748,10 @@ make_twindow() {
   return true;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: wglGraphicsStateGuardian::release_twindow
-//       Access: Private
-//  Description: Closes and frees the resources associated with the
-//               temporary window created by a previous call to
-//               make_twindow().
-////////////////////////////////////////////////////////////////////
+/**
+ * Closes and frees the resources associated with the temporary window created
+ * by a previous call to make_twindow().
+ */
 void wglGraphicsStateGuardian::
 release_twindow() {
   if (_twindow_dc) {
@@ -795,13 +764,10 @@ release_twindow() {
   }
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: wglGraphicsStateGuardian::register_twindow_class
-//       Access: Private, Static
-//  Description: Registers a Window class for the twindow created by
-//               all wglGraphicsPipes.  This only needs to be done
-//               once per session.
-////////////////////////////////////////////////////////////////////
+/**
+ * Registers a Window class for the twindow created by all wglGraphicsPipes.
+ * This only needs to be done once per session.
+ */
 void wglGraphicsStateGuardian::
 register_twindow_class() {
   if (_twindow_class_registered) {
@@ -810,7 +776,7 @@ register_twindow_class() {
 
   WNDCLASS wc;
 
-  HINSTANCE instance = GetModuleHandle(NULL);
+  HINSTANCE instance = GetModuleHandle(nullptr);
 
   // Clear before filling in window structure!
   ZeroMemory(&wc, sizeof(WNDCLASS));
@@ -821,7 +787,7 @@ register_twindow_class() {
 
   if (!RegisterClass(&wc)) {
     wgldisplay_cat.error()
-      << "could not register window class!" << endl;
+      << "could not register window class!" << std::endl;
     return;
   }
   _twindow_class_registered = true;
@@ -830,9 +796,9 @@ register_twindow_class() {
 #define GAMMA_1 (255.0 * 256.0)
 
 static bool _gamma_table_initialized = false;
-static unsigned short _orignial_gamma_table [256 * 3];
+static unsigned short _original_gamma_table [256 * 3];
 
-void _create_gamma_table (PN_stdfloat gamma, unsigned short *original_red_table, unsigned short *original_green_table, unsigned short *original_blue_table, unsigned short *red_table, unsigned short *green_table, unsigned short *blue_table) {
+void _create_gamma_table_wgl (PN_stdfloat gamma, unsigned short *original_red_table, unsigned short *original_green_table, unsigned short *original_blue_table, unsigned short *red_table, unsigned short *green_table, unsigned short *blue_table) {
   int i;
   double gamma_correction;
 
@@ -882,70 +848,68 @@ void _create_gamma_table (PN_stdfloat gamma, unsigned short *original_red_table,
   }
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: wglGraphicsStateGuardian::get_gamma_table
-//       Access: Public, Static
-//  Description: Static function for getting the original gamma.
-////////////////////////////////////////////////////////////////////
+/**
+ * Static function for getting the original gamma.
+ */
 bool wglGraphicsStateGuardian::
 get_gamma_table(void) {
   bool get;
 
   get = false;
   if (_gamma_table_initialized == false) {
-    HDC hdc = GetDC(NULL);
+    HDC hdc = GetDC(nullptr);
 
     if (hdc) {
-      if (GetDeviceGammaRamp (hdc, (LPVOID) _orignial_gamma_table)) {
+      if (GetDeviceGammaRamp (hdc, (LPVOID) _original_gamma_table)) {
         _gamma_table_initialized = true;
         get = true;
       }
 
-      ReleaseDC (NULL, hdc);
+      ReleaseDC (nullptr, hdc);
     }
   }
 
   return get;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: wglGraphicsStateGuardian::static_set_gamma
-//       Access: Public, Static
-//  Description: Static function for setting gamma which is needed
-//               for atexit.
-////////////////////////////////////////////////////////////////////
+/**
+ * Static function for setting gamma which is needed for atexit.
+ */
 bool wglGraphicsStateGuardian::
 static_set_gamma(bool restore, PN_stdfloat gamma) {
   bool set;
-  HDC hdc = GetDC(NULL);
+  HDC hdc = GetDC(nullptr);
 
   set = false;
   if (hdc) {
     unsigned short ramp [256 * 3];
 
     if (restore && _gamma_table_initialized) {
-      _create_gamma_table (gamma, &_orignial_gamma_table [0], &_orignial_gamma_table [256], &_orignial_gamma_table [512], &ramp [0], &ramp [256], &ramp [512]);
+      _create_gamma_table_wgl (gamma, &_original_gamma_table [0], &_original_gamma_table [256], &_original_gamma_table [512], &ramp [0], &ramp [256], &ramp [512]);
     }
     else {
-      _create_gamma_table (gamma, 0, 0, 0, &ramp [0], &ramp [256], &ramp [512]);
+      _create_gamma_table_wgl (gamma, 0, 0, 0, &ramp [0], &ramp [256], &ramp [512]);
     }
 
     if (SetDeviceGammaRamp (hdc, ramp)) {
       set = true;
+
+      // Register an atexit handler
+      static std::atomic_flag gamma_modified = ATOMIC_FLAG_INIT;
+      if (!gamma_modified.test_and_set()) {
+        atexit(atexit_function);
+      }
     }
 
-    ReleaseDC (NULL, hdc);
+    ReleaseDC (nullptr, hdc);
   }
 
   return set;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: wglGraphicsStateGuardian::set_gamma
-//       Access: Published
-//  Description: Non static version of setting gamma.  Returns true
-//               on success.
-////////////////////////////////////////////////////////////////////
+/**
+ * Non static version of setting gamma.  Returns true on success.
+ */
 bool wglGraphicsStateGuardian::
 set_gamma(PN_stdfloat gamma) {
   bool set;
@@ -958,21 +922,17 @@ set_gamma(PN_stdfloat gamma) {
   return set;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: wglGraphicsStateGuardian::restore_gamma
-//       Access: Published
-//  Description: Restore original gamma.
-////////////////////////////////////////////////////////////////////
+/**
+ * Restore original gamma.
+ */
 void wglGraphicsStateGuardian::
 restore_gamma() {
   static_set_gamma(true, 1.0f);
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: wglGraphicsStateGuardian::atexit_function
-//       Access: Public, Static
-//  Description: This function is passed to the atexit function.
-////////////////////////////////////////////////////////////////////
+/**
+ * This function is passed to the atexit function.
+ */
 void wglGraphicsStateGuardian::
 atexit_function(void) {
   static_set_gamma(true, 1.0);

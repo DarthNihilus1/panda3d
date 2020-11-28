@@ -24,6 +24,9 @@ int pixel_count_smooth_multitex2;
 int pixel_count_smooth_multitex3;
 #endif  // DO_PSTATS
 
+using std::max;
+using std::min;
+
 ZBuffer *
 ZB_open(int xsize, int ysize, int mode,
         int nb_colors,
@@ -34,8 +37,8 @@ ZB_open(int xsize, int ysize, int mode,
   int size;
 
   zb = (ZBuffer *)gl_malloc(sizeof(ZBuffer));
-  if (zb == NULL)
-    return NULL;
+  if (zb == nullptr)
+    return nullptr;
   memset(zb, 0, sizeof(ZBuffer));
 
   /* xsize must be a multiple of 4 */
@@ -68,12 +71,12 @@ ZB_open(int xsize, int ysize, int mode,
   size = zb->xsize * zb->ysize * sizeof(ZPOINT);
 
   zb->zbuf = (ZPOINT *)gl_malloc(size);
-  if (zb->zbuf == NULL)
+  if (zb->zbuf == nullptr)
     goto error;
 
-  if (frame_buffer == NULL) {
+  if (frame_buffer == nullptr) {
     zb->pbuf = (PIXEL *)gl_malloc(zb->ysize * zb->linesize);
-    if (zb->pbuf == NULL) {
+    if (zb->pbuf == nullptr) {
       gl_free(zb->zbuf);
       goto error;
     }
@@ -86,7 +89,7 @@ ZB_open(int xsize, int ysize, int mode,
   return zb;
  error:
   gl_free(zb);
-  return NULL;
+  return nullptr;
 }
 
 void
@@ -107,7 +110,7 @@ void
 ZB_resize(ZBuffer * zb, void *frame_buffer, int xsize, int ysize) {
   int size;
 
-  nassertv(zb != NULL);
+  nassertv(zb != nullptr);
 
   /* xsize must be a multiple of 4 */
   xsize = (xsize + 3) & ~3;
@@ -123,7 +126,7 @@ ZB_resize(ZBuffer * zb, void *frame_buffer, int xsize, int ysize) {
   if (zb->frame_buffer_allocated)
     gl_free(zb->pbuf);
 
-  if (frame_buffer == NULL) {
+  if (frame_buffer == nullptr) {
     zb->pbuf = (PIXEL *)gl_malloc(zb->ysize * zb->linesize);
     zb->frame_buffer_allocated = 1;
   } else {
@@ -489,11 +492,11 @@ lookup_texture_mipmap_linear(ZTextureDef *texture_def, int s, int t, unsigned in
   level = max((int)level - 1, 0);
   p2 = ZB_LOOKUP_TEXTURE_MIPMAP_NEAREST(texture_def, s, t, level);
 
-  unsigned int bitsize = level + ZB_POINT_ST_FRAC_BITS;
-  r = LINEAR_FILTER_BITSIZE(PIXEL_R(p2), PIXEL_R(p1), level_dx, bitsize);
-  g = LINEAR_FILTER_BITSIZE(PIXEL_G(p2), PIXEL_G(p1), level_dx, bitsize);
-  b = LINEAR_FILTER_BITSIZE(PIXEL_B(p2), PIXEL_B(p1), level_dx, bitsize);
-  a = LINEAR_FILTER_BITSIZE(PIXEL_A(p2), PIXEL_A(p1), level_dx, bitsize);
+  unsigned int f = level_dx >> (level - 1);
+  r = LINEAR_FILTER(PIXEL_R(p1), PIXEL_R(p2), f);
+  g = LINEAR_FILTER(PIXEL_G(p1), PIXEL_G(p2), f);
+  b = LINEAR_FILTER(PIXEL_B(p1), PIXEL_B(p2), f);
+  a = LINEAR_FILTER(PIXEL_A(p1), PIXEL_A(p2), f);
 
   return RGBA_TO_PIXEL(r, g, b, a);
 }
@@ -570,11 +573,11 @@ lookup_texture_mipmap_trilinear(ZTextureDef *texture_def, int s, int t, unsigned
   }
 
   int r, g, b, a;
-  unsigned int bitsize = level + ZB_POINT_ST_FRAC_BITS;
-  r = LINEAR_FILTER_BITSIZE(PIXEL_R(p2a), PIXEL_R(p1a), level_dx, bitsize);
-  g = LINEAR_FILTER_BITSIZE(PIXEL_G(p2a), PIXEL_G(p1a), level_dx, bitsize);
-  b = LINEAR_FILTER_BITSIZE(PIXEL_B(p2a), PIXEL_B(p1a), level_dx, bitsize);
-  a = LINEAR_FILTER_BITSIZE(PIXEL_A(p2a), PIXEL_A(p1a), level_dx, bitsize);
+  unsigned int f = level_dx >> (level - 1);
+  r = LINEAR_FILTER(PIXEL_R(p1a), PIXEL_R(p2a), f);
+  g = LINEAR_FILTER(PIXEL_G(p1a), PIXEL_G(p2a), f);
+  b = LINEAR_FILTER(PIXEL_B(p1a), PIXEL_B(p2a), f);
+  a = LINEAR_FILTER(PIXEL_A(p1a), PIXEL_A(p2a), f);
 
   return RGBA_TO_PIXEL(r, g, b, a);
 }

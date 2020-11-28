@@ -1,16 +1,15 @@
-// Filename: fake_http_server.cxx
-// Created by:  drose (10Dec02)
-//
-////////////////////////////////////////////////////////////////////
-//
-// PANDA 3D SOFTWARE
-// Copyright (c) Carnegie Mellon University.  All rights reserved.
-//
-// All use of this software is subject to the terms of the revised BSD
-// license.  You should have received a copy of this license along
-// with this source code in a file named "LICENSE."
-//
-////////////////////////////////////////////////////////////////////
+/**
+ * PANDA 3D SOFTWARE
+ * Copyright (c) Carnegie Mellon University.  All rights reserved.
+ *
+ * All use of this software is subject to the terms of the revised BSD
+ * license.  You should have received a copy of this license along
+ * with this source code in a file named "LICENSE."
+ *
+ * @file fake_http_server.cxx
+ * @author drose
+ * @date 2002-12-10
+ */
 
 #include "pandabase.h"
 
@@ -24,6 +23,8 @@
 #include "pmap.h"
 
 #include <ctype.h>
+
+using std::string;
 
 QueuedConnectionManager cm;
 QueuedConnectionReader reader(&cm, 10);
@@ -66,7 +67,7 @@ receive_data(const Datagram &data) {
 
 void ClientState::
 receive_line(string line) {
-  cerr << "received: " << line << "\n";
+  std::cerr << "received: " << line << "\n";
   // trim trailing whitespace.
   size_t size = line.size();
   while (size > 0 && isspace(line[size - 1])) {
@@ -160,8 +161,3 @@ main(int argc, char *argv[]) {
 
   return (0);
 }
-
-
-
-
-

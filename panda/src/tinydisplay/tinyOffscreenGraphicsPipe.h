@@ -1,16 +1,15 @@
-// Filename: tinyOffscreenGraphicsPipe.h
-// Created by:  drose (09Feb09)
-//
-////////////////////////////////////////////////////////////////////
-//
-// PANDA 3D SOFTWARE
-// Copyright (c) Carnegie Mellon University.  All rights reserved.
-//
-// All use of this software is subject to the terms of the revised BSD
-// license.  You should have received a copy of this license along
-// with this source code in a file named "LICENSE."
-//
-////////////////////////////////////////////////////////////////////
+/**
+ * PANDA 3D SOFTWARE
+ * Copyright (c) Carnegie Mellon University.  All rights reserved.
+ *
+ * All use of this software is subject to the terms of the revised BSD
+ * license.  You should have received a copy of this license along
+ * with this source code in a file named "LICENSE."
+ *
+ * @file tinyOffscreenGraphicsPipe.h
+ * @author drose
+ * @date 2009-02-09
+ */
 
 #ifndef TINYOFFSCREENGRAPHICSPIPE_H
 #define TINYOFFSCREENGRAPHICSPIPE_H
@@ -23,21 +22,20 @@
 
 class FrameBufferProperties;
 
-////////////////////////////////////////////////////////////////////
-//       Class : TinyOffscreenGraphicsPipe
-// Description : This graphics pipe creates offscreen buffers only,
-//               but is completely platform-independent.
-////////////////////////////////////////////////////////////////////
+/**
+ * This graphics pipe creates offscreen buffers only, but is completely
+ * platform-independent.
+ */
 class EXPCL_TINYDISPLAY TinyOffscreenGraphicsPipe : public GraphicsPipe {
 public:
   TinyOffscreenGraphicsPipe();
   virtual ~TinyOffscreenGraphicsPipe();
 
-  virtual string get_interface_name() const;
+  virtual std::string get_interface_name() const;
   static PT(GraphicsPipe) pipe_constructor();
 
 protected:
-  virtual PT(GraphicsOutput) make_output(const string &name,
+  virtual PT(GraphicsOutput) make_output(const std::string &name,
                                          const FrameBufferProperties &fb_prop,
                                          const WindowProperties &win_prop,
                                          int flags,

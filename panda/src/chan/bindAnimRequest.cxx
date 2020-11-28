@@ -1,16 +1,15 @@
-// Filename: bindAnimRequest.cxx
-// Created by:  drose (05Aug08)
-//
-////////////////////////////////////////////////////////////////////
-//
-// PANDA 3D SOFTWARE
-// Copyright (c) Carnegie Mellon University.  All rights reserved.
-//
-// All use of this software is subject to the terms of the revised BSD
-// license.  You should have received a copy of this license along
-// with this source code in a file named "LICENSE."
-//
-////////////////////////////////////////////////////////////////////
+/**
+ * PANDA 3D SOFTWARE
+ * Copyright (c) Carnegie Mellon University.  All rights reserved.
+ *
+ * All use of this software is subject to the terms of the revised BSD
+ * license.  You should have received a copy of this license along
+ * with this source code in a file named "LICENSE."
+ *
+ * @file bindAnimRequest.cxx
+ * @author drose
+ * @date 2008-08-05
+ */
 
 #include "bindAnimRequest.h"
 #include "animBundleNode.h"
@@ -19,13 +18,11 @@
 
 TypeHandle BindAnimRequest::_type_handle;
 
-////////////////////////////////////////////////////////////////////
-//     Function: BindAnimRequest::Constructor
-//       Access: Public
-//  Description: 
-////////////////////////////////////////////////////////////////////
+/**
+ *
+ */
 BindAnimRequest::
-BindAnimRequest(const string &name,
+BindAnimRequest(const std::string &name,
                 const Filename &filename, const LoaderOptions &options,
                 Loader *loader,
                 AnimControl *control, int hierarchy_match_flags,
@@ -37,12 +34,9 @@ BindAnimRequest(const string &name,
 {
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: BindAnimRequest::do_task
-//       Access: Protected, Virtual
-//  Description: Performs the task: that is, loads and binds the
-//               animation.
-////////////////////////////////////////////////////////////////////
+/**
+ * Performs the task: that is, loads and binds the animation.
+ */
 AsyncTask::DoneStatus BindAnimRequest::
 do_task() {
   ModelLoadRequest::do_task();
@@ -57,7 +51,7 @@ do_task() {
   }
 
   PT(PandaNode) model = get_model();
-  if (model == (PandaNode *)NULL) {
+  if (model == nullptr) {
     // Couldn't load the file.
     _control->fail_anim(part);
     return DS_done;
@@ -65,7 +59,7 @@ do_task() {
   _control->set_anim_model(model);
 
   AnimBundle *anim = AnimBundleNode::find_anim_bundle(model);
-  if (anim == (AnimBundle *)NULL) {
+  if (anim == nullptr) {
     // No anim bundle.
     _control->fail_anim(part);
     return DS_done;

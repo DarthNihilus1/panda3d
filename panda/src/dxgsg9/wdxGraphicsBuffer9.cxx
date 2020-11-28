@@ -1,16 +1,15 @@
-// Filename: wdxGraphicsBuffer8.cxx
-// Created by:  drose (08Feb04)
-//
-////////////////////////////////////////////////////////////////////
-//
-// PANDA 3D SOFTWARE
-// Copyright (c) Carnegie Mellon University.  All rights reserved.
-//
-// All use of this software is subject to the terms of the revised BSD
-// license.  You should have received a copy of this license along
-// with this source code in a file named "LICENSE."
-//
-////////////////////////////////////////////////////////////////////
+/**
+ * PANDA 3D SOFTWARE
+ * Copyright (c) Carnegie Mellon University.  All rights reserved.
+ *
+ * All use of this software is subject to the terms of the revised BSD
+ * license.  You should have received a copy of this license along
+ * with this source code in a file named "LICENSE."
+ *
+ * @file wdxGraphicsBuffer9.cxx
+ * @author drose
+ * @date 2004-02-08
+ */
 
 #include "wdxGraphicsPipe9.h"
 #include "wdxGraphicsBuffer9.h"
@@ -20,17 +19,18 @@
 
 #define FL << "\n" << __FILE__ << " " << __LINE__ << "\n"
 
+using std::cout;
+using std::endl;
+
 TypeHandle wdxGraphicsBuffer9::_type_handle;
 
 
-////////////////////////////////////////////////////////////////////
-//     Function: wdxGraphicsBuffer9::Constructor
-//       Access: Public
-//  Description:
-////////////////////////////////////////////////////////////////////
+/**
+ *
+ */
 wdxGraphicsBuffer9::
 wdxGraphicsBuffer9(GraphicsEngine *engine, GraphicsPipe *pipe,
-                   const string &name,
+                   const std::string &name,
                    const FrameBufferProperties &fb_prop,
                    const WindowProperties &win_prop,
                    int flags,
@@ -40,14 +40,13 @@ wdxGraphicsBuffer9(GraphicsEngine *engine, GraphicsPipe *pipe,
 {
   // initialize all class members
   _cube_map_index = -1;
-  _saved_color_buffer = NULL;
-  _saved_depth_buffer = NULL;
-  _color_backing_store = NULL;
-  _depth_backing_store = NULL;
+  _saved_color_buffer = nullptr;
+  _saved_depth_buffer = nullptr;
+  _color_backing_store = nullptr;
+  _depth_backing_store = nullptr;
 
-  // is this correct ???
-  // Since the pbuffer never gets flipped, we get screenshots from the
-  // same buffer we draw into.
+  // is this correct ??? Since the pbuffer never gets flipped, we get
+  // screenshots from the same buffer we draw into.
   _screenshot_buffer_type = _draw_buffer_type;
 
   _shared_depth_buffer = 0;
@@ -57,7 +56,7 @@ wdxGraphicsBuffer9(GraphicsEngine *engine, GraphicsPipe *pipe,
   if (_debug) {
     cout << "+++++ wdxGraphicsBuffer9 constructor " << this << " " << this -> get_name ( ) << "\n";
   }
-  
+
   if (_gsg) {
     // save to GSG list to handle device lost issues
     DXGraphicsStateGuardian9 *dxgsg;
@@ -69,11 +68,9 @@ wdxGraphicsBuffer9(GraphicsEngine *engine, GraphicsPipe *pipe,
   }
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: wdxGraphicsBuffer9::Destructor
-//       Access: Public, Virtual
-//  Description:
-////////////////////////////////////////////////////////////////////
+/**
+ *
+ */
 wdxGraphicsBuffer9::
 ~wdxGraphicsBuffer9() {
 
@@ -95,41 +92,38 @@ wdxGraphicsBuffer9::
   }
 
   // unshare shared depth buffer if any
-  this -> unshare_depth_buffer();  
+  this -> unshare_depth_buffer();
 
   // unshare all buffers that are sharing this object's depth buffer
   {
     wdxGraphicsBuffer9 *graphics_buffer;
-    list <wdxGraphicsBuffer9 *>::iterator graphics_buffer_iterator;
+    std::list <wdxGraphicsBuffer9 *>::iterator graphics_buffer_iterator;
 
     graphics_buffer_iterator = _shared_depth_buffer_list.begin( );
     while (graphics_buffer_iterator != _shared_depth_buffer_list.end( )) {
       graphics_buffer = (*graphics_buffer_iterator);
-      if (graphics_buffer) {      
+      if (graphics_buffer) {
         // this call removes the entry from the list
         graphics_buffer -> unshare_depth_buffer();
-      }      
+      }
       graphics_buffer_iterator = _shared_depth_buffer_list.begin( );
     }
-  }  
-  
+  }
+
   this -> close_buffer ( );
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: wdxGraphicsBuffer9::begin_frame
-//       Access: Public, Virtual
-//  Description: This function will be called within the draw thread
-//               before beginning rendering for a given frame.  It
-//               should do whatever setup is required, and return true
-//               if the frame should be rendered, or false if it
-//               should be skipped.
-////////////////////////////////////////////////////////////////////
+/**
+ * This function will be called within the draw thread before beginning
+ * rendering for a given frame.  It should do whatever setup is required, and
+ * return true if the frame should be rendered, or false if it should be
+ * skipped.
+ */
 bool wdxGraphicsBuffer9::
 begin_frame(FrameMode mode, Thread *current_thread) {
 
   begin_frame_spam(mode);
-  if (_gsg == (GraphicsStateGuardian *)NULL) {
+  if (_gsg == nullptr) {
     return false;
   }
   if (_dxgsg -> _d3d_device == 0) {
@@ -151,18 +145,16 @@ begin_frame(FrameMode mode, Thread *current_thread) {
   return _gsg->begin_frame(current_thread);
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: wdxGraphicsBuffer9::end_frame
-//       Access: Public, Virtual
-//  Description: This function will be called within the draw thread
-//               after rendering is completed for a given frame.  It
-//               should do whatever finalization is required.
-////////////////////////////////////////////////////////////////////
+/**
+ * This function will be called within the draw thread after rendering is
+ * completed for a given frame.  It should do whatever finalization is
+ * required.
+ */
 void wdxGraphicsBuffer9::
 end_frame(FrameMode mode, Thread *current_thread) {
 
   end_frame_spam(mode);
-  nassertv(_gsg != (GraphicsStateGuardian *)NULL);
+  nassertv(_gsg != nullptr);
 
   if (mode == FM_render) {
     copy_to_textures();
@@ -177,17 +169,15 @@ end_frame(FrameMode mode, Thread *current_thread) {
   }
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: wdxGraphicsBuffer9::save_bitplanes
-//       Access: Public
-//  Description: After rendering, d3d_device will need to be restored
-//               to its initial state.  This function saves the state.
-////////////////////////////////////////////////////////////////////
+/**
+ * After rendering, d3d_device will need to be restored to its initial state.
+ * This function saves the state.
+ */
 bool wdxGraphicsBuffer9::
 save_bitplanes() {
   HRESULT hr;
   DWORD render_target_index;
-  
+
   render_target_index = 0;
 
   hr = _dxgsg -> _d3d_device -> GetRenderTarget (render_target_index, &_saved_color_buffer);
@@ -195,7 +185,7 @@ save_bitplanes() {
     dxgsg9_cat.error ( ) << "GetRenderTarget " << D3DERRORSTRING(hr) FL;
     return false;
   }
-  
+
   _saved_depth_buffer = 0;
   hr = _dxgsg -> _d3d_device -> GetDepthStencilSurface (&_saved_depth_buffer);
   if (hr == D3DERR_NOTFOUND) {
@@ -210,12 +200,10 @@ save_bitplanes() {
   return true;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: wdxGraphicsBuffer9::restore_bitplanes
-//       Access: Public
-//  Description: After rendering, d3d_device will need to be restored
-//               to its initial state.  This function restores the state.
-////////////////////////////////////////////////////////////////////
+/**
+ * After rendering, d3d_device will need to be restored to its initial state.
+ * This function restores the state.
+ */
 void wdxGraphicsBuffer9::
 restore_bitplanes() {
   DXGraphicsStateGuardian9 *dxgsg;
@@ -223,7 +211,7 @@ restore_bitplanes() {
 
   HRESULT hr;
   DWORD render_target_index;
-  
+
   render_target_index = 0;
 
   hr = dxgsg -> _d3d_device ->
@@ -237,10 +225,10 @@ restore_bitplanes() {
       dxgsg9_cat.error ( ) << "SetDepthStencilSurface " << D3DERRORSTRING(hr) FL;
     }
   }
-  
+
   // clear all render targets, except for the main render target
   for (int i = 1; i<count_textures(); i++) {
-    hr = _dxgsg -> _d3d_device -> SetRenderTarget (i, NULL);
+    hr = _dxgsg -> _d3d_device -> SetRenderTarget (i, nullptr);
     if (!SUCCEEDED (hr)) {
       dxgsg9_cat.error ( ) << "SetRenderTarget " << i << " " << D3DERRORSTRING(hr) FL;
     }
@@ -250,18 +238,15 @@ restore_bitplanes() {
   if (_saved_depth_buffer) {
     _saved_depth_buffer->Release();
   }
-  _saved_color_buffer = NULL;
-  _saved_depth_buffer = NULL;
+  _saved_color_buffer = nullptr;
+  _saved_depth_buffer = nullptr;
 }
 
 
 
-////////////////////////////////////////////////////////////////////
-//     Function: wdxGraphicsBuffer9::rebuild_bitplanes
-//       Access: Public
-//  Description: If necessary, reallocates (or allocates) the
-//               bitplanes for the buffer.
-////////////////////////////////////////////////////////////////////
+/**
+ * If necessary, reallocates (or allocates) the bitplanes for the buffer.
+ */
 bool wdxGraphicsBuffer9::
 rebuild_bitplanes() {
   HRESULT hr;
@@ -294,8 +279,7 @@ rebuild_bitplanes() {
     bitplane_y = Texture::up_to_power_2(bitplane_y);
   }
 
-  // Find the color and depth textures.  Either may be present,
-  // or neither.
+  // Find the color and depth textures.  Either may be present, or neither.
 
   int color_tex_index = -1;
   int depth_tex_index = -1;
@@ -331,16 +315,18 @@ rebuild_bitplanes() {
         case RTP_aux_float_3:
           {
             CDWriter cdataw(_cycler, cdata, false);
-            nassertr(cdata->_textures.size() == cdataw->_textures.size(), false);
             cdataw->_textures[i]._rtm_mode = RTM_none;
           }
+          // Creating the CDWriter invalidated the CDLockedReader.
+          cdata = CDLockedReader(_cycler);
           break;
         default:
           {
             CDWriter cdataw(_cycler, cdata, false);
-            nassertr(cdata->_textures.size() == cdataw->_textures.size(), false);
             cdataw->_textures[i]._rtm_mode = RTM_copy_texture;
           }
+          // Creating the CDWriter invalidated the CDLockedReader.
+          cdata = CDLockedReader(_cycler);
           break;
         }
       }
@@ -352,16 +338,16 @@ rebuild_bitplanes() {
     if ((_color_backing_store)&&
         ((bitplane_x != _backing_sizex)||(bitplane_y != _backing_sizey))) {
       _color_backing_store->Release();
-      _color_backing_store = NULL;
+      _color_backing_store = nullptr;
     }
     if (!_color_backing_store) {
-      hr = _dxgsg->_d3d_device->CreateRenderTarget(bitplane_x, bitplane_y, 
+      hr = _dxgsg->_d3d_device->CreateRenderTarget(bitplane_x, bitplane_y,
                                                    _saved_color_desc.Format,
                                                    _saved_color_desc.MultiSampleType,
                                                    _saved_color_desc.MultiSampleQuality,
                                                    FALSE,
                                                    &_color_backing_store,
-                                                   NULL);
+                                                   nullptr);
       if (!SUCCEEDED(hr)) {
         dxgsg9_cat.error ( ) << "CreateRenderTarget " << D3DERRORSTRING(hr) FL;
       }
@@ -371,11 +357,11 @@ rebuild_bitplanes() {
     // Maintain the color texture.
     if (_color_backing_store) {
       _color_backing_store->Release();
-      _color_backing_store = NULL;
+      _color_backing_store = nullptr;
     }
     color_tex = get_texture(color_tex_index);
     color_tex->set_size_padded(get_x_size(), get_y_size());
-//    color_tex->set_format(Texture::F_rgba);
+// color_tex->set_format(Texture::F_rgba);
     color_ctx =
       DCAST(DXTextureContext9,
             color_tex->prepare_now(0, _gsg->get_prepared_objects(), _gsg));
@@ -409,8 +395,8 @@ rebuild_bitplanes() {
   }
 
   bool release_depth;
-  
-  release_depth = true;  
+
+  release_depth = true;
   if (depth_tex_index < 0) {
     if (_shared_depth_buffer) {
       if (_shared_depth_buffer -> _depth_backing_store) {
@@ -426,13 +412,13 @@ rebuild_bitplanes() {
       if ((_depth_backing_store)&&
           ((bitplane_x != _backing_sizex)||(bitplane_y != _backing_sizey))) {
         _depth_backing_store->Release();
-        _depth_backing_store = NULL;
+        _depth_backing_store = nullptr;
       }
       if (!_depth_backing_store) {
         hr = _dxgsg -> _d3d_device ->
           CreateDepthStencilSurface (bitplane_x, bitplane_y, _saved_depth_desc.Format,
                                      _saved_depth_desc.MultiSampleType, _saved_depth_desc.MultiSampleQuality,
-                                     false, &_depth_backing_store, NULL);
+                                     false, &_depth_backing_store, nullptr);
         if (!SUCCEEDED(hr)) {
           dxgsg9_cat.error ( ) << "CreateDepthStencilSurface " << D3DERRORSTRING(hr) FL;
         }
@@ -443,7 +429,7 @@ rebuild_bitplanes() {
     // Maintain the depth texture.
     if (_depth_backing_store) {
       _depth_backing_store->Release();
-      _depth_backing_store = NULL;
+      _depth_backing_store = nullptr;
     }
 
     if (_shared_depth_buffer) {
@@ -508,7 +494,7 @@ rebuild_bitplanes() {
     RenderTexturePlane plane = get_texture_plane(i);
 
     if (_debug) {
-//      printf ("i = %d, RenderTexturePlane = %d \n", i, plane);
+// printf ("i = %d, RenderTexturePlane = %d \n", i, plane);
     }
 
     switch (plane) {
@@ -563,11 +549,11 @@ rebuild_bitplanes() {
 
       default:
         break;
-    }    
+    }
   }
 
-  // Decrement the reference counts on these surfaces. The refcounts
-  // were incremented earlier when we called GetSurfaceLevel.
+  // Decrement the reference counts on these surfaces.  The refcounts were
+  // incremented earlier when we called GetSurfaceLevel.
 
   if ((color_surf != 0)&&(color_surf != _color_backing_store)) {
     color_surf->Release();
@@ -578,24 +564,20 @@ rebuild_bitplanes() {
       depth_surf->Release();
     }
   }
-  
+
   return true;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: wdxGraphicsBuffer9::select_target_tex_page
-//       Access: Public, Virtual
-//  Description: Called internally when the window is in
-//               render-to-a-texture mode and we are in the process of
-//               rendering the six faces of a cube map.  This should
-//               do whatever needs to be done to switch the buffer to
-//               the indicated face.
-////////////////////////////////////////////////////////////////////
+/**
+ * Called internally when the window is in render-to-a-texture mode and we are
+ * in the process of rendering the six faces of a cube map.  This should do
+ * whatever needs to be done to switch the buffer to the indicated face.
+ */
 void wdxGraphicsBuffer9::
 select_target_tex_page(int page) {
 
   DWORD render_target_index;
-  
+
   render_target_index = 0;
 
   _cube_map_index = page;
@@ -706,75 +688,64 @@ select_target_tex_page(int page) {
 
       default:
         break;
-    }    
+    }
   }
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: wdxGraphicsBuffer9::process_events
-//       Access: Public, Virtual
-//  Description: Do whatever processing is necessary to ensure that
-//               the window responds to user events.  Also, honor any
-//               requests recently made via request_properties()
-//
-//               This function is called only within the window
-//               thread.
-////////////////////////////////////////////////////////////////////
+/**
+ * Do whatever processing is necessary to ensure that the window responds to
+ * user events.  Also, honor any requests recently made via
+ * request_properties()
+ *
+ * This function is called only within the window thread.
+ */
 void wdxGraphicsBuffer9::
 process_events() {
   GraphicsBuffer::process_events();
 
   MSG msg;
 
-  // Handle all the messages on the queue in a row.  Some of these
-  // might be for another window, but they will get dispatched
-  // appropriately.
-  while (PeekMessage(&msg, NULL, 0, 0, PM_NOREMOVE)) {
+  // Handle all the messages on the queue in a row.  Some of these might be
+  // for another window, but they will get dispatched appropriately.
+  while (PeekMessage(&msg, nullptr, 0, 0, PM_NOREMOVE)) {
     process_1_event();
   }
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: wdxGraphicsBuffer9::close_buffer
-//       Access: Protected, Virtual
-//  Description: Closes the buffer right now.  Called from the window
-//               thread.
-////////////////////////////////////////////////////////////////////
+/**
+ * Closes the buffer right now.  Called from the window thread.
+ */
 void wdxGraphicsBuffer9::
 close_buffer() {
 
   if (_color_backing_store) {
     _color_backing_store->Release();
-    _color_backing_store = NULL;
+    _color_backing_store = nullptr;
   }
   if (_depth_backing_store) {
     _depth_backing_store->Release();
-    _depth_backing_store = NULL;
+    _depth_backing_store = nullptr;
   }
 
   _cube_map_index = -1;
   _is_valid = false;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: wdxGraphicsBuffer9::open_buffer
-//       Access: Protected, Virtual
-//  Description: Opens the window right now.  Called from the window
-//               thread.  Returns true if the window is successfully
-//               opened, or false if there was a problem.
-////////////////////////////////////////////////////////////////////
+/**
+ * Opens the window right now.  Called from the window thread.  Returns true
+ * if the window is successfully opened, or false if there was a problem.
+ */
 bool wdxGraphicsBuffer9::
 open_buffer() {
 
-  // GSG creation/initialization.
+  // GSG creationinitialization.
   if (_gsg == 0) {
-    // The code below doesn't support creating a GSG on the fly.
-    // Just error out for now.
-    //_dxgsg = new DXGraphicsStateGuardian9(_engine, _pipe);
-    //_gsg = _dxgsg;
+    // The code below doesn't support creating a GSG on the fly.  Just error
+    // out for now.  _dxgsg = new DXGraphicsStateGuardian9(_engine, _pipe);
+    // _gsg = _dxgsg;
     return false;
   }
-   
+
   DCAST_INTO_R(_dxgsg, _gsg, false);
 
   if (!save_bitplanes()) {
@@ -809,18 +780,16 @@ open_buffer() {
   return true;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: wdxGraphicsBuffer9::process_1_event
-//       Access: Private, Static
-//  Description: Handles one event from the message queue.
-////////////////////////////////////////////////////////////////////
+/**
+ * Handles one event from the message queue.
+ */
 void wdxGraphicsBuffer9::
 process_1_event() {
   MSG msg;
 
-  if (!GetMessage(&msg, NULL, 0, 0)) {
+  if (!GetMessage(&msg, nullptr, 0, 0)) {
     // WM_QUIT received.  We need a cleaner way to deal with this.
-    //    DestroyAllWindows(false);
+    // DestroyAllWindows(false);
     exit(msg.wParam);  // this will invoke AtExitFn
   }
 
@@ -833,19 +802,16 @@ process_1_event() {
 
 
 
-////////////////////////////////////////////////////////////////////
-//     Function: wdxGraphicsBuffer9::share_depth_buffer
-//       Access: Published 
-//  Description: Will attempt to use the depth buffer of the input
-//               graphics_output. The buffer sizes must be exactly 
-//               the same. 
-////////////////////////////////////////////////////////////////////
+/**
+ * Will attempt to use the depth buffer of the input graphics_output.  The
+ * buffer sizes must be exactly the same.
+ */
 bool wdxGraphicsBuffer9::
 share_depth_buffer(GraphicsOutput *graphics_output) {
 
   bool state;
   wdxGraphicsBuffer9 *input_graphics_output;
-  
+
   state = false;
   input_graphics_output = DCAST (wdxGraphicsBuffer9, graphics_output);
   if (this != input_graphics_output && input_graphics_output) {
@@ -858,79 +824,73 @@ share_depth_buffer(GraphicsOutput *graphics_output) {
     }
 
     // check buffer sizes
-    if (this -> get_x_size() != input_graphics_output -> get_x_size()) {    
+    if (this -> get_x_size() != input_graphics_output -> get_x_size()) {
       if (_debug) {
         printf ("ERROR: share_depth_buffer: non matching width \n");
       }
-      state = false;    
+      state = false;
     }
 
-    if (this -> get_y_size() != input_graphics_output -> get_y_size()) {     
+    if (this -> get_y_size() != input_graphics_output -> get_y_size()) {
       if (_debug) {
         printf ("ERROR: share_depth_buffer: non matching height \n");
       }
-      state = false;    
+      state = false;
     }
 
-    if (state) {    
-      // let the input GraphicsOutput know that there is an object 
-      // sharing its depth buffer      
+    if (state) {
+      // let the input GraphicsOutput know that there is an object sharing its
+      // depth buffer
       input_graphics_output -> register_shared_depth_buffer(this);
       _shared_depth_buffer = input_graphics_output;
       state = true;
     }
   }
-  
+
   return state;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: wdxGraphicsBuffer9::unshare_depth_buffer
-//       Access: Published 
-//  Description: Discontinue sharing the depth buffer.
-////////////////////////////////////////////////////////////////////
+/**
+ * Discontinue sharing the depth buffer.
+ */
 void wdxGraphicsBuffer9::
 unshare_depth_buffer() {
   if (_shared_depth_buffer) {
     if (_debug) {
       printf ("wdxGraphicsBuffer9 unshare_depth_buffer \n");
     }
-    
-    // let the GraphicsOutput know that this object is no longer
-    // sharing its depth buffer
-    _shared_depth_buffer -> unregister_shared_depth_buffer(this);  
+
+    // let the GraphicsOutput know that this object is no longer sharing its
+    // depth buffer
+    _shared_depth_buffer -> unregister_shared_depth_buffer(this);
     _shared_depth_buffer = 0;
   }
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: wdxGraphicsBuffer9::register_shared_depth_buffer
-//       Access: Public
-//  Description: Register/save who is sharing the depth buffer.
-////////////////////////////////////////////////////////////////////
+/**
+ * Register/save who is sharing the depth buffer.
+ */
 void wdxGraphicsBuffer9::
 register_shared_depth_buffer(GraphicsOutput *graphics_output) {
   wdxGraphicsBuffer9 *input_graphics_output;
-  
+
   input_graphics_output = DCAST (wdxGraphicsBuffer9, graphics_output);
   if (input_graphics_output) {
-    // add to list  
+    // add to list
     _shared_depth_buffer_list.push_back(input_graphics_output);
   }
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: wdxGraphicsBuffer9::unregister_shared_depth_buffer
-//       Access: Public
-//  Description: Unregister who is sharing the depth buffer.
-////////////////////////////////////////////////////////////////////
+/**
+ * Unregister who is sharing the depth buffer.
+ */
 void wdxGraphicsBuffer9::
 unregister_shared_depth_buffer(GraphicsOutput *graphics_output) {
   wdxGraphicsBuffer9 *input_graphics_output;
-  
+
   input_graphics_output = DCAST (wdxGraphicsBuffer9, graphics_output);
   if (input_graphics_output) {
-    // remove from list  
+    // remove from list
     _shared_depth_buffer_list.remove(input_graphics_output);
   }
 }

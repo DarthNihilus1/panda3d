@@ -1,34 +1,32 @@
-// Filename: ptsToBam.cxx
-// Created by:  drose (28Jun00)
-//
-////////////////////////////////////////////////////////////////////
-//
-// PANDA 3D SOFTWARE
-// Copyright (c) Carnegie Mellon University.  All rights reserved.
-//
-// All use of this software is subject to the terms of the revised BSD
-// license.  You should have received a copy of this license along
-// with this source code in a file named "LICENSE."
-//
-////////////////////////////////////////////////////////////////////
+/**
+ * PANDA 3D SOFTWARE
+ * Copyright (c) Carnegie Mellon University.  All rights reserved.
+ *
+ * All use of this software is subject to the terms of the revised BSD
+ * license.  You should have received a copy of this license along
+ * with this source code in a file named "LICENSE."
+ *
+ * @file ptsToBam.cxx
+ * @author drose
+ * @date 2000-06-28
+ */
 
 #include "ptsToBam.h"
 
-#include "config_util.h"
+#include "config_putil.h"
 #include "geomPoints.h"
 #include "bamFile.h"
 #include "pandaNode.h"
 #include "geomNode.h"
 #include "dcast.h"
-#include "pystub.h"
 #include "string_utils.h"
 #include "config_egg2pg.h"
 
-////////////////////////////////////////////////////////////////////
-//     Function: PtsToBam::Constructor
-//       Access: Public
-//  Description:
-////////////////////////////////////////////////////////////////////
+using std::string;
+
+/**
+ *
+ */
 PtsToBam::
 PtsToBam() : WithOutputFile(true, false, true)
 {
@@ -53,16 +51,14 @@ PtsToBam() : WithOutputFile(true, false, true)
      "Decimates the point cloud by the indicated divisor.  The number of points\n"
      "added is 1/divisor; numbers larger than 1.0 mean correspondingly fewer\n"
      "points.",
-     &PtsToBam::dispatch_double, NULL, &_decimate_divisor);
+     &PtsToBam::dispatch_double, nullptr, &_decimate_divisor);
 
   _decimate_divisor = 1.0;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: PtsToBam::run
-//       Access: Public
-//  Description:
-////////////////////////////////////////////////////////////////////
+/**
+ *
+ */
 void PtsToBam::
 run() {
   pifstream pts;
@@ -77,22 +73,22 @@ run() {
   _num_points_expected = 0;
   _num_points_found = 0;
   _num_points_added = 0;
-  _decimate_factor = 1.0 / max(1.0, _decimate_divisor);
+  _decimate_factor = 1.0 / std::max(1.0, _decimate_divisor);
   _line_number = 0;
   _point_number = 0;
   _decimated_point_number = 0.0;
   _num_vdatas = 0;
   string line;
-  while (getline(pts, line)) {
+  while (std::getline(pts, line)) {
     process_line(line);
   }
   close_vertex_data();
-  
+
   nout << "\nFound " << _num_points_found << " points of " << _num_points_expected << " expected.\n";
   nout << "Generated " << _num_points_added << " points to bam file.\n";
 
-  // This should be guaranteed because we pass false to the
-  // constructor, above.
+  // This should be guaranteed because we pass false to the constructor,
+  // above.
   nassertv(has_output_filename());
 
   Filename filename = get_output_filename();
@@ -103,18 +99,16 @@ run() {
     nout << "Error in writing.\n";
     exit(1);
   }
-  
+
   if (!bam_file.write_object(_gnode.p())) {
     nout << "Error in writing.\n";
     exit(1);
   }
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: PtsToBam::handle_args
-//       Access: Protected, Virtual
-//  Description:
-////////////////////////////////////////////////////////////////////
+/**
+ *
+ */
 bool PtsToBam::
 handle_args(ProgramBase::Args &args) {
   if (args.empty()) {
@@ -132,17 +126,15 @@ handle_args(ProgramBase::Args &args) {
   return true;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: PtsToBam::process_line
-//       Access: Private
-//  Description: Reads a single line from the pts file.
-////////////////////////////////////////////////////////////////////
+/**
+ * Reads a single line from the pts file.
+ */
 void PtsToBam::
 process_line(const string &line) {
   _line_number++;
 
   if (_line_number % 1000000 == 0) {
-    cerr << "." << flush;
+    std::cerr << "." << std::flush;
   }
 
   if (line.empty() || !isdigit(line[0])) {
@@ -177,14 +169,12 @@ process_line(const string &line) {
   }
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: PtsToBam::add_point
-//       Access: Private
-//  Description: Adds a point from the pts file.
-////////////////////////////////////////////////////////////////////
+/**
+ * Adds a point from the pts file.
+ */
 void PtsToBam::
 add_point(const vector_string &words) {
-  if (_data == NULL || _data->get_num_rows() >= egg_max_vertices) {
+  if (_data == nullptr || _data->get_num_rows() >= egg_max_vertices) {
     open_vertex_data();
   }
 
@@ -197,14 +187,12 @@ add_point(const vector_string &words) {
   _num_points_added++;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: PtsToBam::open_vertex_data
-//       Access: Private
-//  Description: Creates a new GeomVertexData.
-////////////////////////////////////////////////////////////////////
+/**
+ * Creates a new GeomVertexData.
+ */
 void PtsToBam::
 open_vertex_data() {
-  if (_data != (GeomVertexData *)NULL) {
+  if (_data != nullptr) {
     close_vertex_data();
   }
   CPT(GeomVertexFormat) format = GeomVertexFormat::get_v3();
@@ -212,15 +200,12 @@ open_vertex_data() {
   _vertex = GeomVertexWriter(_data, "vertex");
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: PtsToBam::close_vertex_data
-//       Access: Private
-//  Description: Closes a previous GeomVertexData and adds it to the
-//               scene graph.
-////////////////////////////////////////////////////////////////////
+/**
+ * Closes a previous GeomVertexData and adds it to the scene graph.
+ */
 void PtsToBam::
 close_vertex_data() {
-  if (_data == NULL) {
+  if (_data == nullptr) {
     return;
   }
 
@@ -232,7 +217,7 @@ close_vertex_data() {
   int num_vertices = _data->get_num_rows();
   int vertices_so_far = 0;
   while (num_vertices > 0) {
-    int this_num_vertices = min(num_vertices, (int)egg_max_indices);
+    int this_num_vertices = std::min(num_vertices, (int)egg_max_indices);
     PT(GeomPrimitive) points = new GeomPoints(GeomEnums::UH_static);
     points->add_consecutive_vertices(vertices_so_far, this_num_vertices);
     geom->add_primitive(points);
@@ -242,13 +227,10 @@ close_vertex_data() {
 
   _gnode->add_geom(geom);
 
-  _data = NULL;
+  _data = nullptr;
 }
 
 int main(int argc, char *argv[]) {
-  // A call to pystub() to force libpystub.so to be linked in.
-  pystub();
-
   PtsToBam prog;
   prog.parse_command_line(argc, argv);
   prog.run();

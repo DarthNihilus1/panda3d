@@ -1,14 +1,15 @@
-// Filename: vrmlAppearance.cxx
-// Created by:  drose (24Jun99)
-// 
-////////////////////////////////////////////////////////////////////
-// PANDA 3D SOFTWARE
-// Copyright (c) Carnegie Mellon University.  All rights reserved.
-//
-// All use of this software is subject to the terms of the revised BSD
-// license.  You should have received a copy of this license along
-// with this source code in a file named "LICENSE."
-////////////////////////////////////////////////////////////////////
+/**
+ * PANDA 3D SOFTWARE
+ * Copyright (c) Carnegie Mellon University.  All rights reserved.
+ *
+ * All use of this software is subject to the terms of the revised BSD
+ * license.  You should have received a copy of this license along
+ * with this source code in a file named "LICENSE."
+ *
+ * @file vrmlAppearance.cxx
+ * @author drose
+ * @date 1999-06-24
+ */
 
 #include "vrmlAppearance.h"
 #include "vrmlNode.h"
@@ -21,9 +22,9 @@ VRMLAppearance(const VrmlNode *appearance) {
   _color.set(1.0f, 1.0f, 1.0f, 1.0f);
   _has_tex_transform = false;
 
-  if (appearance != NULL) {
+  if (appearance != nullptr) {
     const VrmlNode *material = appearance->get_value("material")._sfnode._p;
-    if (material != NULL) {
+    if (material != nullptr) {
       _has_material = true;
       const double *c = material->get_value("diffuseColor")._sfvec;
       _transparency = material->get_value("transparency")._sffloat;
@@ -31,7 +32,7 @@ VRMLAppearance(const VrmlNode *appearance) {
     }
 
     const VrmlNode *tex_transform = appearance->get_value("textureTransform")._sfnode._p;
-    if (tex_transform != NULL) {
+    if (tex_transform != nullptr) {
       if (strcmp(tex_transform->_type->getName(), "TextureTransform") == 0) {
         _has_tex_transform = true;
         const double *c = tex_transform->get_value("center")._sfvec;
@@ -45,7 +46,7 @@ VRMLAppearance(const VrmlNode *appearance) {
     }
 
     const VrmlNode *texture = appearance->get_value("texture")._sfnode._p;
-    if (texture != NULL) {
+    if (texture != nullptr) {
       if (strcmp(texture->_type->getName(), "ImageTexture") == 0) {
         MFArray *url = texture->get_value("url")._mf;
         if (!url->empty()) {
@@ -64,5 +65,3 @@ VRMLAppearance(const VrmlNode *appearance) {
     }
   }
 }
-
-  

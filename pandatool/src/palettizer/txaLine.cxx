@@ -1,16 +1,15 @@
-// Filename: txaLine.cxx
-// Created by:  drose (30Nov00)
-//
-////////////////////////////////////////////////////////////////////
-//
-// PANDA 3D SOFTWARE
-// Copyright (c) Carnegie Mellon University.  All rights reserved.
-//
-// All use of this software is subject to the terms of the revised BSD
-// license.  You should have received a copy of this license along
-// with this source code in a file named "LICENSE."
-//
-////////////////////////////////////////////////////////////////////
+/**
+ * PANDA 3D SOFTWARE
+ * Copyright (c) Carnegie Mellon University.  All rights reserved.
+ *
+ * All use of this software is subject to the terms of the revised BSD
+ * license.  You should have received a copy of this license along
+ * with this source code in a file named "LICENSE."
+ *
+ * @file txaLine.cxx
+ * @author drose
+ * @date 2000-11-30
+ */
 
 #include "txaLine.h"
 #include "pal_string_utils.h"
@@ -23,11 +22,11 @@
 #include "pnotify.h"
 #include "pnmFileType.h"
 
-////////////////////////////////////////////////////////////////////
-//     Function: TxaLine::Constructor
-//       Access: Public
-//  Description:
-////////////////////////////////////////////////////////////////////
+using std::string;
+
+/**
+ *
+ */
 TxaLine::
 TxaLine() {
   _size_type = ST_none;
@@ -48,17 +47,14 @@ TxaLine() {
   _margin = 0;
   _got_coverage_threshold = false;
   _coverage_threshold = 0.0;
-  _color_type = (PNMFileType *)NULL;
-  _alpha_type = (PNMFileType *)NULL;
+  _color_type = nullptr;
+  _alpha_type = nullptr;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: TxaLine::parse
-//       Access: Public
-//  Description: Accepts a string that defines a line of the .txa file
-//               and parses it into its constinuent parts.  Returns
-//               true if successful, false on error.
-////////////////////////////////////////////////////////////////////
+/**
+ * Accepts a string that defines a line of the .txa file and parses it into
+ * its constinuent parts.  Returns true if successful, false on error.
+ */
 bool TxaLine::
 parse(const string &line) {
   size_t colon = line.find(':');
@@ -67,8 +63,8 @@ parse(const string &line) {
     return false;
   }
 
-  // Chop up the first part of the string (preceding the colon) into
-  // its individual words.  These are patterns to match.
+  // Chop up the first part of the string (preceding the colon) into its
+  // individual words.  These are patterns to match.
   vector_string words;
   extract_words(line.substr(0, colon), words);
 
@@ -76,19 +72,18 @@ parse(const string &line) {
   for (wi = words.begin(); wi != words.end(); ++wi) {
     string word = (*wi);
 
-    // If the pattern ends in the string ".egg", and only if it ends
-    // in this string, it is deemed an egg pattern and will only be
-    // tested against egg files.  If it ends in anything else, it is
-    // deemed a texture pattern and will only be tested against
-    // textures.
+    // If the pattern ends in the string ".egg", and only if it ends in this
+    // string, it is deemed an egg pattern and will only be tested against egg
+    // files.  If it ends in anything else, it is deemed a texture pattern and
+    // will only be tested against textures.
     if (word.length() > 4 && word.substr(word.length() - 4) == ".egg") {
       GlobPattern pattern(word);
       pattern.set_case_sensitive(false);
       _egg_patterns.push_back(pattern);
 
     } else {
-      // However, the filename extension, if any, is stripped off
-      // because the texture key names nowadays don't include them.
+      // However, the filename extension, if any, is stripped off because the
+      // texture key names nowadays don't include them.
       size_t dot = word.rfind('.');
       if (dot != string::npos) {
         word = word.substr(0, dot);
@@ -167,8 +162,8 @@ parse(const string &line) {
       }
 
     } else {
-      // The word does not begin with a digit; therefore it's either a
-      // keyword or an image file type request.
+      // The word does not begin with a digit; therefore it's either a keyword
+      // or an image file type request.
       if (word == "omit") {
         _keywords.push_back(KW_omit);
 
@@ -215,7 +210,8 @@ parse(const string &line) {
           return false;
         }
         if ((_aniso_degree < 2) || (_aniso_degree > 16)) {
-          // make it an error to specific degree 0 or 1, which means no anisotropy so it's probably an input mistake
+          // make it an error to specific degree 0 or 1, which means no
+          // anisotropy so it's probably an input mistake
           nout << "Invalid anistropic degree (range is 2-16): " << _aniso_degree << "\n";
           return false;
         }
@@ -241,8 +237,8 @@ parse(const string &line) {
         _got_coverage_threshold = true;
 
       } else if (word.substr(0, 6) == "force-") {
-        // Force a particular format, despite the number of channels
-        // in the image.
+        // Force a particular format, despite the number of channels in the
+        // image.
         string format_name = word.substr(6);
         EggTexture::Format format = EggTexture::string_format(format_name);
         if (format != EggTexture::F_unspecified) {
@@ -254,9 +250,8 @@ parse(const string &line) {
         }
 
       } else if (word == "generic") {
-        // Genericize the image format by replacing bitcount-specific
-        // formats with their generic equivalents, e.g. rgba8 becomes
-        // rgba.
+        // Genericize the image format by replacing bitcount-specific formats
+        // with their generic equivalents, e.g.  rgba8 becomes rgba.
         _generic_format = true;
 
       } else if (word == "keep-format") {
@@ -266,13 +261,12 @@ parse(const string &line) {
       } else {
         // Maybe it's a group name.
         PaletteGroup *group = pal->test_palette_group(word);
-        if (group != (PaletteGroup *)NULL) {
+        if (group != nullptr) {
           _palette_groups.insert(group);
 
         } else {
-          // Maybe it's a format name.  This suggests an image format,
-          // but may be overridden to reflect the number of channels in
-          // the image.
+          // Maybe it's a format name.  This suggests an image format, but may
+          // be overridden to reflect the number of channels in the image.
           EggTexture::Format format = EggTexture::string_format(word);
           if (format != EggTexture::F_unspecified) {
             if (!_force_format) {
@@ -291,7 +285,7 @@ parse(const string &line) {
                 _quality_level = ql;
 
               } else if (word.length() > 2 && word[word.length() - 2] == '_' &&
-                         strchr("uv", word[word.length() - 1]) != NULL) {
+                         strchr("uv", word[word.length() - 1]) != nullptr) {
                 // It must be a wrap mode for u or v.
                 string prefix = word.substr(0, word.length() - 2);
                 EggTexture::WrapMode wm = EggTexture::string_wrap_mode(prefix);
@@ -302,12 +296,12 @@ parse(const string &line) {
                 case 'u':
                   _wrap_u = wm;
                   break;
-                  
+
                 case 'v':
                   _wrap_v = wm;
                   break;
                 }
-                
+
               } else {
                 // Maybe it's an image file request.
                 if (!parse_image_type_request(word, _color_type, _alpha_type)) {
@@ -325,17 +319,13 @@ parse(const string &line) {
   return true;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: TxaLine::match_egg
-//       Access: Public
-//  Description: Compares the patterns on the line to the indicated
-//               EggFile.  If they match, updates the egg with the
-//               appropriate information.  Returns true if a match is
-//               detected and the search for another line should stop,
-//               or false if a match is not detected (or if the
-//               keyword "cont" is present, which means the search
-//               should continue regardless).
-////////////////////////////////////////////////////////////////////
+/**
+ * Compares the patterns on the line to the indicated EggFile.  If they match,
+ * updates the egg with the appropriate information.  Returns true if a match
+ * is detected and the search for another line should stop, or false if a
+ * match is not detected (or if the keyword "cont" is present, which means the
+ * search should continue regardless).
+ */
 bool TxaLine::
 match_egg(EggFile *egg_file) const {
   string name = egg_file->get_name();
@@ -376,29 +366,24 @@ match_egg(EggFile *egg_file) const {
   egg_file->match_txa_groups(_palette_groups);
 
   if (got_cont) {
-    // If we have the "cont" keyword, we should keep scanning for
-    // another line, even though we matched this one.
+    // If we have the "cont" keyword, we should keep scanning for another
+    // line, even though we matched this one.
     return false;
   }
 
-  // Otherwise, in the normal case, a match ends the search for
-  // matches.
+  // Otherwise, in the normal case, a match ends the search for matches.
   egg_file->clear_surprise();
 
   return true;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: TxaLine::match_texture
-//       Access: Public
-//  Description: Compares the patterns on the line to the indicated
-//               TextureImage.  If they match, updates the texture
-//               with the appropriate information.  Returns true if a
-//               match is detected and the search for another line
-//               should stop, or false if a match is not detected (or
-//               if the keyword "cont" is present, which means the
-//               search should continue regardless).
-////////////////////////////////////////////////////////////////////
+/**
+ * Compares the patterns on the line to the indicated TextureImage.  If they
+ * match, updates the texture with the appropriate information.  Returns true
+ * if a match is detected and the search for another line should stop, or
+ * false if a match is not detected (or if the keyword "cont" is present,
+ * which means the search should continue regardless).
+ */
 bool TxaLine::
 match_texture(TextureImage *texture) const {
   string name = texture->get_name();
@@ -425,10 +410,10 @@ match_texture(TextureImage *texture) const {
       break;
 
     case ST_scale:
-      if (source != (SourceTextureImage *)NULL && source->get_size()) {
+      if (source != nullptr && source->get_size()) {
         request._got_size = true;
-        request._x_size = max(1, (int)(source->get_x_size() * _scale / 100.0));
-        request._y_size = max(1, (int)(source->get_y_size() * _scale / 100.0));
+        request._x_size = std::max(1, (int)(source->get_x_size() * _scale / 100.0));
+        request._y_size = std::max(1, (int)(source->get_y_size() * _scale / 100.0));
       }
       break;
 
@@ -453,7 +438,7 @@ match_texture(TextureImage *texture) const {
     request._coverage_threshold = _coverage_threshold;
   }
 
-  if (_color_type != (PNMFileType *)NULL) {
+  if (_color_type != nullptr) {
     request._properties._color_type = _color_type;
     request._properties._alpha_type = _alpha_type;
   }
@@ -525,25 +510,22 @@ match_texture(TextureImage *texture) const {
   texture->_explicitly_assigned_groups.remove_null();
 
   if (got_cont) {
-    // If we have the "cont" keyword, we should keep scanning for
-    // another line, even though we matched this one.
+    // If we have the "cont" keyword, we should keep scanning for another
+    // line, even though we matched this one.
     return false;
   }
 
-  // Otherwise, in the normal case, a match ends the search for
-  // matches.
+  // Otherwise, in the normal case, a match ends the search for matches.
   texture->_is_surprise = false;
 
   return true;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: TxaLine::output
-//       Access: Public
-//  Description:
-////////////////////////////////////////////////////////////////////
+/**
+ *
+ */
 void TxaLine::
-output(ostream &out) const {
+output(std::ostream &out) const {
   Patterns::const_iterator pi;
   for (pi = _texture_patterns.begin(); pi != _texture_patterns.end(); ++pi) {
     out << (*pi) << " ";
@@ -619,9 +601,9 @@ output(ostream &out) const {
     }
   }
 
-  if (_color_type != (PNMFileType *)NULL) {
+  if (_color_type != nullptr) {
     out << " " << _color_type->get_suggested_extension();
-    if (_alpha_type != (PNMFileType *)NULL) {
+    if (_alpha_type != nullptr) {
       out << "," << _alpha_type->get_suggested_extension();
     }
   }

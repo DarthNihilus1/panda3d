@@ -1,33 +1,29 @@
-// Filename: somethingToEgg.cxx
-// Created by:  drose (15Feb00)
-//
-////////////////////////////////////////////////////////////////////
-//
-// PANDA 3D SOFTWARE
-// Copyright (c) Carnegie Mellon University.  All rights reserved.
-//
-// All use of this software is subject to the terms of the revised BSD
-// license.  You should have received a copy of this license along
-// with this source code in a file named "LICENSE."
-//
-////////////////////////////////////////////////////////////////////
+/**
+ * PANDA 3D SOFTWARE
+ * Copyright (c) Carnegie Mellon University.  All rights reserved.
+ *
+ * All use of this software is subject to the terms of the revised BSD
+ * license.  You should have received a copy of this license along
+ * with this source code in a file named "LICENSE."
+ *
+ * @file somethingToEgg.cxx
+ * @author drose
+ * @date 2000-02-15
+ */
 
 #include "somethingToEgg.h"
 #include "somethingToEggConverter.h"
 
-#include "config_util.h"
+#include "config_putil.h"
 
-////////////////////////////////////////////////////////////////////
-//     Function: SomethingToEgg::Constructor
-//       Access: Public
-//  Description: The first parameter to the constructor should be the
-//               one-word name of the file format that is to be read,
-//               for instance "OpenFlight" or "Alias".  It's just used
-//               in printing error messages and such.
-////////////////////////////////////////////////////////////////////
+/**
+ * The first parameter to the constructor should be the one-word name of the
+ * file format that is to be read, for instance "OpenFlight" or "Alias".  It's
+ * just used in printing error messages and such.
+ */
 SomethingToEgg::
-SomethingToEgg(const string &format_name,
-               const string &preferred_extension,
+SomethingToEgg(const std::string &format_name,
+               const std::string &preferred_extension,
                bool allow_last_param, bool allow_stdout) :
   EggConverter(format_name, preferred_extension, allow_last_param, allow_stdout)
 {
@@ -81,22 +77,19 @@ SomethingToEgg(const string &format_name,
   _merge_externals = false;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: SomethingToEgg::add_units_options
-//       Access: Public
-//  Description: Adds -ui and -uo as valid options for this program.
-//               If the user specifies -uo and -ui, or just -uo and
-//               the program specifies -ui by setting _input_units,
-//               the indicated units conversion will be automatically
-//               applied before writing out the egg file.
-////////////////////////////////////////////////////////////////////
+/**
+ * Adds -ui and -uo as valid options for this program.  If the user specifies
+ * -uo and -ui, or just -uo and the program specifies -ui by setting
+ * _input_units, the indicated units conversion will be automatically applied
+ * before writing out the egg file.
+ */
 void SomethingToEgg::
 add_units_options() {
   add_option
     ("ui", "units", 40,
      "Specify the units of the input " + _format_name +
      " file.  Normally, this can be inferred from the file itself.",
-     &SomethingToEgg::dispatch_units, NULL, &_input_units);
+     &SomethingToEgg::dispatch_units, nullptr, &_input_units);
 
   add_option
     ("uo", "units", 40,
@@ -104,14 +97,12 @@ add_units_options() {
      "specified, the vertices in the egg file will be scaled as "
      "necessary to make the appropriate units conversion; otherwise, "
      "the vertices will be left as they are.",
-     &SomethingToEgg::dispatch_units, NULL, &_output_units);
+     &SomethingToEgg::dispatch_units, nullptr, &_output_units);
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: SomethingToEgg::add_animation_options
-//       Access: Public
-//  Description: Adds options appropriate to animation packages.
-////////////////////////////////////////////////////////////////////
+/**
+ * Adds options appropriate to animation packages.
+ */
 void SomethingToEgg::
 add_animation_options() {
   add_option
@@ -120,14 +111,14 @@ add_animation_options() {
      "converted to egg, if at all.  At present, the following keywords "
      "are supported: none, pose, flip, strobe, model, chan, or both.  "
      "The default is none, which means not to convert animation.",
-     &SomethingToEgg::dispatch_animation_convert, NULL, &_animation_convert);
+     &SomethingToEgg::dispatch_animation_convert, nullptr, &_animation_convert);
 
   add_option
     ("cn", "name", 40,
      "Specifies the name of the animation character.  This should match "
      "between all of the model files and all of the channel files for a "
      "particular model and its associated channels.",
-     &SomethingToEgg::dispatch_string, NULL, &_character_name);
+     &SomethingToEgg::dispatch_string, nullptr, &_character_name);
 
   add_option
     ("sf", "start-frame", 40,
@@ -171,11 +162,9 @@ add_animation_options() {
      &SomethingToEgg::dispatch_double, &_got_output_frame_rate, &_output_frame_rate);
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: SomethingToEgg::add_merge_externals_options
-//       Access: Public
-//  Description: Adds -f.
-////////////////////////////////////////////////////////////////////
+/**
+ * Adds -f.
+ */
 void SomethingToEgg::
 add_merge_externals_options() {
   add_option
@@ -184,13 +173,11 @@ add_merge_externals_options() {
      &SomethingToEgg::dispatch_none, &_merge_externals);
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: SomethingToEgg::apply_units_scale
-//       Access: Protected
-//  Description: Applies the scale indicated by the input and output
-//               units to the indicated egg file.  This is normally
-//               done automatically when the file is written out.
-////////////////////////////////////////////////////////////////////
+/**
+ * Applies the scale indicated by the input and output units to the indicated
+ * egg file.  This is normally done automatically when the file is written
+ * out.
+ */
 void SomethingToEgg::
 apply_units_scale(EggData *data) {
   if (_output_units != DU_invalid && _input_units != DU_invalid &&
@@ -202,14 +189,11 @@ apply_units_scale(EggData *data) {
   }
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: SomethingToEgg::apply_parameters
-//       Access: Protected
-//  Description: Copies the relevant parameters specified by the user
-//               on the command line (if add_path_replace_options(),
-//               add_path_store_options(), or add_animation_options()
-//               was used) to the converter.
-////////////////////////////////////////////////////////////////////
+/**
+ * Copies the relevant parameters specified by the user on the command line
+ * (if add_path_replace_options(), add_path_store_options(), or
+ * add_animation_options() was used) to the converter.
+ */
 void SomethingToEgg::
 apply_parameters(SomethingToEggConverter &converter) {
   _path_replace->_noabs = _noabs;
@@ -238,11 +222,9 @@ apply_parameters(SomethingToEggConverter &converter) {
   }
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: SomethingToEgg::handle_args
-//       Access: Protected
-//  Description:
-////////////////////////////////////////////////////////////////////
+/**
+ *
+ */
 bool SomethingToEgg::
 handle_args(Args &args) {
   if (_allow_last_param && !_got_output_filename && args.size() > 1) {
@@ -295,16 +277,12 @@ handle_args(Args &args) {
   return true;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: SomethingToEgg::post_command_line
-//       Access: Protected, Virtual
-//  Description: This is called after the command line has been
-//               completely processed, and it gives the program a
-//               chance to do some last-minute processing and
-//               validation of the options and arguments.  It should
-//               return true if everything is fine, false if there is
-//               an error.
-////////////////////////////////////////////////////////////////////
+/**
+ * This is called after the command line has been completely processed, and it
+ * gives the program a chance to do some last-minute processing and validation
+ * of the options and arguments.  It should return true if everything is fine,
+ * false if there is an error.
+ */
 bool SomethingToEgg::
 post_command_line() {
   // Prepend the source filename to the model path.
@@ -318,39 +296,33 @@ post_command_line() {
   return EggConverter::post_command_line();
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: SomethingToEgg::post_process_egg_file
-//       Access: Protected, Virtual
-//  Description: Performs any processing of the egg file that is
-//               appropriate before writing it out.  This includes any
-//               normal adjustments the user requested via -np, etc.
-//
-//               Normally, you should not need to call this function
-//               directly; write_egg_file() calls it for you.  You
-//               should call this only if you do not use
-//               write_egg_file() to write out the resulting egg file.
-////////////////////////////////////////////////////////////////////
+/**
+ * Performs any processing of the egg file that is appropriate before writing
+ * it out.  This includes any normal adjustments the user requested via -np,
+ * etc.
+ *
+ * Normally, you should not need to call this function directly;
+ * write_egg_file() calls it for you.  You should call this only if you do not
+ * use write_egg_file() to write out the resulting egg file.
+ */
 void SomethingToEgg::
 post_process_egg_file() {
   apply_units_scale(_data);
   EggConverter::post_process_egg_file();
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: SomethingToEgg::dispatch_animation_convert
-//       Access: Protected, Static
-//  Description: Dispatch function to set the given animation convert mode
-//               according to the specified parameter.  var is a
-//               pointer to an AnimationConvert variable.
-////////////////////////////////////////////////////////////////////
+/**
+ * Dispatch function to set the given animation convert mode according to the
+ * specified parameter.  var is a pointer to an AnimationConvert variable.
+ */
 bool SomethingToEgg::
-dispatch_animation_convert(const string &opt, const string &arg, void *var) {
+dispatch_animation_convert(const std::string &opt, const std::string &arg, void *var) {
   AnimationConvert *ip = (AnimationConvert *)var;
   (*ip) = string_animation_convert(arg);
   if ((*ip) == AC_invalid) {
     nout << "Invalid keyword for -" << opt << ": " << arg << "\n";
     return false;
-  }    
+  }
 
   return true;
 }

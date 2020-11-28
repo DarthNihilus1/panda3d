@@ -1,16 +1,15 @@
-// Filename: objToEggConverter.cxx
-// Created by:  drose (07Dec10)
-//
-////////////////////////////////////////////////////////////////////
-//
-// PANDA 3D SOFTWARE
-// Copyright (c) Carnegie Mellon University.  All rights reserved.
-//
-// All use of this software is subject to the terms of the revised BSD
-// license.  You should have received a copy of this license along
-// with this source code in a file named "LICENSE."
-//
-////////////////////////////////////////////////////////////////////
+/**
+ * PANDA 3D SOFTWARE
+ * Copyright (c) Carnegie Mellon University.  All rights reserved.
+ *
+ * All use of this software is subject to the terms of the revised BSD
+ * license.  You should have received a copy of this license along
+ * with this source code in a file named "LICENSE."
+ *
+ * @file objToEggConverter.cxx
+ * @author drose
+ * @date 2010-12-07
+ */
 
 #include "objToEggConverter.h"
 #include "config_objegg.h"
@@ -28,103 +27,81 @@
 #include "triangulator3.h"
 #include "config_egg2pg.h"
 
-////////////////////////////////////////////////////////////////////
-//     Function: ObjToEggConverter::Constructor
-//       Access: Public
-//  Description:
-////////////////////////////////////////////////////////////////////
+using std::string;
+
+/**
+ *
+ */
 ObjToEggConverter::
 ObjToEggConverter() {
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: ObjToEggConverter::Copy Constructor
-//       Access: Public
-//  Description:
-////////////////////////////////////////////////////////////////////
+/**
+ *
+ */
 ObjToEggConverter::
 ObjToEggConverter(const ObjToEggConverter &copy) :
   SomethingToEggConverter(copy)
 {
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: ObjToEggConverter::Destructor
-//       Access: Public
-//  Description:
-////////////////////////////////////////////////////////////////////
+/**
+ *
+ */
 ObjToEggConverter::
 ~ObjToEggConverter() {
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: ObjToEggConverter::make_copy
-//       Access: Public, Virtual
-//  Description: Allocates and returns a new copy of the converter.
-////////////////////////////////////////////////////////////////////
+/**
+ * Allocates and returns a new copy of the converter.
+ */
 SomethingToEggConverter *ObjToEggConverter::
 make_copy() {
   return new ObjToEggConverter(*this);
 }
 
 
-////////////////////////////////////////////////////////////////////
-//     Function: ObjToEggConverter::get_name
-//       Access: Public, Virtual
-//  Description: Returns the English name of the file type this
-//               converter supports.
-////////////////////////////////////////////////////////////////////
+/**
+ * Returns the English name of the file type this converter supports.
+ */
 string ObjToEggConverter::
 get_name() const {
   return "obj";
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: ObjToEggConverter::get_extension
-//       Access: Public, Virtual
-//  Description: Returns the common extension of the file type this
-//               converter supports.
-////////////////////////////////////////////////////////////////////
+/**
+ * Returns the common extension of the file type this converter supports.
+ */
 string ObjToEggConverter::
 get_extension() const {
   return "obj";
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: ObjToEggConverter::supports_compressed
-//       Access: Published, Virtual
-//  Description: Returns true if this file type can transparently load
-//               compressed files (with a .pz extension), false
-//               otherwise.
-////////////////////////////////////////////////////////////////////
+/**
+ * Returns true if this file type can transparently load compressed files
+ * (with a .pz extension), false otherwise.
+ */
 bool ObjToEggConverter::
 supports_compressed() const {
   return true;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: ObjToEggConverter::supports_convert_to_node
-//       Access: Published, Virtual
-//  Description: Returns true if this converter can directly convert
-//               the model type to internal Panda memory structures,
-//               given the indicated options, or false otherwise.  If
-//               this returns true, then convert_to_node() may be
-//               called to perform the conversion, which may be faster
-//               than calling convert_file() if the ultimate goal is a
-//               PandaNode anyway.
-////////////////////////////////////////////////////////////////////
+/**
+ * Returns true if this converter can directly convert the model type to
+ * internal Panda memory structures, given the indicated options, or false
+ * otherwise.  If this returns true, then convert_to_node() may be called to
+ * perform the conversion, which may be faster than calling convert_file() if
+ * the ultimate goal is a PandaNode anyway.
+ */
 bool ObjToEggConverter::
 supports_convert_to_node(const LoaderOptions &options) const {
   return true;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: ObjToEggConverter::convert_file
-//       Access: Public, Virtual
-//  Description: Handles the reading of the input file and converting
-//               it to egg.  Returns true if successful, false
-//               otherwise.
-////////////////////////////////////////////////////////////////////
+/**
+ * Handles the reading of the input file and converting it to egg.  Returns
+ * true if successful, false otherwise.
+ */
 bool ObjToEggConverter::
 convert_file(const Filename &filename) {
   clear_error();
@@ -139,15 +116,12 @@ convert_file(const Filename &filename) {
   return !had_error();
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: ObjToEggConverter::convert_to_node
-//       Access: Public, Virtual
-//  Description: Reads the input file and directly produces a
-//               ready-to-render model file as a PandaNode.  Returns
-//               NULL on failure, or if it is not supported.  (This
-//               functionality is not supported by all converter
-//               types; see supports_convert_to_node()).
-////////////////////////////////////////////////////////////////////
+/**
+ * Reads the input file and directly produces a ready-to-render model file as
+ * a PandaNode.  Returns NULL on failure, or if it is not supported.  (This
+ * functionality is not supported by all converter types; see
+ * supports_convert_to_node()).
+ */
 PT(PandaNode) ObjToEggConverter::
 convert_to_node(const LoaderOptions &options, const Filename &filename) {
   clear_error();
@@ -163,22 +137,20 @@ convert_to_node(const LoaderOptions &options, const Filename &filename) {
   delete _current_vertex_data;
 
   if (had_error()) {
-    return NULL;
+    return nullptr;
   }
 
   return _root_node;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: ObjToEggConverter::process
-//       Access: Protected
-//  Description: Reads the file and converts it to egg structures.
-////////////////////////////////////////////////////////////////////
+/**
+ * Reads the file and converts it to egg structures.
+ */
 bool ObjToEggConverter::
 process(const Filename &filename) {
   VirtualFileSystem *vfs = VirtualFileSystem::get_global_ptr();
-  istream *strm = vfs->open_read_file(filename, true);
-  if (strm == NULL) {
+  std::istream *strm = vfs->open_read_file(filename, true);
+  if (strm == nullptr) {
     objegg_cat.error()
       << "Couldn't read " << filename << "\n";
     return false;
@@ -245,11 +217,9 @@ process(const Filename &filename) {
   return true;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: ObjToEggConverter::process_line
-//       Access: Protected
-//  Description:
-////////////////////////////////////////////////////////////////////
+/**
+ *
+ */
 bool ObjToEggConverter::
 process_line(const string &line) {
   vector_string words;
@@ -282,16 +252,14 @@ process_line(const string &line) {
   return true;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: ObjToEggConverter::process_line
-//       Access: Protected
-//  Description:
-////////////////////////////////////////////////////////////////////
+/**
+ *
+ */
 bool ObjToEggConverter::
 process_ref_plane_res(const string &line) {
-  // the #_ref_plane_res line is a DRZ extension that defines the
-  // pixel resolution of the projector device.  It's needed to
-  // properly scale the xvt lines.
+  // the #_ref_plane_res line is a DRZ extension that defines the pixel
+  // resolution of the projector device.  It's needed to properly scale the
+  // xvt lines.
 
   vector_string words;
   tokenize(line, words, " \t", true);
@@ -304,7 +272,6 @@ process_ref_plane_res(const string &line) {
   }
 
   bool okflag = true;
-  LPoint3d pos;
   okflag &= string_to_double(words[1], _ref_plane_res[0]);
   okflag &= string_to_double(words[2], _ref_plane_res[1]);
 
@@ -317,11 +284,9 @@ process_ref_plane_res(const string &line) {
   return true;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: ObjToEggConverter::process_v
-//       Access: Protected
-//  Description:
-////////////////////////////////////////////////////////////////////
+/**
+ *
+ */
 bool ObjToEggConverter::
 process_v(vector_string &words) {
   if (words.size() != 4 && words.size() != 5 &&
@@ -351,8 +316,7 @@ process_v(vector_string &words) {
 
   _v_table.push_back(pos);
 
-  // Meshlab format might include an RGB color following the vertex
-  // position.
+  // Meshlab format might include an RGB color following the vertex position.
   if (words.size() == 7 && words.size() == 8) {
     size_t si = words.size();
     LVecBase3d rgb;
@@ -374,11 +338,9 @@ process_v(vector_string &words) {
   return true;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: ObjToEggConverter::process_vt
-//       Access: Protected
-//  Description:
-////////////////////////////////////////////////////////////////////
+/**
+ *
+ */
 bool ObjToEggConverter::
 process_vt(vector_string &words) {
   if (words.size() != 3 && words.size() != 4) {
@@ -409,14 +371,11 @@ process_vt(vector_string &words) {
   return true;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: ObjToEggConverter::process_xvt
-//       Access: Protected
-//  Description: "xvt" is an extended column invented by DRZ.  It
-//               includes texture coordinates in pixel space of the
-//               projector device, as well as for each camera.  We map
-//               it to the nominal texture coordinates here.
-////////////////////////////////////////////////////////////////////
+/**
+ * "xvt" is an extended column invented by DRZ.  It includes texture
+ * coordinates in pixel space of the projector device, as well as for each
+ * camera.  We map it to the nominal texture coordinates here.
+ */
 bool ObjToEggConverter::
 process_xvt(vector_string &words) {
   if (words.size() < 3) {
@@ -444,22 +403,17 @@ process_xvt(vector_string &words) {
   return true;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: ObjToEggConverter::process_xvc
-//       Access: Protected
-//  Description: "xvc" is another extended column invented by DRZ.  We
-//               quietly ignore it.
-////////////////////////////////////////////////////////////////////
+/**
+ * "xvc" is another extended column invented by DRZ.  We quietly ignore it.
+ */
 bool ObjToEggConverter::
 process_xvc(vector_string &words) {
   return true;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: ObjToEggConverter::process_vn
-//       Access: Protected
-//  Description:
-////////////////////////////////////////////////////////////////////
+/**
+ *
+ */
 bool ObjToEggConverter::
 process_vn(vector_string &words) {
   if (words.size() != 4) {
@@ -486,11 +440,9 @@ process_vn(vector_string &words) {
   return true;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: ObjToEggConverter::process_f
-//       Access: Protected
-//  Description: Defines a face in the obj file.
-////////////////////////////////////////////////////////////////////
+/**
+ * Defines a face in the obj file.
+ */
 bool ObjToEggConverter::
 process_f(vector_string &words) {
   _f_given = true;
@@ -498,7 +450,7 @@ process_f(vector_string &words) {
   PT(EggPolygon) poly = new EggPolygon;
   for (size_t i = 1; i < words.size(); ++i) {
     EggVertex *vertex = get_face_vertex(words[i]);
-    if (vertex == NULL) {
+    if (vertex == nullptr) {
       return false;
     }
     poly->add_vertex(vertex);
@@ -508,25 +460,23 @@ process_f(vector_string &words) {
   return true;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: ObjToEggConverter::process_g
-//       Access: Protected
-//  Description: Defines a group in the obj file.
-////////////////////////////////////////////////////////////////////
+/**
+ * Defines a group in the obj file.
+ */
 bool ObjToEggConverter::
 process_g(vector_string &words) {
   EggGroup *group = _root_group;
 
-  // We assume the group names define a hierarchy of more-specific to
-  // less-specific group names, so that the first group name is the
-  // bottommost node, and the last group name is the topmost node.
+  // We assume the group names define a hierarchy of more-specific to less-
+  // specific group names, so that the first group name is the bottommost
+  // node, and the last group name is the topmost node.
 
   // Thus, iterate from the back to the front.
   size_t i = words.size();
   while (i > 1) {
     --i;
     EggNode *child = group->find_child(words[i]);
-    if (child == NULL || !child->is_of_type(EggGroup::get_class_type())) {
+    if (child == nullptr || !child->is_of_type(EggGroup::get_class_type())) {
       child = new EggGroup(words[i]);
       group->add_child(child);
     }
@@ -537,12 +487,10 @@ process_g(vector_string &words) {
   return true;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: ObjToEggConverter::get_face_vertex
-//       Access: Protected
-//  Description: Returns or creates a vertex in the vpool according to
-//               the indicated face reference.
-////////////////////////////////////////////////////////////////////
+/**
+ * Returns or creates a vertex in the vpool according to the indicated face
+ * reference.
+ */
 EggVertex *ObjToEggConverter::
 get_face_vertex(const string &reference) {
   VertexEntry entry(this, reference);
@@ -587,13 +535,10 @@ get_face_vertex(const string &reference) {
   return _vpool->create_unique_vertex(synth);
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: ObjToEggConverter::generate_egg_points
-//       Access: Protected
-//  Description: If an obj file defines no faces, create a bunch of
-//               EggVertex objects to illustrate the vertex positions
-//               at least.
-////////////////////////////////////////////////////////////////////
+/**
+ * If an obj file defines no faces, create a bunch of EggVertex objects to
+ * illustrate the vertex positions at least.
+ */
 void ObjToEggConverter::
 generate_egg_points() {
   for (size_t vi = 0; vi < _v_table.size(); ++vi) {
@@ -603,16 +548,14 @@ generate_egg_points() {
 }
 
 
-////////////////////////////////////////////////////////////////////
-//     Function: ObjToEggConverter::process_node
-//       Access: Protected
-//  Description: Reads the file and converts it to PandaNode structures.
-////////////////////////////////////////////////////////////////////
+/**
+ * Reads the file and converts it to PandaNode structures.
+ */
 bool ObjToEggConverter::
 process_node(const Filename &filename) {
   VirtualFileSystem *vfs = VirtualFileSystem::get_global_ptr();
-  istream *strm = vfs->open_read_file(filename, true);
-  if (strm == NULL) {
+  std::istream *strm = vfs->open_read_file(filename, true);
+  if (strm == nullptr) {
     objegg_cat.error()
       << "Couldn't read " << filename << "\n";
     return false;
@@ -663,11 +606,9 @@ process_node(const Filename &filename) {
   return true;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: ObjToEggConverter::process_line_node
-//       Access: Protected
-//  Description:
-////////////////////////////////////////////////////////////////////
+/**
+ *
+ */
 bool ObjToEggConverter::
 process_line_node(const string &line) {
   vector_string words;
@@ -700,17 +641,15 @@ process_line_node(const string &line) {
   return true;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: ObjToEggConverter::process_f_node
-//       Access: Protected
-//  Description: Defines a face in the obj file.
-////////////////////////////////////////////////////////////////////
+/**
+ * Defines a face in the obj file.
+ */
 bool ObjToEggConverter::
 process_f_node(vector_string &words) {
   _f_given = true;
 
   bool all_vn = true;
-  int non_vn_index = -1;
+  //int non_vn_index = -1;
 
   pvector<VertexEntry> verts;
   verts.reserve(words.size() - 1);
@@ -719,7 +658,7 @@ process_f_node(vector_string &words) {
     verts.push_back(entry);
     if (entry._vni == 0) {
       all_vn = false;
-      non_vn_index = i;
+      //non_vn_index = i;
     }
   }
 
@@ -767,8 +706,9 @@ process_f_node(vector_string &words) {
   }
 
   if (_current_vertex_data->_prim->get_num_vertices() + 3 * num_tris > egg_max_indices ||
-      _current_vertex_data->_entries.size() + verts.size() > egg_max_vertices) {
-    // We'll exceed our specified limit with these triangles; start a new Geom.
+      _current_vertex_data->_entries.size() + verts.size() > (size_t)egg_max_vertices) {
+    // We'll exceed our specified limit with these triangles; start a new
+    // Geom.
     _current_vertex_data->close_geom(this);
   }
 
@@ -789,22 +729,20 @@ process_f_node(vector_string &words) {
   return true;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: ObjToEggConverter::process_g_node
-//       Access: Protected
-//  Description: Defines a group in the obj file.
-////////////////////////////////////////////////////////////////////
+/**
+ * Defines a group in the obj file.
+ */
 bool ObjToEggConverter::
 process_g_node(vector_string &words) {
   _current_vertex_data->close_geom(this);
   delete _current_vertex_data;
-  _current_vertex_data = NULL;
+  _current_vertex_data = nullptr;
 
   NodePath np(_root_node);
 
-  // We assume the group names define a hierarchy of more-specific to
-  // less-specific group names, so that the first group name is the
-  // bottommost node, and the last group name is the topmost node.
+  // We assume the group names define a hierarchy of more-specific to less-
+  // specific group names, so that the first group name is the bottommost
+  // node, and the last group name is the topmost node.
 
   // Thus, iterate from the back to the front.
   size_t i = words.size();
@@ -829,13 +767,10 @@ process_g_node(vector_string &words) {
   return true;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: ObjToEggConverter::generate_points
-//       Access: Protected
-//  Description: If an obj file defines no faces, create a bunch of
-//               GeomPoints to illustrate the vertex positions at
-//               least.
-////////////////////////////////////////////////////////////////////
+/**
+ * If an obj file defines no faces, create a bunch of GeomPoints to illustrate
+ * the vertex positions at least.
+ */
 void ObjToEggConverter::
 generate_points() {
   CPT(GeomVertexFormat) format = GeomVertexFormat::get_v3();
@@ -860,34 +795,29 @@ generate_points() {
   _root_node->add_child(geom_node);
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: ObjToEggConverter::add_synth_normal
-//       Access: Private
-//  Description: Adds a new normal to the synth_vn table, or returns
-//               an existing normal.  In either case returns the
-//               1-based index number to the normal.
-////////////////////////////////////////////////////////////////////
+/**
+ * Adds a new normal to the synth_vn table, or returns an existing normal.  In
+ * either case returns the 1-based index number to the normal.
+ */
 int ObjToEggConverter::
 add_synth_normal(const LVecBase3d &normal) {
-  pair<UniqueVec3Table::iterator, bool> result = _unique_synth_vn_table.insert(UniqueVec3Table::value_type(normal, _unique_synth_vn_table.size()));
+  std::pair<UniqueVec3Table::iterator, bool> result = _unique_synth_vn_table.insert(UniqueVec3Table::value_type(normal, _unique_synth_vn_table.size()));
   UniqueVec3Table::iterator ni = result.first;
   int index = (*ni).second;
 
   if (result.second) {
-    // If the normal was added to the table, it's a unique normal, and
-    // now we have to add it to the table too.
+    // If the normal was added to the table, it's a unique normal, and now we
+    // have to add it to the table too.
     _synth_vn_table.push_back(normal);
   }
 
   return index + 1;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: ObjToEggConverter::VertexEntry::Constructor
-//       Access: Public
-//  Description: Creates a VertexEntry from the n/n/n string format in
-//               the obj file face reference.
-////////////////////////////////////////////////////////////////////
+/**
+ * Creates a VertexEntry from the n/n/n string format in the obj file face
+ * reference.
+ */
 ObjToEggConverter::VertexEntry::
 VertexEntry(const ObjToEggConverter *converter, const string &obj_vertex) {
   _vi = 0;
@@ -943,16 +873,14 @@ VertexEntry(const ObjToEggConverter *converter, const string &obj_vertex) {
   }
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: ObjToEggConverter::VertexData::Constructor
-//       Access: Public
-//  Description:
-////////////////////////////////////////////////////////////////////
+/**
+ *
+ */
 ObjToEggConverter::VertexData::
 VertexData(PandaNode *parent, const string &name) :
   _parent(parent), _name(name)
 {
-  _geom_node = NULL;
+  _geom_node = nullptr;
 
   _v4_given = false;
   _vt3_given = false;
@@ -963,29 +891,26 @@ VertexData(PandaNode *parent, const string &name) :
   _prim = new GeomTriangles(GeomEnums::UH_static);
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: ObjToEggConverter::VertexData::add_vertex
-//       Access: Public
-//  Description: Adds a new entry to the vertex data for the indicated
-//               VertexEntry, or returns an equivalent vertex already
-//               present.
-////////////////////////////////////////////////////////////////////
+/**
+ * Adds a new entry to the vertex data for the indicated VertexEntry, or
+ * returns an equivalent vertex already present.
+ */
 int ObjToEggConverter::VertexData::
 add_vertex(const ObjToEggConverter *converter, const VertexEntry &entry) {
-  pair<UniqueVertexEntries::iterator, bool> result;
+  std::pair<UniqueVertexEntries::iterator, bool> result;
   UniqueVertexEntries::iterator ni;
   int index;
 
   if (entry._vni != 0 || entry._synth_vni != 0) {
-    // If we are storing a vertex with a normal, see if we
-    // have already stored a vertex without a normal first.
+    // If we are storing a vertex with a normal, see if we have already stored
+    // a vertex without a normal first.
     VertexEntry no_normal(entry);
     no_normal._vni = 0;
     no_normal._synth_vni = 0;
     ni = _unique_entries.find(no_normal);
     if (ni != _unique_entries.end()) {
-      // We did have such a vertex!  In this case, repurpose this
-      // vertex, resetting it to contain this normal.
+      // We did have such a vertex!  In this case, repurpose this vertex,
+      // resetting it to contain this normal.
       index = (*ni).second;
       _unique_entries.erase(ni);
       result = _unique_entries.insert(UniqueVertexEntries::value_type(entry, index));
@@ -996,8 +921,8 @@ add_vertex(const ObjToEggConverter *converter, const VertexEntry &entry) {
       return index;
     }
   } else if (entry._vni == 0 && entry._synth_vni == 0) {
-    // If we are storing a vertex *without* any normal, see if we have
-    // already stored a vertex with a normal first.
+    // If we are storing a vertex *without* any normal, see if we have already
+    // stored a vertex with a normal first.
     ni = _unique_entries.lower_bound(entry);
     if (ni != _unique_entries.end() && (*ni).first.matches_except_normal(entry)) {
       // We had such a vertex, so use it.
@@ -1006,15 +931,15 @@ add_vertex(const ObjToEggConverter *converter, const VertexEntry &entry) {
     }
   }
 
-  // We didn't already have a vertex we could repurpose, so try to add
-  // exactly the desired vertex.
+  // We didn't already have a vertex we could repurpose, so try to add exactly
+  // the desired vertex.
   result = _unique_entries.insert(UniqueVertexEntries::value_type(entry, _entries.size()));
   ni = result.first;
   index = (*ni).second;
 
   if (result.second) {
-    // If the vertex was added to the table, it's a unique vertex, and
-    // now we have to add it to the vertex data too.
+    // If the vertex was added to the table, it's a unique vertex, and now we
+    // have to add it to the vertex data too.
     _entries.push_back(entry);
 
     if (converter->_v4_given) {
@@ -1041,14 +966,11 @@ add_vertex(const ObjToEggConverter *converter, const VertexEntry &entry) {
   return index;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: ObjToEggConverter::VertexData::add_triangle
-//       Access: Public
-//  Description: Adds a triangle to the primitive, as a triple of
-//               three VertexEntry objects, which are each added to
-//               the vertex pool.  If synth_vni is not 0, it is
-//               assigned to the last vertex.
-////////////////////////////////////////////////////////////////////
+/**
+ * Adds a triangle to the primitive, as a triple of three VertexEntry objects,
+ * which are each added to the vertex pool.  If synth_vni is not 0, it is
+ * assigned to the last vertex.
+ */
 void ObjToEggConverter::VertexData::
 add_triangle(const ObjToEggConverter *converter, const VertexEntry &v0,
              const VertexEntry &v1, const VertexEntry &v2,
@@ -1070,17 +992,14 @@ add_triangle(const ObjToEggConverter *converter, const VertexEntry &v0,
   _prim->close_primitive();
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: ObjToEggConverter::VertexData::close_geom
-//       Access: Public
-//  Description: Finishes the current geom and stores it as a child
-//               in the root.  Prepares for new geoms.
-////////////////////////////////////////////////////////////////////
+/**
+ * Finishes the current geom and stores it as a child in the root.  Prepares
+ * for new geoms.
+ */
 void ObjToEggConverter::VertexData::
 close_geom(const ObjToEggConverter *converter) {
   if (_prim->get_num_vertices() != 0) {
-    // Create a new format that includes only the columns we actually
-    // used.
+    // Create a new format that includes only the columns we actually used.
     PT(GeomVertexArrayFormat) aformat = new GeomVertexArrayFormat;
     if (_v4_given) {
       aformat->add_column(InternalName::get_vertex(), 4,
@@ -1141,8 +1060,8 @@ close_geom(const ObjToEggConverter *converter) {
         normal_writer.set_row(i);
         normal_writer.add_data3d(converter->_synth_vn_table[entry._synth_vni - 1]);
       } else {
-        // In this case, the normal isn't used and doesn't matter; we
-        // fill it in a unit vector just for neatness.
+        // In this case, the normal isn't used and doesn't matter; we fill it
+        // in a unit vector just for neatness.
         normal_writer.set_row(i);
         normal_writer.add_data3d(0, 0, 1);
       }
@@ -1165,8 +1084,7 @@ close_geom(const ObjToEggConverter *converter) {
       state = state->add_attrib(ColorAttrib::make_flat(LColor(1, 1, 1, 1)));
     }
     if (!_vn_given) {
-      // We have synthesized these normals; specify the flat-shading
-      // attrib.
+      // We have synthesized these normals; specify the flat-shading attrib.
       state = state->add_attrib(ShadeModelAttrib::make(ShadeModelAttrib::M_flat));
       _prim->set_shade_model(GeomEnums::SM_flat_last_vertex);
     }
@@ -1174,7 +1092,7 @@ close_geom(const ObjToEggConverter *converter) {
     PT(Geom) geom = new Geom(vdata);
     geom->add_primitive(_prim);
 
-    if (_geom_node == NULL) {
+    if (_geom_node == nullptr) {
       _geom_node = new GeomNode(_name);
       _parent->add_child(_geom_node);
     }

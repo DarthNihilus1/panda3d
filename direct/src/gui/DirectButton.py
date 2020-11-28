@@ -1,10 +1,14 @@
-"""Undocumented Module"""
+"""This module contains the DirectButton class.
+
+See the :ref:`directbutton` page in the programming manual for a more
+in-depth explanation and an example of how to use this class.
+"""
 
 __all__ = ['DirectButton']
 
 from panda3d.core import *
-import DirectGuiGlobals as DGG
-from DirectFrame import *
+from . import DirectGuiGlobals as DGG
+from .DirectFrame import *
 
 class DirectButton(DirectFrame):
     """
@@ -100,7 +104,7 @@ class DirectButton(DirectFrame):
     def commandFunc(self, event):
         if self['command']:
             # Pass any extra args to command
-            apply(self['command'], self['extraArgs'])
+            self['command'](*self['extraArgs'])
 
     def setClickSound(self):
         clickSound = self['clickSound']

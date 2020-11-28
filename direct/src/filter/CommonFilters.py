@@ -1,7 +1,8 @@
 """
 
 Class CommonFilters implements certain common image
-postprocessing filters.
+postprocessing filters.  See the :ref:`common-image-filters` page for
+more information about how to use these filters.
 
 It is not ideal that these filters are all included in a single
 monolithic module.  Unfortunately, when you want to apply two filters
@@ -15,11 +16,19 @@ clunky approach.  - Josh
 
 """
 
-from FilterManager import FilterManager
+from .FilterManager import FilterManager
+from .filterBloomI import BLOOM_I
+from .filterBloomX import BLOOM_X
+from .filterBloomY import BLOOM_Y
+from .filterBlurX import BLUR_X
+from .filterBlurY import BLUR_Y
+from .filterCopy import COPY
+from .filterDown4 import DOWN_4
 from panda3d.core import LVecBase4, LPoint2
 from panda3d.core import Filename
 from panda3d.core import AuxBitplaneAttrib
 from panda3d.core import Texture, Shader, ATSNone
+from panda3d.core import FrameBufferProperties
 import os
 
 CARTOON_BODY="""
@@ -102,12 +111,6 @@ class CommonFilters:
         self.task = None
         self.cleanup()
 
-    def loadShader(self, name):
-        fn = os.path.join(os.path.abspath(os.path.dirname(__file__)), name)
-        fn = Filename.fromOsSpecific(fn)
-        fn.makeTrueCase()
-        return Shader.load(fn)
-
     def cleanup(self):
         self.manager.cleanup()
         self.textures = {}
@@ -130,6 +133,9 @@ class CommonFilters:
 
             if (len(configuration) == 0):
                 return
+
+            if not self.manager.win.gsg.getSupportsBasicShaders():
+                return False
 
             auxbits = 0
             needtex = set(["color"])
@@ -173,7 +179,15 @@ class CommonFilters:
                 self.textures[tex].setWrapU(Texture.WMClamp)
                 self.textures[tex].setWrapV(Texture.WMClamp)
 
-            self.finalQuad = self.manager.renderSceneInto(textures = self.textures, auxbits=auxbits)
+            fbprops = None
+            clamping = None
+            if "HighDynamicRange" in configuration:
+                fbprops = FrameBufferProperties()
+                fbprops.setFloatColor(True)
+                fbprops.setSrgbColor(False)
+                clamping = False
+
+            self.finalQuad = self.manager.renderSceneInto(textures = self.textures, auxbits=auxbits, fbprops=fbprops, clamping=clamping)
             if (self.finalQuad == None):
                 self.cleanup()
                 return False
@@ -181,28 +195,28 @@ class CommonFilters:
             if ("BlurSharpen" in configuration):
                 blur0=self.textures["blur0"]
                 blur1=self.textures["blur1"]
-                self.blur.append(self.manager.renderQuadInto(colortex=blur0,div=2))
-                self.blur.append(self.manager.renderQuadInto(colortex=blur1))
+                self.blur.append(self.manager.renderQuadInto("filter-blur0", colortex=blur0,div=2))
+                self.blur.append(self.manager.renderQuadInto("filter-blur1", colortex=blur1))
                 self.blur[0].setShaderInput("src", self.textures["color"])
-                self.blur[0].setShader(self.loadShader("filter-blurx.sha"))
+                self.blur[0].setShader(Shader.make(BLUR_X, Shader.SL_Cg))
                 self.blur[1].setShaderInput("src", blur0)
-                self.blur[1].setShader(self.loadShader("filter-blury.sha"))
+                self.blur[1].setShader(Shader.make(BLUR_Y, Shader.SL_Cg))
 
             if ("AmbientOcclusion" in configuration):
                 ssao0=self.textures["ssao0"]
                 ssao1=self.textures["ssao1"]
                 ssao2=self.textures["ssao2"]
-                self.ssao.append(self.manager.renderQuadInto(colortex=ssao0))
-                self.ssao.append(self.manager.renderQuadInto(colortex=ssao1,div=2))
-                self.ssao.append(self.manager.renderQuadInto(colortex=ssao2))
+                self.ssao.append(self.manager.renderQuadInto("filter-ssao0", colortex=ssao0))
+                self.ssao.append(self.manager.renderQuadInto("filter-ssao1", colortex=ssao1,div=2))
+                self.ssao.append(self.manager.renderQuadInto("filter-ssao2", colortex=ssao2))
                 self.ssao[0].setShaderInput("depth", self.textures["depth"])
                 self.ssao[0].setShaderInput("normal", self.textures["aux"])
                 self.ssao[0].setShaderInput("random", loader.loadTexture("maps/random.rgb"))
                 self.ssao[0].setShader(Shader.make(SSAO_BODY % configuration["AmbientOcclusion"].numsamples, Shader.SL_Cg))
                 self.ssao[1].setShaderInput("src", ssao0)
-                self.ssao[1].setShader(self.loadShader("filter-blurx.sha"))
+                self.ssao[1].setShader(Shader.make(BLUR_X, Shader.SL_Cg))
                 self.ssao[2].setShaderInput("src", ssao1)
-                self.ssao[2].setShader(self.loadShader("filter-blury.sha"))
+                self.ssao[2].setShader(Shader.make(BLUR_Y, Shader.SL_Cg))
 
             if ("Bloom" in configuration):
                 bloomconf = configuration["Bloom"]
@@ -212,25 +226,28 @@ class CommonFilters:
                 bloom3=self.textures["bloom3"]
                 if (bloomconf.size == "large"):
                     scale=8
-                    downsampler="filter-down4.sha"
+                    downsamplerName="filter-down4"
+                    downsampler=DOWN_4
                 elif (bloomconf.size == "medium"):
                     scale=4
-                    downsampler="filter-copy.sha"
+                    downsamplerName="filter-copy"
+                    downsampler=COPY
                 else:
                     scale=2
-                    downsampler="filter-copy.sha"
-                self.bloom.append(self.manager.renderQuadInto(colortex=bloom0, div=2,     align=scale))
-                self.bloom.append(self.manager.renderQuadInto(colortex=bloom1, div=scale, align=scale))
-                self.bloom.append(self.manager.renderQuadInto(colortex=bloom2, div=scale, align=scale))
-                self.bloom.append(self.manager.renderQuadInto(colortex=bloom3, div=scale, align=scale))
+                    downsamplerName="filter-copy"
+                    downsampler=COPY
+                self.bloom.append(self.manager.renderQuadInto("filter-bloomi", colortex=bloom0, div=2,     align=scale))
+                self.bloom.append(self.manager.renderQuadInto(downsamplerName, colortex=bloom1, div=scale, align=scale))
+                self.bloom.append(self.manager.renderQuadInto("filter-bloomx", colortex=bloom2, div=scale, align=scale))
+                self.bloom.append(self.manager.renderQuadInto("filter-bloomy", colortex=bloom3, div=scale, align=scale))
                 self.bloom[0].setShaderInput("src", self.textures["color"])
-                self.bloom[0].setShader(self.loadShader("filter-bloomi.sha"))
+                self.bloom[0].setShader(Shader.make(BLOOM_I, Shader.SL_Cg))
                 self.bloom[1].setShaderInput("src", bloom0)
-                self.bloom[1].setShader(self.loadShader(downsampler))
+                self.bloom[1].setShader(Shader.make(downsampler, Shader.SL_Cg))
                 self.bloom[2].setShaderInput("src", bloom1)
-                self.bloom[2].setShader(self.loadShader("filter-bloomx.sha"))
+                self.bloom[2].setShader(Shader.make(BLOOM_X, Shader.SL_Cg))
                 self.bloom[3].setShaderInput("src", bloom2)
-                self.bloom[3].setShader(self.loadShader("filter-bloomy.sha"))
+                self.bloom[3].setShader(Shader.make(BLOOM_Y, Shader.SL_Cg))
 
             texcoords = {}
             texcoordPadding = {}
@@ -248,6 +265,17 @@ class CommonFilters:
             texcoordSets = list(enumerate(texcoordPadding.keys()))
 
             text = "//Cg\n"
+            if "HighDynamicRange" in configuration:
+                text += "static const float3x3 aces_input_mat = {\n"
+                text += "  {0.59719, 0.35458, 0.04823},\n"
+                text += "  {0.07600, 0.90834, 0.01566},\n"
+                text += "  {0.02840, 0.13383, 0.83777},\n"
+                text += "};\n"
+                text += "static const float3x3 aces_output_mat = {\n"
+                text += "  { 1.60475, -0.53108, -0.07367},\n"
+                text += "  {-0.10208,  1.10813, -0.00605},\n"
+                text += "  {-0.00327, -0.07276,  1.07602},\n"
+                text += "};\n"
             text += "void vshader(float4 vtx_position : POSITION,\n"
             text += "  out float4 l_position : POSITION,\n"
 
@@ -294,6 +322,10 @@ class CommonFilters:
             if ("VolumetricLighting" in configuration):
                 text += "  uniform float4 k_casterpos,\n"
                 text += "  uniform float4 k_vlparams,\n"
+
+            if ("ExposureAdjust" in configuration):
+                text += "  uniform float k_exposure,\n"
+
             text += "  out float4 o_color : COLOR)\n"
             text += "{\n"
             text += "  o_color = tex2D(k_txcolor, %s);\n" % (texcoords["color"])
@@ -325,6 +357,14 @@ class CommonFilters:
                 text += "  }\n"
                 text += "  o_color += float4(vlcolor * k_vlparams.z, 1);\n"
 
+            if ("ExposureAdjust" in configuration):
+                text += "  o_color.rgb *= k_exposure;\n"
+
+            # With thanks to Stephen Hill!
+            if ("HighDynamicRange" in configuration):
+                text += "  float3 aces_color = mul(aces_input_mat, o_color.rgb);\n"
+                text += "  o_color.rgb = saturate(mul(aces_output_mat, (aces_color * (aces_color + 0.0245786f) - 0.000090537f) / (aces_color * (0.983729f * aces_color + 0.4329510f) + 0.238081f)));\n"
+
             if ("GammaAdjust" in configuration):
                 gamma = configuration["GammaAdjust"]
                 if gamma == 0.5:
@@ -334,11 +374,19 @@ class CommonFilters:
                 elif gamma != 1.0:
                     text += "  o_color.rgb = pow(o_color.rgb, %ff);\n" % (gamma)
 
+            if ("SrgbEncode" in configuration):
+                text += "  o_color.r = (o_color.r < 0.0031308) ? (o_color.r * 12.92) : (1.055 * pow(o_color.r, 0.41666) - 0.055);\n"
+                text += "  o_color.g = (o_color.g < 0.0031308) ? (o_color.g * 12.92) : (1.055 * pow(o_color.g, 0.41666) - 0.055);\n"
+                text += "  o_color.b = (o_color.b < 0.0031308) ? (o_color.b * 12.92) : (1.055 * pow(o_color.b, 0.41666) - 0.055);\n"
+
             if ("Inverted" in configuration):
                 text += "  o_color = float4(1, 1, 1, 1) - o_color;\n"
             text += "}\n"
 
-            self.finalQuad.setShader(Shader.make(text, Shader.SL_Cg))
+            shader = Shader.make(text, Shader.SL_Cg)
+            if not shader:
+                return False
+            self.finalQuad.setShader(shader)
             for tex in self.textures:
                 self.finalQuad.setShaderInput("tx"+tex, self.textures[tex])
 
@@ -375,6 +423,11 @@ class CommonFilters:
                 config = configuration["AmbientOcclusion"]
                 self.ssao[0].setShaderInput("params1", config.numsamples, -float(config.amount) / config.numsamples, config.radius, 0)
                 self.ssao[0].setShaderInput("params2", config.strength, config.falloff, 0, 0)
+
+        if (changed == "ExposureAdjust") or fullrebuild:
+            if ("ExposureAdjust" in configuration):
+                stops = configuration["ExposureAdjust"]
+                self.finalQuad.setShaderInput("exposure", 2 ** stops)
 
         self.update()
         return True
@@ -536,3 +589,96 @@ class CommonFilters:
             del self.configuration["GammaAdjust"]
             return self.reconfigure((old_gamma != 1.0), "GammaAdjust")
         return True
+
+    def setSrgbEncode(self, force=False):
+        """ Applies the inverse sRGB EOTF to the output, unless the window
+        already has an sRGB framebuffer, in which case this filter refuses to
+        apply, to prevent accidental double-application.
+
+        Set the force argument to True to force it to be applied in all cases.
+
+        .. versionadded:: 1.10.7
+        """
+        new_enable = force or not self.manager.win.getFbProperties().getSrgbColor()
+        old_enable = self.configuration.get("SrgbEncode", False)
+        if new_enable and not old_enable:
+            self.configuration["SrgbEncode"] = True
+            return self.reconfigure(True, "SrgbEncode")
+        elif not new_enable and old_enable:
+            del self.configuration["SrgbEncode"]
+        return new_enable
+
+    def delSrgbEncode(self):
+        """ Reverses the effects of setSrgbEncode. """
+        if ("SrgbEncode" in self.configuration):
+            old_enable = self.configuration["SrgbEncode"]
+            del self.configuration["SrgbEncode"]
+            return self.reconfigure(old_enable, "SrgbEncode")
+        return True
+
+    def setHighDynamicRange(self):
+        """ Enables HDR rendering by using a floating-point framebuffer,
+        disabling color clamping on the main scene, and applying a tone map
+        operator (ACES).
+
+        It may also be necessary to use setExposureAdjust to perform exposure
+        compensation on the scene, depending on the lighting intensity.
+
+        .. versionadded:: 1.10.7
+        """
+
+        fullrebuild = (("HighDynamicRange" in self.configuration) is False)
+        self.configuration["HighDynamicRange"] = 1
+        return self.reconfigure(fullrebuild, "HighDynamicRange")
+
+    def delHighDynamicRange(self):
+        if ("HighDynamicRange" in self.configuration):
+            del self.configuration["HighDynamicRange"]
+            return self.reconfigure(True, "HighDynamicRange")
+        return True
+
+    def setExposureAdjust(self, stops):
+        """ Sets a relative exposure adjustment to multiply with the result of
+        rendering the scene, in stops.  A value of 0 means no adjustment, a
+        positive value will result in a brighter image.  Useful in conjunction
+        with HDR, see setHighDynamicRange.
+
+        .. versionadded:: 1.10.7
+        """
+        old_stops = self.configuration.get("ExposureAdjust")
+        if old_stops != stops:
+            self.configuration["ExposureAdjust"] = stops
+            return self.reconfigure(old_stops is None, "ExposureAdjust")
+        return True
+
+    def delExposureAdjust(self):
+        if ("ExposureAdjust" in self.configuration):
+            del self.configuration["ExposureAdjust"]
+            return self.reconfigure(True, "ExposureAdjust")
+        return True
+
+    #snake_case alias:
+    del_cartoon_ink = delCartoonInk
+    set_half_pixel_shift = setHalfPixelShift
+    del_half_pixel_shift = delHalfPixelShift
+    set_inverted = setInverted
+    del_inverted = delInverted
+    del_view_glow = delViewGlow
+    set_volumetric_lighting = setVolumetricLighting
+    set_bloom = setBloom
+    set_view_glow = setViewGlow
+    set_ambient_occlusion = setAmbientOcclusion
+    set_cartoon_ink = setCartoonInk
+    del_bloom = delBloom
+    del_ambient_occlusion = delAmbientOcclusion
+    set_blur_sharpen = setBlurSharpen
+    del_blur_sharpen = delBlurSharpen
+    del_volumetric_lighting = delVolumetricLighting
+    set_gamma_adjust = setGammaAdjust
+    del_gamma_adjust = delGammaAdjust
+    set_srgb_encode = setSrgbEncode
+    del_srgb_encode = delSrgbEncode
+    set_exposure_adjust = setExposureAdjust
+    del_exposure_adjust = delExposureAdjust
+    set_high_dynamic_range = setHighDynamicRange
+    del_high_dynamic_range = delHighDynamicRange

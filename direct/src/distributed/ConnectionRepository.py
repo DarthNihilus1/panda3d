@@ -1,17 +1,16 @@
-from pandac.PandaModules import *
+from panda3d.core import *
+from panda3d.direct import *
 from direct.task import Task
 from direct.directnotify.DirectNotifyGlobal import directNotify
 from direct.distributed.DoInterestManager import DoInterestManager
 from direct.distributed.DoCollectionManager import DoCollectionManager
 from direct.showbase import GarbageReport
-from PyDatagram import PyDatagram
-from PyDatagramIterator import PyDatagramIterator
+from .PyDatagramIterator import PyDatagramIterator
 
-import types
-import imp
+import inspect
 import gc
 
-
+__all__ = ["ConnectionRepository", "GCTrigger"]
 
 class ConnectionRepository(
         DoInterestManager, DoCollectionManager, CConnectionRepository):
@@ -248,7 +247,7 @@ class ConnectionRepository(
         self.dclassesByNumber = {}
         self.hashVal = 0
 
-        if isinstance(dcFileNames, types.StringTypes):
+        if isinstance(dcFileNames, str):
             # If we were given a single string, make it a list.
             dcFileNames = [dcFileNames]
 
@@ -261,6 +260,7 @@ class ConnectionRepository(
             searchPath = getModelPath().getValue()
             for dcFileName in dcFileNames:
                 pathname = Filename(dcFileName)
+                vfs = VirtualFileSystem.getGlobalPtr()
                 vfs.resolveFilename(pathname, searchPath)
                 readResult = dcFile.read(pathname)
                 if not readResult:
@@ -328,13 +328,13 @@ class ConnectionRepository(
             if classDef is None:
                 self.notify.debug("No class definition for %s." % (className))
             else:
-                if type(classDef) == types.ModuleType:
+                if inspect.ismodule(classDef):
                     if not hasattr(classDef, className):
                         self.notify.warning("Module %s does not define class %s." % (className, className))
                         continue
                     classDef = getattr(classDef, className)
 
-                if type(classDef) != types.ClassType and type(classDef) != types.TypeType:
+                if not inspect.isclass(classDef):
                     self.notify.error("Symbol %s is not a class name." % (className))
                 else:
                     dclass.setClassDef(classDef)
@@ -389,7 +389,7 @@ class ConnectionRepository(
                     if classDef is None:
                         self.notify.error("No class definition for %s." % className)
                     else:
-                        if type(classDef) == types.ModuleType:
+                        if inspect.ismodule(classDef):
                             if not hasattr(classDef, className):
                                 self.notify.error("Module %s does not define class %s." % (className, className))
                             classDef = getattr(classDef, className)
@@ -418,7 +418,7 @@ class ConnectionRepository(
                 if hasattr(module, symbolName):
                     dcImports[symbolName] = getattr(module, symbolName)
                 else:
-                    raise StandardError, 'Symbol %s not defined in module %s.' % (symbolName, moduleName)
+                    raise Exception('Symbol %s not defined in module %s.' % (symbolName, moduleName))
         else:
             # "import moduleName"
 
@@ -514,7 +514,7 @@ class ConnectionRepository(
             if failureCallback:
                 failureCallback(0, '', *failureArgs)
         else:
-            print "uh oh, we aren't using one of the tri-state CM variables"
+            print("uh oh, we aren't using one of the tri-state CM variables")
             failureCallback(0, '', *failureArgs)
 
     def disconnect(self):

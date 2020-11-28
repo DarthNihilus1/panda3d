@@ -1,38 +1,40 @@
-// Filename: vorbisAudioCursor.cxx
-// Created by: rdb (23Aug13)
-//
-////////////////////////////////////////////////////////////////////
-//
-// PANDA 3D SOFTWARE
-// Copyright (c) Carnegie Mellon University.  All rights reserved.
-//
-// All use of this software is subject to the terms of the revised BSD
-// license.  You should have received a copy of this license along
-// with this source code in a file named "LICENSE."
-//
-////////////////////////////////////////////////////////////////////
+/**
+ * PANDA 3D SOFTWARE
+ * Copyright (c) Carnegie Mellon University.  All rights reserved.
+ *
+ * All use of this software is subject to the terms of the revised BSD
+ * license.  You should have received a copy of this license along
+ * with this source code in a file named "LICENSE."
+ *
+ * @file vorbisAudioCursor.cxx
+ * @author rdb
+ * @date 2013-08-23
+ */
 
 #include "vorbisAudioCursor.h"
+
+#include "config_movies.h"
+
+#include "vorbisAudio.h"
 #include "virtualFileSystem.h"
 
 #ifdef HAVE_VORBIS
 
+using std::istream;
+
 TypeHandle VorbisAudioCursor::_type_handle;
 
-////////////////////////////////////////////////////////////////////
-//     Function: VorbisAudioCursor::Constructor
-//       Access: Protected
-//  Description: Reads the .wav header from the indicated stream.
-//               This leaves the read pointer positioned at the
-//               start of the data.
-////////////////////////////////////////////////////////////////////
+/**
+ * Reads the .wav header from the indicated stream.  This leaves the read
+ * pointer positioned at the start of the data.
+ */
 VorbisAudioCursor::
 VorbisAudioCursor(VorbisAudio *src, istream *stream) :
   MovieAudioCursor(src),
   _is_valid(false),
   _bitstream(0)
 {
-  nassertv(stream != NULL);
+  nassertv(stream != nullptr);
   nassertv(stream->good());
 
   // Set up the callbacks to read via the VFS.
@@ -44,10 +46,10 @@ VorbisAudioCursor(VorbisAudio *src, istream *stream) :
   if (vorbis_enable_seek) {
     callbacks.seek_func = &cb_seek_func;
   } else {
-    callbacks.seek_func = NULL;
+    callbacks.seek_func = nullptr;
   }
 
-  if (ov_open_callbacks((void*) stream, &_ov, NULL, 0, callbacks) != 0) {
+  if (ov_open_callbacks((void*) stream, &_ov, nullptr, 0, callbacks) != 0) {
     movies_cat.error()
       << "Failed to read Ogg Vorbis file.\n";
     return;
@@ -68,60 +70,79 @@ VorbisAudioCursor(VorbisAudio *src, istream *stream) :
   _is_valid = true;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: VorbisAudioCursor::Destructor
-//       Access: Protected, Virtual
-//  Description: xxx
-////////////////////////////////////////////////////////////////////
+/**
+ * xxx
+ */
 VorbisAudioCursor::
 ~VorbisAudioCursor() {
   ov_clear(&_ov);
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: VorbisAudioCursor::seek
-//       Access: Protected
-//  Description: Seeks to a target location.  Afterward, the
-//               packet_time is guaranteed to be less than or
-//               equal to the specified time.
-////////////////////////////////////////////////////////////////////
+/**
+ * Seeks to a target location.  Afterward, the packet_time is guaranteed to be
+ * less than or equal to the specified time.
+ */
 void VorbisAudioCursor::
 seek(double t) {
   if (!vorbis_enable_seek) {
     return;
   }
 
-  t = max(t, 0.0);
+  t = std::max(t, 0.0);
 
   // Use ov_time_seek_lap if cross-lapping is enabled.
+  int result;
   if (vorbis_seek_lap) {
-    if (ov_time_seek_lap(&_ov, t) != 0) {
-      movies_cat.error()
-        << "Seek failed.  Ogg Vorbis stream may not be seekable.\n";
-      return;
-    }
+    result = ov_time_seek_lap(&_ov, t);
   } else {
-    if (ov_time_seek(&_ov, t) != 0) {
-      movies_cat.error()
-        << "Seek failed.  Ogg Vorbis stream may not be seekable.\n";
+    result = ov_time_seek(&_ov, t);
+  }
+
+  // Special case for seeking to the beginning; if normal seek fails, we may
+  // be able to explicitly seek to the beginning of the file and call ov_open
+  // again.  This allows looping compressed .ogg files.
+  if (result == OV_ENOSEEK && t == 0.0) {
+    std::istream *stream = (std::istream *)_ov.datasource;
+
+    if (stream->rdbuf()->pubseekpos(0, std::ios::in) == (std::streampos)0) {
+      // Back up the callbacks, then destroy the stream, making sure to first
+      // unset the datasource so that it won't close the file.
+      ov_callbacks callbacks = _ov.callbacks;
+      _ov.datasource = nullptr;
+      ov_clear(&_ov);
+
+      if (ov_open_callbacks((void *)stream, &_ov, nullptr, 0, callbacks) != 0) {
+        movies_cat.error()
+          << "Failed to reopen Ogg Vorbis file to seek to beginning.\n";
+        return;
+      }
+
+      // Reset these fields for good measure, just in case the file changed.
+      vorbis_info *vi = ov_info(&_ov, -1);
+      _audio_channels = vi->channels;
+      _audio_rate = vi->rate;
+
+      _last_seek = 0.0;
+      _samples_read = 0;
       return;
     }
+  }
+  if (result != 0) {
+    movies_cat.error()
+      << "Seek failed.  Ogg Vorbis stream may not be seekable.\n";
   }
 
   _last_seek = ov_time_tell(&_ov);
   _samples_read = 0;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: VorbisAudioCursor::read_samples
-//       Access: Public, Virtual
-//  Description: Read audio samples from the stream.  N is the
-//               number of samples you wish to read.  Your buffer
-//               must be equal in size to N * channels.
-//               Multiple-channel audio will be interleaved.
-////////////////////////////////////////////////////////////////////
-void VorbisAudioCursor::
-read_samples(int n, PN_int16 *data) {
+/**
+ * Read audio samples from the stream.  N is the number of samples you wish to
+ * read.  Your buffer must be equal in size to N * channels.  Multiple-channel
+ * audio will be interleaved.
+ */
+int VorbisAudioCursor::
+read_samples(int n, int16_t *data) {
   int desired = n * _audio_channels;
 
   char *buffer = (char*) data;
@@ -137,6 +158,9 @@ read_samples(int n, PN_int16 *data) {
       buffer += read_bytes;
       length -= read_bytes;
     } else {
+      if (read_bytes == 0 && _length == 1.0E10) {
+        _length = ov_time_tell(&_ov);
+      }
       break;
     }
 
@@ -165,18 +189,17 @@ read_samples(int n, PN_int16 *data) {
   }
 
   _samples_read += n;
+  return n;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: VorbisAudioCursor::cb_read_func
-//       Access: Private, Static
-//  Description: Callback passed to libvorbisfile to implement
-//               file I/O via the VirtualFileSystem.
-////////////////////////////////////////////////////////////////////
+/**
+ * Callback passed to libvorbisfile to implement file I/O via the
+ * VirtualFileSystem.
+ */
 size_t VorbisAudioCursor::
 cb_read_func(void *ptr, size_t size, size_t nmemb, void *datasource) {
   istream *stream = (istream*) datasource;
-  nassertr(stream != NULL, -1);
+  nassertr(stream != nullptr, -1);
 
   stream->read((char *)ptr, size * nmemb);
 
@@ -188,12 +211,10 @@ cb_read_func(void *ptr, size_t size, size_t nmemb, void *datasource) {
   return stream->gcount();
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: VorbisAudioCursor::cb_seek_func
-//       Access: Private, Static
-//  Description: Callback passed to libvorbisfile to implement
-//               file I/O via the VirtualFileSystem.
-////////////////////////////////////////////////////////////////////
+/**
+ * Callback passed to libvorbisfile to implement file I/O via the
+ * VirtualFileSystem.
+ */
 int VorbisAudioCursor::
 cb_seek_func(void *datasource, ogg_int64_t offset, int whence) {
   if (!vorbis_enable_seek) {
@@ -201,19 +222,35 @@ cb_seek_func(void *datasource, ogg_int64_t offset, int whence) {
   }
 
   istream *stream = (istream*) datasource;
-  nassertr(stream != NULL, -1);
+  nassertr(stream != nullptr, -1);
 
   switch (whence) {
   case SEEK_SET:
-    stream->seekg(offset, ios::beg);
+    stream->seekg(offset, std::ios::beg);
     break;
 
   case SEEK_CUR:
-    stream->seekg(offset, ios::cur);
+    // Vorbis uses a seek with offset 0 to determine whether seeking is
+    // supported, but this is not good enough.  We seek to the end and back.
+    if (offset == 0) {
+      std::streambuf *buf = stream->rdbuf();
+      std::streampos pos = buf->pubseekoff(0, std::ios::cur, std::ios::in);
+      if (pos < 0) {
+        return -1;
+      }
+      if (buf->pubseekoff(0, std::ios::end, std::ios::in) >= 0) {
+        // It worked; seek back to the previous location.
+        buf->pubseekpos(pos, std::ios::in);
+        return 0;
+      } else {
+        return -1;
+      }
+    }
+    stream->seekg(offset, std::ios::cur);
     break;
 
   case SEEK_END:
-    stream->seekg(offset, ios::end);
+    stream->seekg(offset, std::ios::end);
     break;
 
   default:
@@ -223,8 +260,7 @@ cb_seek_func(void *datasource, ogg_int64_t offset, int whence) {
   }
 
   if (stream->fail()) {
-    // This is a fatal error and usually leads to
-    // a libvorbis crash.
+    // This is a fatal error and usually leads to a libvorbis crash.
     movies_cat.error()
       << "Failure to seek to byte " << offset;
 
@@ -249,16 +285,14 @@ cb_seek_func(void *datasource, ogg_int64_t offset, int whence) {
   return 0;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: VorbisAudioCursor::cb_close_func
-//       Access: Private, Static
-//  Description: Callback passed to libvorbisfile to implement
-//               file I/O via the VirtualFileSystem.
-////////////////////////////////////////////////////////////////////
+/**
+ * Callback passed to libvorbisfile to implement file I/O via the
+ * VirtualFileSystem.
+ */
 int VorbisAudioCursor::
 cb_close_func(void *datasource) {
   istream *stream = (istream*) datasource;
-  nassertr(stream != NULL, -1);
+  nassertr(stream != nullptr, -1);
 
   VirtualFileSystem *vfs = VirtualFileSystem::get_global_ptr();
   vfs->close_read_file(stream);
@@ -267,16 +301,14 @@ cb_close_func(void *datasource) {
   return 0;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: VorbisAudioCursor::cb_tell_func
-//       Access: Private, Static
-//  Description: Callback passed to libvorbisfile to implement
-//               file I/O via the VirtualFileSystem.
-////////////////////////////////////////////////////////////////////
+/**
+ * Callback passed to libvorbisfile to implement file I/O via the
+ * VirtualFileSystem.
+ */
 long VorbisAudioCursor::
 cb_tell_func(void *datasource) {
   istream *stream = (istream*) datasource;
-  nassertr(stream != NULL, -1);
+  nassertr(stream != nullptr, -1);
 
   return stream->tellg();
 }

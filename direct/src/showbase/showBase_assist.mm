@@ -7,13 +7,12 @@
 #include <AppKit/AppKit.h>
 #include "showBase.h"
 
-////////////////////////////////////////////////////////////////////
-//     Function: activate_osx_application
-//  Description: Activates the current application for Mac OSX.
-////////////////////////////////////////////////////////////////////
+/**
+ * Activates the current application for Mac OSX.
+ */
 void
 activate_osx_application() {
-  cerr << "activate_osx_application\n";
+  std::cerr << "activate_osx_application\n";
   [ [NSApplication sharedApplication] activateIgnoringOtherApps: YES ];
 }
 

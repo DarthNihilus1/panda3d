@@ -1,26 +1,22 @@
-// Filename: imageResize.cxx
-// Created by:  drose (13Mar03)
-//
-////////////////////////////////////////////////////////////////////
-//
-// PANDA 3D SOFTWARE
-// Copyright (c) Carnegie Mellon University.  All rights reserved.
-//
-// All use of this software is subject to the terms of the revised BSD
-// license.  You should have received a copy of this license along
-// with this source code in a file named "LICENSE."
-//
-////////////////////////////////////////////////////////////////////
+/**
+ * PANDA 3D SOFTWARE
+ * Copyright (c) Carnegie Mellon University.  All rights reserved.
+ *
+ * All use of this software is subject to the terms of the revised BSD
+ * license.  You should have received a copy of this license along
+ * with this source code in a file named "LICENSE."
+ *
+ * @file imageResize.cxx
+ * @author drose
+ * @date 2003-03-13
+ */
 
 #include "imageResize.h"
 #include "string_utils.h"
-#include "pystub.h"
 
-////////////////////////////////////////////////////////////////////
-//     Function: ImageResize::Constructor
-//       Access: Public
-//  Description:
-////////////////////////////////////////////////////////////////////
+/**
+ *
+ */
 ImageResize::
 ImageResize() : ImageFilter(true) {
   set_program_brief("resize an image file");
@@ -33,14 +29,14 @@ ImageResize() : ImageFilter(true) {
      "Specify the width of the output image in pixels, or as a percentage "
      "of the original width (if a trailing percent sign is included).  "
      "If this is omitted, the ratio is taken from the ysize parameter.",
-     &ImageResize::dispatch_size_request, NULL, &_x_size);
+     &ImageResize::dispatch_size_request, nullptr, &_x_size);
 
   add_option
     ("y", "ysize", 0,
      "Specify the height of the output image in pixels, or as a percentage "
      "of the original height (if a trailing percent sign is included).  "
      "If this is omitted, the ratio is taken from the xsize parameter.",
-     &ImageResize::dispatch_size_request, NULL, &_y_size);
+     &ImageResize::dispatch_size_request, nullptr, &_y_size);
 
   add_option
     ("g", "radius", 0,
@@ -51,16 +47,14 @@ ImageResize() : ImageFilter(true) {
     ("1", "", 0,
      "This option is ignored.  It is provided only for backward compatibility "
      "with a previous version of image-resize.",
-     &ImageResize::dispatch_none, NULL, NULL);
+     &ImageResize::dispatch_none, nullptr, nullptr);
 
   _filter_radius = 1.0;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: ImageResize::run
-//       Access: Public
-//  Description:
-////////////////////////////////////////////////////////////////////
+/**
+ *
+ */
 void ImageResize::
 run() {
   if (_x_size.get_type() == RT_none && _y_size.get_type() == RT_none) {
@@ -77,7 +71,7 @@ run() {
 
   nout << "Resizing to " << x_size << " x " << y_size << "\n";
   PNMImage new_image(x_size, y_size,
-                     _image.get_num_channels(), 
+                     _image.get_num_channels(),
                      _image.get_maxval(), _image.get_type());
 
   if (_use_gaussian_filter) {
@@ -89,17 +83,15 @@ run() {
   write_image(new_image);
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: ImageResize::dispatch_size_request
-//       Access: Private, Static
-//  Description: Interprets the -x or -y parameters.
-////////////////////////////////////////////////////////////////////
+/**
+ * Interprets the -x or -y parameters.
+ */
 bool ImageResize::
-dispatch_size_request(const string &opt, const string &arg, void *var) {
+dispatch_size_request(const std::string &opt, const std::string &arg, void *var) {
   SizeRequest *ip = (SizeRequest *)var;
   if (!arg.empty() && arg[arg.length() - 1] == '%') {
     // A ratio.
-    string str = arg.substr(0, arg.length() - 1);
+    std::string str = arg.substr(0, arg.length() - 1);
     double ratio;
     if (!string_to_double(str, ratio)) {
       nout << "Invalid ratio for -" << opt << ": "
@@ -124,9 +116,6 @@ dispatch_size_request(const string &opt, const string &arg, void *var) {
 
 
 int main(int argc, char *argv[]) {
-  // A call to pystub() to force libpystub.so to be linked in.
-  pystub();
-
   ImageResize prog;
   prog.parse_command_line(argc, argv);
   prog.run();

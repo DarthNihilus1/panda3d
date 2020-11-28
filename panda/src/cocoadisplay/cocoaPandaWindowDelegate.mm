@@ -1,16 +1,15 @@
-// Filename: cocoaPandaWindowDelegate.mm
-// Created by:  rdb (24May12)
-//
-////////////////////////////////////////////////////////////////////
-//
-// PANDA 3D SOFTWARE
-// Copyright (c) Carnegie Mellon University.  All rights reserved.
-//
-// All use of this software is subject to the terms of the revised BSD
-// license.  You should have received a copy of this license along
-// with this source code in a file named "LICENSE."
-//
-////////////////////////////////////////////////////////////////////
+/**
+ * PANDA 3D SOFTWARE
+ * Copyright (c) Carnegie Mellon University.  All rights reserved.
+ *
+ * All use of this software is subject to the terms of the revised BSD
+ * license.  You should have received a copy of this license along
+ * with this source code in a file named "LICENSE."
+ *
+ * @file cocoaPandaWindowDelegate.mm
+ * @author rdb
+ * @date 2012-05-24
+ */
 
 #import "cocoaPandaWindowDelegate.h"
 
@@ -29,8 +28,8 @@
 }
 
 - (void) windowDidResize:(NSNotification *)notification {
-  // Forcing a move event is unfortunately necessary because
-  // Cocoa does not call windowDidMove in case of window zooms.
+  // Forcing a move event is unfortunately necessary because Cocoa does not
+  // call windowDidMove in case of window zooms.
   _graphicsWindow->handle_resize_event();
 }
 
@@ -51,11 +50,11 @@
 }
 
 - (BOOL) windowShouldClose:(id)sender {
-  return _graphicsWindow->handle_close_request();
-}
-
-- (void) windowWillClose:(NSNotification *)notification {
-  _graphicsWindow->handle_close_event();
+  bool should_close = _graphicsWindow->handle_close_request();
+  if (should_close) {
+    _graphicsWindow->handle_close_event();
+  }
+  return should_close;
 }
 
 @end

@@ -1,25 +1,23 @@
-// Filename: eggToDAE.cxx
-// Created by:  pro-rsoft (04Oct08)
-//
-////////////////////////////////////////////////////////////////////
-//
-// PANDA 3D SOFTWARE
-// Copyright (c) Carnegie Mellon University.  All rights reserved.
-//
-// All use of this software is subject to the terms of the revised BSD
-// license.  You should have received a copy of this license along
-// with this source code in a file named "LICENSE."
-//
-////////////////////////////////////////////////////////////////////
+/**
+ * PANDA 3D SOFTWARE
+ * Copyright (c) Carnegie Mellon University.  All rights reserved.
+ *
+ * All use of this software is subject to the terms of the revised BSD
+ * license.  You should have received a copy of this license along
+ * with this source code in a file named "LICENSE."
+ *
+ * @file eggToDAE.cxx
+ * @author rdb
+ * @date 2008-10-04
+ */
 
 #include "eggToDAE.h"
 #include "dcast.h"
-#include "pystub.h"
 #include "pandaVersion.h"
 
-#include "FCDocument/FCDocument.h"
-#include "FCDocument/FCDAsset.h"
-#include "FCDocument/FCDTransform.h"
+#include <FCDocument/FCDocument.h>
+#include <FCDocument/FCDAsset.h>
+#include <FCDocument/FCDTransform.h>
 
 // Useful conversion stuff
 #define TO_VEC3(v) (LVecBase3d(v[0], v[1], v[2]))
@@ -30,11 +28,11 @@
 #define FROM_MAT4(v) (FMMatrix44(v.get_data()))
 #define FROM_FSTRING(fs) (fs.c_str())
 
-////////////////////////////////////////////////////////////////////
-//     Function: EggToDAE::Constructor
-//       Access: Public
-//  Description: 
-////////////////////////////////////////////////////////////////////
+using std::cerr;
+
+/**
+ *
+ */
 EggToDAE::
 EggToDAE() :
   EggToSomething("COLLADA", ".dae", true, false)
@@ -45,33 +43,31 @@ EggToDAE() :
     ("This program converts files from the egg format to the COLLADA "
      ".dae (Digital Asset Exchange) format.");
 
-  _document = NULL;
+  _document = nullptr;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: EggToDAE::run
-//       Access: Public
-//  Description:
-////////////////////////////////////////////////////////////////////
+/**
+ *
+ */
 void EggToDAE::
 run() {
   nassertv(has_output_filename());
-  nassertv(_data != NULL);
-  
+  nassertv(_data != nullptr);
+
   FCollada::Initialize();
   _document = FCollada::NewTopDocument();
-  
+
   // Add the contributor part to the asset
   FCDAssetContributor* contributor = _document->GetAsset()->AddContributor();
   const char* user_name = getenv("USER");
-  if (user_name == NULL) user_name = getenv("USERNAME");
-  if (user_name != NULL) contributor->SetAuthor(TO_FSTRING(user_name));
-  //contributor->SetSourceData();
+  if (user_name == nullptr) user_name = getenv("USERNAME");
+  if (user_name != nullptr) contributor->SetAuthor(TO_FSTRING(user_name));
+  // contributor->SetSourceData();
   char authoring_tool[1024];
   snprintf(authoring_tool, 1024, "Panda3D %s eggToDAE converter | FCollada v%d.%02d", PANDA_VERSION_STR, FCOLLADA_VERSION >> 16, FCOLLADA_VERSION & 0xFFFF);
   authoring_tool[1023] = 0;
   contributor->SetAuthoringTool(TO_FSTRING(authoring_tool));
-  
+
   // Set coordinate system
   switch (_data->get_coordinate_system()) {
     case CS_zup_right:
@@ -81,7 +77,7 @@ run() {
       _document->GetAsset()->SetUpAxis(FMVector3::YAxis);
       break;
   }
-  
+
   // Now actually start processing the data.
   FCDSceneNode* visual_scene = _document->AddVisualScene();
   for (EggGroupNode::iterator it = _data->begin(); it != _data->end(); ++it) {
@@ -89,20 +85,17 @@ run() {
       process_node(visual_scene, DCAST(EggGroup, *it));
     }
   }
-  
+
   // We're done here.
   FCollada::SaveDocument(_document, get_output_filename().to_os_specific().c_str());
   SAFE_DELETE(_document);
   FCollada::Release();
-  
-  //if (!out) {
-  //  nout << "An error occurred while writing.\n";
-  //  exit(1);
-  //}
+
+  // if (!out) { nout << "An error occurred while writing.\n"; exit(1); }
 }
 
 void EggToDAE::process_node(FCDSceneNode* parent, const PT(EggGroup) node) {
-  assert(node != NULL);
+  assert(node != nullptr);
   FCDSceneNode* scene_node = parent->AddChildNode();
   // Set the parameters
   scene_node->SetDaeId(node->get_name().c_str());
@@ -118,8 +111,8 @@ void EggToDAE::process_node(FCDSceneNode* parent, const PT(EggGroup) node) {
 }
 
 void EggToDAE::apply_transform(FCDSceneNode* to, const PT(EggGroup) from) {
-  assert(to != NULL);
-  assert(from != NULL);
+  assert(to != nullptr);
+  assert(from != nullptr);
   for (int co = 0; co < from->get_num_components(); ++co) {
     switch (from->get_component_type(co)) {
       case EggTransform::CT_translate2d:
@@ -173,9 +166,6 @@ void EggToDAE::apply_transform(FCDSceneNode* to, const PT(EggGroup) from) {
 }
 
 int main(int argc, char *argv[]) {
-  // A call to pystub() to force libpystub.so to be linked in.
-  pystub();
-
   EggToDAE prog;
   prog.parse_command_line(argc, argv);
   prog.run();

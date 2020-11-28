@@ -1,16 +1,15 @@
-// Filename: webcamVideoV4L.cxx
-// Created by: rdb (11Jun2010)
-//
-////////////////////////////////////////////////////////////////////
-//
-// PANDA 3D SOFTWARE
-// Copyright (c) Carnegie Mellon University.  All rights reserved.
-//
-// All use of this software is subject to the terms of the revised BSD
-// license.  You should have received a copy of this license along
-// with this source code in a file named "LICENSE."
-//
-////////////////////////////////////////////////////////////////////
+/**
+ * PANDA 3D SOFTWARE
+ * Copyright (c) Carnegie Mellon University.  All rights reserved.
+ *
+ * All use of this software is subject to the terms of the revised BSD
+ * license.  You should have received a copy of this license along
+ * with this source code in a file named "LICENSE."
+ *
+ * @file webcamVideoV4L.cxx
+ * @author rdb
+ * @date 2010-06-11
+ */
 
 #include "webcamVideoV4L.h"
 
@@ -23,15 +22,79 @@
 #include <sys/ioctl.h>
 #include <linux/videodev2.h>
 
+#ifndef CPPPARSER
+#ifndef VIDIOC_ENUM_FRAMESIZES
+enum v4l2_frmsizetypes {
+  V4L2_FRMSIZE_TYPE_DISCRETE = 1,
+  V4L2_FRMSIZE_TYPE_CONTINUOUS = 2,
+  V4L2_FRMSIZE_TYPE_STEPWISE = 3,
+};
+
+struct v4l2_frmsize_discrete {
+  __u32 width;
+  __u32 height;
+};
+
+struct v4l2_frmsize_stepwise {
+  __u32 min_width;
+  __u32 max_width;
+  __u32 step_width;
+  __u32 min_height;
+  __u32 max_height;
+  __u32 step_height;
+};
+
+struct v4l2_frmsizeenum {
+  __u32 index;
+  __u32 pixel_format;
+  __u32 type;
+  union {
+    struct v4l2_frmsize_discrete discrete;
+    struct v4l2_frmsize_stepwise stepwise;
+  };
+  __u32 reserved[2];
+};
+
+#define VIDIOC_ENUM_FRAMESIZES _IOWR('V', 74, struct v4l2_frmsizeenum)
+#endif
+
+#ifndef VIDIOC_ENUM_FRAMEINTERVALS
+enum v4l2_frmivaltypes {
+  V4L2_FRMIVAL_TYPE_DISCRETE = 1,
+  V4L2_FRMIVAL_TYPE_CONTINUOUS = 2,
+  V4L2_FRMIVAL_TYPE_STEPWISE = 3,
+};
+
+struct v4l2_frmival_stepwise {
+  struct v4l2_fract min;
+  struct v4l2_fract max;
+  struct v4l2_fract step;
+};
+
+struct v4l2_frmivalenum {
+  __u32 index;
+  __u32 pixel_format;
+  __u32 width;
+  __u32 height;
+  __u32 type;
+  union {
+    struct v4l2_fract               discrete;
+    struct v4l2_frmival_stepwise    stepwise;
+  };
+  __u32 reserved[2];
+};
+
+#define VIDIOC_ENUM_FRAMEINTERVALS _IOWR('V', 75, struct v4l2_frmivalenum)
+#endif
+#endif
+
 TypeHandle WebcamVideoV4L::_type_handle;
 
-////////////////////////////////////////////////////////////////////
-//     Function: add_options_for_size
-//       Access: Private, Static
-//  Description:
-////////////////////////////////////////////////////////////////////
+/**
+ *
+ */
 void WebcamVideoV4L::
-add_options_for_size(int fd, const string &dev, const char *name, unsigned width, unsigned height, unsigned pixelformat) {
+add_options_for_size(int fd, const std::string &dev, const char *name, unsigned width, unsigned height, unsigned pixelformat) {
   struct v4l2_frmivalenum frmivalenum;
   for (int k = 0;; k++) {
     memset(&frmivalenum, 0, sizeof frmivalenum);
@@ -69,18 +132,16 @@ add_options_for_size(int fd, const string &dev, const char *name, unsigned width
     wc->_size_y = height;
     wc->_fps = fps;
     wc->_pformat = pixelformat;
-    wc->_pixel_format = string((char*) &pixelformat, 4);
+    wc->_pixel_format = std::string((char*) &pixelformat, 4);
 
     WebcamVideoV4L::_all_webcams.push_back(DCAST(WebcamVideo, wc));
   }
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: find_all_webcams_v4l
-//       Access: Public, Static
-//  Description: Finds all Video4Linux webcams and adds them to
-//               the global list _all_webcams.
-////////////////////////////////////////////////////////////////////
+/**
+ * Finds all Video4Linux webcams and adds them to the global list
+ * _all_webcams.
+ */
 void find_all_webcams_v4l() {
   struct v4l2_capability cap2;
 
@@ -113,6 +174,7 @@ void find_all_webcams_v4l() {
             case V4L2_PIX_FMT_BGR32:
             case V4L2_PIX_FMT_RGB24:
             case V4L2_PIX_FMT_RGB32:
+            case V4L2_PIX_FMT_GREY:
               break;
 
             default:
@@ -140,8 +202,8 @@ void find_all_webcams_v4l() {
 
               case V4L2_FRMSIZE_TYPE_CONTINUOUS:
                 {
-                  // Okay, er, we don't have a proper handling of this,
-                  // so let's add all powers of two in this range.
+                  // Okay, er, we don't have a proper handling of this, so
+                  // let's add all powers of two in this range.
 
                   __u32 width = Texture::up_to_power_2(frmsizeenum.stepwise.min_width);
                   for (; width <= frmsizeenum.stepwise.max_width; width *= 2) {
@@ -180,11 +242,9 @@ void find_all_webcams_v4l() {
   }
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: WebcamVideoV4L::open
-//       Access: Published, Virtual
-//  Description: Open this video, returning a MovieVideoCursor.
-////////////////////////////////////////////////////////////////////
+/**
+ * Open this video, returning a MovieVideoCursor.
+ */
 PT(MovieVideoCursor) WebcamVideoV4L::
 open() {
   return new WebcamVideoCursorV4L(this);

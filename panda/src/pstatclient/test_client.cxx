@@ -1,18 +1,17 @@
-// Filename: test_client.cxx
-// Created by:  drose (09Jul00)
-//
-////////////////////////////////////////////////////////////////////
-//
-// PANDA 3D SOFTWARE
-// Copyright (c) Carnegie Mellon University.  All rights reserved.
-//
-// All use of this software is subject to the terms of the revised BSD
-// license.  You should have received a copy of this license along
-// with this source code in a file named "LICENSE."
-//
-////////////////////////////////////////////////////////////////////
+/**
+ * PANDA 3D SOFTWARE
+ * Copyright (c) Carnegie Mellon University.  All rights reserved.
+ *
+ * All use of this software is subject to the terms of the revised BSD
+ * license.  You should have received a copy of this license along
+ * with this source code in a file named "LICENSE."
+ *
+ * @file test_client.cxx
+ * @author drose
+ * @date 2000-07-09
+ */
 
-#include "config_pstats.h"
+#include "config_pstatclient.h"
 #include "pStatClient.h"
 #include "pStatCollector.h"
 #include "thread.h"
@@ -46,13 +45,13 @@ SampleData dataset_zero[] = {
   { "Cull", 5, 6, false },
   { "App", 0, 5, false },
   { "Texture memory", 8000000, 100000, true },
-  { NULL },
+  { nullptr },
 };
 
 SampleData dataset_one[] = {
   { "Draw", 10, 12, false },
   { "Squeak", 25, 30, false },
-  { NULL },
+  { nullptr },
 };
 
 SampleData dataset_two[] = {
@@ -64,7 +63,7 @@ SampleData dataset_two[] = {
   { "Animation:donald", 5, 6, false },
   { "Animation:goofy", 5, 6, false },
   { "Animation:pluto", 5, 6, false },
-  { NULL },
+  { nullptr },
 };
 
 #define NUM_DATASETS 3
@@ -86,7 +85,7 @@ public:
 
 int
 main(int argc, char *argv[]) {
-  string hostname = "localhost";
+  std::string hostname = "localhost";
   int port = pstats_port;
 
   if (argc > 1) {
@@ -114,7 +113,7 @@ main(int argc, char *argv[]) {
     exit(1);
   }
 
-  srand(time(NULL));
+  srand(time(nullptr));
 
   int ds_index;
   if (argc > 3) {
@@ -133,7 +132,7 @@ main(int argc, char *argv[]) {
 
   pvector<PStatCollector> _collectors;
   int i = 0;
-  while (ds[i].category != (const char *)NULL) {
+  while (ds[i].category != nullptr) {
     _collectors.push_back(PStatCollector(ds[i].category));
     if (ds[i].is_level) {
       _collectors[i].set_level(ds[i].min_ms);
@@ -154,7 +153,7 @@ main(int argc, char *argv[]) {
     // Make up some random intervals to "wait".
     for (i = 0; i < (int)_collectors.size(); i++) {
       if (ds[i].is_level) {
-        // Make up an amount to add/delete to the level this frame.
+        // Make up an amount to adddelete to the level this frame.
         double increment = ds[i].max_ms * (rand() / (RAND_MAX + 1.0) - 0.5);
         _collectors[i].add_level(increment);
 
@@ -180,8 +179,8 @@ main(int argc, char *argv[]) {
       }
     }
 
-    // Put the wait requests in order, to allow for the jitter, and
-    // invoke them.
+    // Put the wait requests in order, to allow for the jitter, and invoke
+    // them.
 
     static const double delay = 1.0;
     _collectors[0].stop(client->get_main_thread(), start + delay);
@@ -199,8 +198,7 @@ main(int argc, char *argv[]) {
 
     _collectors[0].start(client->get_main_thread(), now + total_ms / 1000 + delay);
 
-    // Now actually wait some approximation of the time we said we
-    // did.
+    // Now actually wait some approximation of the time we said we did.
     Thread::sleep(total_ms / 1000.0 + delay);
   }
 

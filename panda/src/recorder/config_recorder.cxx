@@ -1,16 +1,15 @@
-// Filename: config_recorder.cxx
-// Created by:  drose (28Jan04)
-//
-////////////////////////////////////////////////////////////////////
-//
-// PANDA 3D SOFTWARE
-// Copyright (c) Carnegie Mellon University.  All rights reserved.
-//
-// All use of this software is subject to the terms of the revised BSD
-// license.  You should have received a copy of this license along
-// with this source code in a file named "LICENSE."
-//
-////////////////////////////////////////////////////////////////////
+/**
+ * PANDA 3D SOFTWARE
+ * Copyright (c) Carnegie Mellon University.  All rights reserved.
+ *
+ * All use of this software is subject to the terms of the revised BSD
+ * license.  You should have received a copy of this license along
+ * with this source code in a file named "LICENSE."
+ *
+ * @file config_recorder.cxx
+ * @author drose
+ * @date 2004-01-28
+ */
 
 #include "config_recorder.h"
 
@@ -22,6 +21,10 @@
 #include "socketStreamRecorder.h"
 
 #include "dconfig.h"
+
+#if !defined(CPPPARSER) && !defined(LINK_ALL_STATIC) && !defined(BUILDING_PANDA_RECORDER)
+  #error Buildsystem error: BUILDING_PANDA_RECORDER not defined
+#endif
 
 ConfigureDef(config_recorder);
 NotifyCategoryDef(recorder, "");

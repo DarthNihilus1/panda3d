@@ -1,16 +1,15 @@
-// Filename: wavAudioCursor.cxx
-// Created by: rdb (23Aug13)
-//
-////////////////////////////////////////////////////////////////////
-//
-// PANDA 3D SOFTWARE
-// Copyright (c) Carnegie Mellon University.  All rights reserved.
-//
-// All use of this software is subject to the terms of the revised BSD
-// license.  You should have received a copy of this license along
-// with this source code in a file named "LICENSE."
-//
-////////////////////////////////////////////////////////////////////
+/**
+ * PANDA 3D SOFTWARE
+ * Copyright (c) Carnegie Mellon University.  All rights reserved.
+ *
+ * All use of this software is subject to the terms of the revised BSD
+ * license.  You should have received a copy of this license along
+ * with this source code in a file named "LICENSE."
+ *
+ * @file wavAudioCursor.cxx
+ * @author rdb
+ * @date 2013-08-23
+ */
 
 #include "wavAudioCursor.h"
 #include "config_movies.h"
@@ -18,7 +17,7 @@
 #include "wavAudio.h"
 
 // Tables for decompressing mu-law and A-law wav files.
-static PN_int16 mulaw_table[256] = {
+static int16_t mulaw_table[256] = {
   -32124,-31100,-30076,-29052,-28028,-27004,-25980,-24956,
   -23932,-22908,-21884,-20860,-19836,-18812,-17788,-16764,
   -15996,-15484,-14972,-14460,-13948,-13436,-12924,-12412,
@@ -53,7 +52,7 @@ static PN_int16 mulaw_table[256] = {
       56,    48,    40,    32,    24,    16,     8,     0
 };
 
-static PN_int16 alaw_table[256] = {
+static int16_t alaw_table[256] = {
   -5504, -5248, -6016, -5760, -4480, -4224, -4992, -4736,
   -7552, -7296, -8064, -7808, -6528, -6272, -7040, -6784,
   -2752, -2624, -3008, -2880, -2240, -2112, -2496, -2368,
@@ -90,15 +89,12 @@ static PN_int16 alaw_table[256] = {
 
 TypeHandle WavAudioCursor::_type_handle;
 
-////////////////////////////////////////////////////////////////////
-//     Function: WavAudioCursor::Constructor
-//       Access: Protected
-//  Description: Reads the .wav header from the indicated stream.
-//               This leaves the read pointer positioned at the
-//               start of the data.
-////////////////////////////////////////////////////////////////////
+/**
+ * Reads the .wav header from the indicated stream.  This leaves the read
+ * pointer positioned at the start of the data.
+ */
 WavAudioCursor::
-WavAudioCursor(WavAudio *src, istream *stream) :
+WavAudioCursor(WavAudio *src, std::istream *stream) :
   MovieAudioCursor(src),
   _is_valid(false),
   _stream(stream),
@@ -107,10 +103,11 @@ WavAudioCursor(WavAudio *src, istream *stream) :
   _data_pos(0),
   _data_size(0)
 {
-  nassertv(stream != NULL);
+  nassertv(stream != nullptr);
 
   // Beginning of "RIFF" chunk.
-  if (_reader.extract_bytes(4) != "RIFF") {
+  unsigned char magic[4];
+  if (_reader.extract_bytes(magic, 4) != 4 || memcmp(magic, "RIFF", 4) != 0) {
     movies_cat.error()
       << ".wav file is not a valid RIFF file.\n";
     return;
@@ -118,7 +115,7 @@ WavAudioCursor(WavAudio *src, istream *stream) :
 
   unsigned int chunk_size = _reader.get_uint32();
 
-  if (_reader.extract_bytes(4) != "WAVE") {
+  if (_reader.extract_bytes(magic, 4) != 4 || memcmp(magic, "WAVE", 4) != 0) {
     movies_cat.error()
       << ".wav file is a RIFF file but does not start with a WAVE chunk.\n";
     return;
@@ -130,10 +127,10 @@ WavAudioCursor(WavAudio *src, istream *stream) :
 
   while ((!have_fmt || !have_data) && _stream->good() && (bytes_read + 8) < chunk_size) {
 
-    string subchunk_id = _reader.extract_bytes(4);
+    _reader.extract_bytes(magic, 4);
     unsigned int subchunk_size = _reader.get_uint32();
 
-    if (subchunk_id == "fmt ") {
+    if (memcmp(magic, "fmt ", 4) == 0) {
       // The format chunk specifies information about the storage.
       nassertv(subchunk_size >= 16);
       have_fmt = true;
@@ -147,7 +144,7 @@ WavAudioCursor(WavAudio *src, istream *stream) :
       _block_align = _reader.get_uint16();
 
       // We can round up to next multiple of 8.
-      PN_uint16 bps = _reader.get_uint16();
+      uint16_t bps = _reader.get_uint16();
       bps = (bps + 7) & 0xfff8;
 
       // How many bytes in this chunk we've read so far.
@@ -206,7 +203,7 @@ WavAudioCursor(WavAudio *src, istream *stream) :
         _reader.skip_bytes(subchunk_size - read_bytes);
       }
 
-    } else if (subchunk_id == "data") {
+    } else if (memcmp(magic, "data", 4) == 0) {
       // The data chunk contains the actual sammples.
       if (!have_fmt) {
         movies_cat.error()
@@ -255,8 +252,8 @@ WavAudioCursor(WavAudio *src, istream *stream) :
   // We can always seek by skipping bytes, rereading if necessary.
   _can_seek = true;
 
-  // How to tell if a stream is seekable?  We'll set it to true, and
-  // then change it to false as soon as we find out that we can't.
+  // How to tell if a stream is seekable?  We'll set it to true, and then
+  // change it to false as soon as we find out that we can't.
   _can_seek_fast = true;
 
   if (_block_align != _audio_channels * _bytes_per_sample) {
@@ -277,73 +274,97 @@ WavAudioCursor(WavAudio *src, istream *stream) :
   _is_valid = true;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: WavAudioCursor::Destructor
-//       Access: Protected, Virtual
-//  Description: xxx
-////////////////////////////////////////////////////////////////////
+/**
+ * xxx
+ */
 WavAudioCursor::
 ~WavAudioCursor() {
-  if (_stream != NULL) {
+  if (_stream != nullptr) {
     VirtualFileSystem *vfs = VirtualFileSystem::get_global_ptr();
     vfs->close_read_file(_stream);
   }
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: WavAudioCursor::seek
-//       Access: Protected
-//  Description: Seeks to a target location.  Afterward, the
-//               packet_time is guaranteed to be less than or
-//               equal to the specified time.
-////////////////////////////////////////////////////////////////////
+/**
+ * Seeks to a target location.  Afterward, the packet_time is guaranteed to be
+ * less than or equal to the specified time.
+ */
 void WavAudioCursor::
 seek(double t) {
-  t = max(t, 0.0);
-  streampos pos = _data_start + (streampos) min((size_t) (t * _byte_rate), _data_size);
+  t = std::max(t, 0.0);
+  std::streampos pos = _data_start + (std::streampos) std::min((size_t) (t * _byte_rate), _data_size);
+
+  std::streambuf *buf = _stream->rdbuf();
 
   if (_can_seek_fast) {
-    _stream->seekg(pos);
-    if (_stream->tellg() != pos) {
-      // Clearly, we can't seek fast.
-      // Fall back to the case below.
+    if (buf->pubseekpos(pos, std::ios::in) != pos) {
+      // Clearly, we can't seek fast.  Fall back to the case below.
       _can_seek_fast = false;
     }
   }
 
-  if (!_can_seek_fast) {
-    streampos current = _stream->tellg();
+  // Get the current position of the cursor in the file.
+  std::streampos current = buf->pubseekoff(0, std::ios::cur, std::ios::in);
 
+  if (!_can_seek_fast) {
     if (pos > current) {
       // It is ahead of our current position.  Skip ahead.
-      _reader.skip_bytes(pos - current);
+      _stream->ignore(pos - current);
+      current = pos;
 
     } else if (pos < current) {
-      // We'll have to reopen the file.
-      //TODO
+      // Can we seek to the beginning?  Some streams, such as ZStream, let us
+      // rewind the stream.
+      if (buf->pubseekpos(0, std::ios::in) == (std::streampos)0) {
+        if (pos > _data_start && movies_cat.is_info()) {
+          Filename fn = get_source()->get_filename();
+          movies_cat.info()
+            << "Unable to seek backwards in " << fn.get_basename()
+            << "; seeking to beginning and skipping " << pos << " bytes.\n";
+        }
+        _stream->ignore(pos);
+        current = pos;
+      } else {
+        // No; close and reopen the file.
+        Filename fn = get_source()->get_filename();
+        movies_cat.warning()
+          << "Unable to seek backwards in " << fn.get_basename()
+          << "; reopening and skipping " << pos << " bytes.\n";
+
+        VirtualFileSystem *vfs = VirtualFileSystem::get_global_ptr();
+        std::istream *stream = vfs->open_read_file(get_source()->get_filename(), true);
+        if (stream != nullptr) {
+          vfs->close_read_file(_stream);
+          stream->ignore(pos);
+          _stream = stream;
+          _reader = StreamReader(stream, false);
+          current = pos;
+        } else {
+          movies_cat.error()
+            << "Unable to reopen " << fn << ".\n";
+          _can_seek = false;
+        }
+      }
     }
   }
 
-  _data_pos = _stream->tellg() - _data_start;
+  _data_pos = (size_t)current - _data_start;
   _last_seek = _data_pos / _byte_rate;
   _samples_read = 0;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: WavAudioCursor::read_samples
-//       Access: Public, Virtual
-//  Description: Read audio samples from the stream.  N is the
-//               number of samples you wish to read.  Your buffer
-//               must be equal in size to N * channels.
-//               Multiple-channel audio will be interleaved.
-////////////////////////////////////////////////////////////////////
-void WavAudioCursor::
-read_samples(int n, PN_int16 *data) {
+/**
+ * Read audio samples from the stream.  N is the number of samples you wish to
+ * read.  Your buffer must be equal in size to N * channels.  Multiple-channel
+ * audio will be interleaved.
+ */
+int WavAudioCursor::
+read_samples(int n, int16_t *data) {
   int desired = n * _audio_channels;
-  int read_samples = min(desired, ((int) (_data_size - _data_pos)) / _bytes_per_sample);
+  int read_samples = std::min(desired, ((int) (_data_size - _data_pos)) / _bytes_per_sample);
 
   if (read_samples <= 0) {
-    return;
+    return 0;
   }
 
   switch (_format) {
@@ -363,8 +384,8 @@ read_samples(int n, PN_int16 *data) {
       break;
 
     case 3: {
-      // The scale factor happens to be 256 for 24-bit samples.
-      // That means we can just read the most significant bytes.
+      // The scale factor happens to be 256 for 24-bit samples.  That means we
+      // can just read the most significant bytes.
       for (int i = 0; i < read_samples; ++i) {
         _reader.skip_bytes(1);
         data[i] = _reader.get_int16();
@@ -373,7 +394,7 @@ read_samples(int n, PN_int16 *data) {
 
     } case 4: {
       // Downsample.
-      const PN_int32 scale_factor = 0x7fffffff / 0x7fff;
+      const int32_t scale_factor = 0x7fffffff / 0x7fff;
 
       for (int i = 0; i < read_samples; ++i) {
         data[i] = _reader.get_int32() / scale_factor;
@@ -382,7 +403,7 @@ read_samples(int n, PN_int16 *data) {
 
     } case 8: {
       // Downsample.
-      const PN_int64 scale_factor = 0x7fffffffffffffffLL / 0x7fffLL;
+      const int64_t scale_factor = 0x7fffffffffffffffLL / 0x7fffLL;
 
       for (int i = 0; i < read_samples; ++i) {
         data[i] = _reader.get_int64() / scale_factor;
@@ -400,13 +421,13 @@ read_samples(int n, PN_int16 *data) {
     switch (_bytes_per_sample) {
     case 4:
       for (int i = 0; i < read_samples; ++i) {
-        data[i] = (PN_int16) (_reader.get_float32() * 0x7fff);
+        data[i] = (int16_t) (_reader.get_float32() * 0x7fff);
       }
       break;
 
     case 8:
       for (int i = 0; i < read_samples; ++i) {
-        data[i] = (PN_int16) (_reader.get_float64() * 0x7fff);
+        data[i] = (int16_t) (_reader.get_float64() * 0x7fff);
       }
       break;
 
@@ -434,8 +455,10 @@ read_samples(int n, PN_int16 *data) {
   // Fill the rest of the buffer with silence.
   if (read_samples < desired) {
     memset(data + read_samples, 0, (desired - read_samples) * 2);
+    n = read_samples / _audio_channels;
   }
 
   _data_pos = _stream->tellg() - _data_start;
-  _samples_read += read_samples / _audio_channels;
+  _samples_read += n;
+  return n;
 }

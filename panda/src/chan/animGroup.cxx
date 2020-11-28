@@ -1,17 +1,15 @@
-// Filename: animGroup.cxx
-// Created by:  drose (21Feb99)
-//
-////////////////////////////////////////////////////////////////////
-//
-// PANDA 3D SOFTWARE
-// Copyright (c) Carnegie Mellon University.  All rights reserved.
-//
-// All use of this software is subject to the terms of the revised BSD
-// license.  You should have received a copy of this license along
-// with this source code in a file named "LICENSE."
-//
-////////////////////////////////////////////////////////////////////
-
+/**
+ * PANDA 3D SOFTWARE
+ * Copyright (c) Carnegie Mellon University.  All rights reserved.
+ *
+ * All use of this software is subject to the terms of the revised BSD
+ * license.  You should have received a copy of this license along
+ * with this source code in a file named "LICENSE."
+ *
+ * @file animGroup.cxx
+ * @author drose
+ * @date 1999-02-21
+ */
 
 #include "animGroup.h"
 #include "animBundle.h"
@@ -26,106 +24,89 @@
 
 #include <algorithm>
 
+using std::string;
+
 TypeHandle AnimGroup::_type_handle;
 
 
-////////////////////////////////////////////////////////////////////
-//     Function: AnimGroup::Default Constructor
-//       Access: Protected
-//  Description: The default constructor is protected: don't try to
-//               create an AnimGroup without a parent.  To create an
-//               AnimChannel hierarchy, you must first create an
-//               AnimBundle, and use that to create any subsequent
-//               children.
-////////////////////////////////////////////////////////////////////
+/**
+ * The default constructor is protected: don't try to create an AnimGroup
+ * without a parent.  To create an AnimChannel hierarchy, you must first
+ * create an AnimBundle, and use that to create any subsequent children.
+ */
 AnimGroup::
-AnimGroup(const string &name) : 
+AnimGroup(const string &name) :
   Namable(name),
   _children(get_class_type()),
-  _root(NULL)
+  _root(nullptr)
 {
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: AnimGroup::Copy Constructor
-//       Access: Protected
-//  Description: Creates a new AnimGroup, just like this one, without
-//               copying any children.  The new copy is added to the
-//               indicated parent.  Intended to be called by
-//               make_copy() only.
-////////////////////////////////////////////////////////////////////
+/**
+ * Creates a new AnimGroup, just like this one, without copying any children.
+ * The new copy is added to the indicated parent.  Intended to be called by
+ * make_copy() only.
+ */
 AnimGroup::
-AnimGroup(AnimGroup *parent, const AnimGroup &copy) : 
+AnimGroup(AnimGroup *parent, const AnimGroup &copy) :
   Namable(copy),
   _children(get_class_type())
 {
-  if (parent != (AnimGroup *)NULL) {
+  if (parent != nullptr) {
     parent->_children.push_back(this);
     _root = parent->_root;
   } else {
-    _root = NULL;
+    _root = nullptr;
   }
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: AnimGroup::Constructor
-//       Access: Published
-//  Description: Creates the AnimGroup, and adds it to the indicated
-//               parent.  The only way to delete it subsequently is to
-//               delete the entire hierarchy.
-////////////////////////////////////////////////////////////////////
+/**
+ * Creates the AnimGroup, and adds it to the indicated parent.  The only way
+ * to delete it subsequently is to delete the entire hierarchy.
+ */
 AnimGroup::
-AnimGroup(AnimGroup *parent, const string &name) : 
+AnimGroup(AnimGroup *parent, const string &name) :
   Namable(name),
   _children(get_class_type())
  {
-  nassertv(parent != NULL);
+  nassertv(parent != nullptr);
 
   parent->_children.push_back(this);
   _root = parent->_root;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: AnimGroup::Destructor
-//       Access: Published, Virtual
-//  Description: 
-////////////////////////////////////////////////////////////////////
+/**
+ *
+ */
 AnimGroup::
 ~AnimGroup() {
 }
 
 
-////////////////////////////////////////////////////////////////////
-//     Function: AnimGroup::get_num_children
-//       Access: Published
-//  Description: Returns the number of child nodes of the group.
-////////////////////////////////////////////////////////////////////
+/**
+ * Returns the number of child nodes of the group.
+ */
 int AnimGroup::
 get_num_children() const {
   return _children.size();
 }
 
 
-////////////////////////////////////////////////////////////////////
-//     Function: AnimGroup::get_child
-//       Access: Published
-//  Description: Returns the nth child of the group.
-////////////////////////////////////////////////////////////////////
+/**
+ * Returns the nth child of the group.
+ */
 AnimGroup *AnimGroup::
 get_child(int n) const {
-  nassertr(n >= 0 && n < (int)_children.size(), NULL);
+  nassertr(n >= 0 && n < (int)_children.size(), nullptr);
   return _children[n];
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: AnimGroup::get_child_named
-//       Access: Published
-//  Description: Returns the first child found with the indicated
-//               name, or NULL if no such child exists.  This method
-//               searches only the children of this particular
-//               AnimGroup; it does not recursively search the entire
-//               graph.  See also find_child().
-////////////////////////////////////////////////////////////////////
+/**
+ * Returns the first child found with the indicated name, or NULL if no such
+ * child exists.  This method searches only the children of this particular
+ * AnimGroup; it does not recursively search the entire graph.  See also
+ * find_child().
+ */
 AnimGroup *AnimGroup::
 get_child_named(const string &name) const {
   Children::const_iterator ci;
@@ -136,17 +117,14 @@ get_child_named(const string &name) const {
     }
   }
 
-  return (AnimGroup *)NULL;
+  return nullptr;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: AnimGroup::find_child
-//       Access: Published
-//  Description: Returns the first descendant found with the indicated
-//               name, or NULL if no such descendant exists.  This
-//               method searches the entire graph beginning at this
-//               AnimGroup; see also get_child_named().
-////////////////////////////////////////////////////////////////////
+/**
+ * Returns the first descendant found with the indicated name, or NULL if no
+ * such descendant exists.  This method searches the entire graph beginning at
+ * this AnimGroup; see also get_child_named().
+ */
 AnimGroup *AnimGroup::
 find_child(const string &name) const {
   Children::const_iterator ci;
@@ -156,12 +134,12 @@ find_child(const string &name) const {
       return child;
     }
     AnimGroup *result = child->find_child(name);
-    if (result != (AnimGroup *)NULL) {
+    if (result != nullptr) {
       return result;
     }
   }
 
-  return (AnimGroup *)NULL;
+  return nullptr;
 }
 
 // An STL object to sort a list of children into alphabetical order.
@@ -172,15 +150,12 @@ public:
   }
 };
 
-////////////////////////////////////////////////////////////////////
-//     Function: AnimGroup::sort_descendants
-//       Access: Published
-//  Description: Sorts the children nodes at each level of the
-//               hierarchy into alphabetical order.  This should be
-//               done after creating the hierarchy, to guarantee that
-//               the correct names will match up together when the
-//               AnimBundle is later bound to a PlayerRoot.
-////////////////////////////////////////////////////////////////////
+/**
+ * Sorts the children nodes at each level of the hierarchy into alphabetical
+ * order.  This should be done after creating the hierarchy, to guarantee that
+ * the correct names will match up together when the AnimBundle is later bound
+ * to a PlayerRoot.
+ */
 void AnimGroup::
 sort_descendants() {
   sort(_children.begin(), _children.end(), AnimGroupAlphabeticalOrder());
@@ -192,37 +167,29 @@ sort_descendants() {
 }
 
 
-////////////////////////////////////////////////////////////////////
-//     Function: AnimGroup::get_value_type
-//       Access: Public, Virtual
-//  Description: Returns the TypeHandle associated with the ValueType
-//               we are concerned with.  This is provided to allow a
-//               bit of run-time checking that joints and channels are
-//               matching properly in type.
-////////////////////////////////////////////////////////////////////
+/**
+ * Returns the TypeHandle associated with the ValueType we are concerned with.
+ * This is provided to allow a bit of run-time checking that joints and
+ * channels are matching properly in type.
+ */
 TypeHandle AnimGroup::
 get_value_type() const {
   return TypeHandle::none();
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: AnimGroup::output
-//       Access: Published, Virtual
-//  Description: Writes a one-line description of the group.
-////////////////////////////////////////////////////////////////////
+/**
+ * Writes a one-line description of the group.
+ */
 void AnimGroup::
-output(ostream &out) const {
+output(std::ostream &out) const {
   out << get_type() << " " << get_name();
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: AnimGroup::write
-//       Access: Published, Virtual
-//  Description: Writes a brief description of the group and all of
-//               its descendants.
-////////////////////////////////////////////////////////////////////
+/**
+ * Writes a brief description of the group and all of its descendants.
+ */
 void AnimGroup::
-write(ostream &out, int indent_level) const {
+write(std::ostream &out, int indent_level) const {
   indent(out, indent_level) << *this;
   if (!_children.empty()) {
     out << " {\n";
@@ -232,14 +199,11 @@ write(ostream &out, int indent_level) const {
   out << "\n";
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: AnimGroup::write_descendants
-//       Access: Protected
-//  Description: Writes a brief description of all of the group's
-//               descendants.
-////////////////////////////////////////////////////////////////////
+/**
+ * Writes a brief description of all of the group's descendants.
+ */
 void AnimGroup::
-write_descendants(ostream &out, int indent_level) const {
+write_descendants(std::ostream &out, int indent_level) const {
   Children::const_iterator ci;
 
   for (ci = _children.begin(); ci != _children.end(); ++ci) {
@@ -247,26 +211,20 @@ write_descendants(ostream &out, int indent_level) const {
   }
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: AnimGroup::make_copy
-//       Access: Protected, Virtual
-//  Description: Returns a copy of this object, and attaches it to the
-//               indicated parent (which may be NULL only if this is
-//               an AnimBundle).  Intended to be called by
-//               copy_subtree() only.
-////////////////////////////////////////////////////////////////////
+/**
+ * Returns a copy of this object, and attaches it to the indicated parent
+ * (which may be NULL only if this is an AnimBundle).  Intended to be called
+ * by copy_subtree() only.
+ */
 AnimGroup *AnimGroup::
 make_copy(AnimGroup *parent) const {
   return new AnimGroup(parent, *this);
 }
 
 
-////////////////////////////////////////////////////////////////////
-//     Function: AnimGroup::copy_subtree
-//       Access: Protected
-//  Description: Returns a full copy of the subtree at this node and
-//               below.
-////////////////////////////////////////////////////////////////////
+/**
+ * Returns a full copy of the subtree at this node and below.
+ */
 PT(AnimGroup) AnimGroup::
 copy_subtree(AnimGroup *parent) const {
   PT(AnimGroup) new_group = make_copy(parent);
@@ -280,16 +238,14 @@ copy_subtree(AnimGroup *parent) const {
   return new_group;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: AnimGroup::write_datagram
-//       Access: Public
-//  Description: Function to write the important information in
-//               the particular object to a Datagram
-////////////////////////////////////////////////////////////////////
+/**
+ * Function to write the important information in the particular object to a
+ * Datagram
+ */
 void AnimGroup::
 write_datagram(BamWriter *manager, Datagram &me) {
   me.add_string(get_name());
-  //Write out the root
+  // Write out the root
   manager->write_pointer(me, this->_root);
   me.add_uint16(_children.size());
   for(int i = 0; i < (int)_children.size(); i++) {
@@ -297,14 +253,11 @@ write_datagram(BamWriter *manager, Datagram &me) {
   }
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: AnimGroup::fillin
-//       Access: Protected
-//  Description: Function that reads out of the datagram (or asks
-//               manager to read) all of the data that is needed to
-//               re-create this object and stores it in the appropiate
-//               place
-////////////////////////////////////////////////////////////////////
+/**
+ * Function that reads out of the datagram (or asks manager to read) all of
+ * the data that is needed to re-create this object and stores it in the
+ * appropiate place
+ */
 void AnimGroup::
 fillin(DatagramIterator &scan, BamReader *manager) {
   set_name(scan.get_string());
@@ -316,20 +269,17 @@ fillin(DatagramIterator &scan, BamReader *manager) {
   }
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: AnimGroup::complete_pointers
-//       Access: Public
-//  Description: Takes in a vector of pointes to TypedWritable
-//               objects that correspond to all the requests for
-//               pointers that this object made to BamReader.
-////////////////////////////////////////////////////////////////////
+/**
+ * Takes in a vector of pointes to TypedWritable objects that correspond to
+ * all the requests for pointers that this object made to BamReader.
+ */
 int AnimGroup::
 complete_pointers(TypedWritable **p_list, BamReader *) {
   _root = DCAST(AnimBundle, p_list[0]);
   for (int i = 1; i < _num_children+1; i++) {
     if (p_list[i] == TypedWritable::Null) {
       chan_cat->warning() << get_type().get_name()
-                          << " Ignoring null child" << endl;
+                          << " Ignoring null child" << std::endl;
     } else {
       _children.push_back(DCAST(AnimGroup, p_list[i]));
     }
@@ -337,11 +287,9 @@ complete_pointers(TypedWritable **p_list, BamReader *) {
   return _num_children+1;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: AnimGroup::make_AnimGroup
-//       Access: Protected
-//  Description: Factory method to generate a AnimGroup object
-////////////////////////////////////////////////////////////////////
+/**
+ * Factory method to generate a AnimGroup object
+ */
 TypedWritable* AnimGroup::
 make_AnimGroup(const FactoryParams &params) {
   AnimGroup *me = new AnimGroup;
@@ -353,19 +301,10 @@ make_AnimGroup(const FactoryParams &params) {
   return me;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: AnimGroup::register_with_factory
-//       Access: Public, Static
-//  Description: Factory method to generate a AnimGroup object
-////////////////////////////////////////////////////////////////////
+/**
+ * Factory method to generate a AnimGroup object
+ */
 void AnimGroup::
 register_with_read_factory() {
   BamReader::get_factory()->register_factory(get_class_type(), make_AnimGroup);
 }
-
-
-
-
-
-
-

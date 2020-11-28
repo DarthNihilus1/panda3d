@@ -1,16 +1,15 @@
-// Filename: test_udp.cxx
-// Created by:  drose (08Feb00)
-//
-////////////////////////////////////////////////////////////////////
-//
-// PANDA 3D SOFTWARE
-// Copyright (c) Carnegie Mellon University.  All rights reserved.
-//
-// All use of this software is subject to the terms of the revised BSD
-// license.  You should have received a copy of this license along
-// with this source code in a file named "LICENSE."
-//
-////////////////////////////////////////////////////////////////////
+/**
+ * PANDA 3D SOFTWARE
+ * Copyright (c) Carnegie Mellon University.  All rights reserved.
+ *
+ * All use of this software is subject to the terms of the revised BSD
+ * license.  You should have received a copy of this license along
+ * with this source code in a file named "LICENSE."
+ *
+ * @file test_udp.cxx
+ * @author drose
+ * @date 2000-02-08
+ */
 
 #include "queuedConnectionManager.h"
 #include "recentConnectionReader.h"
@@ -21,6 +20,9 @@
 
 #include "datagram_ui.h"
 
+using std::cin;
+using std::cout;
+
 int
 main(int argc, char *argv[]) {
   if (argc != 3) {
@@ -28,7 +30,7 @@ main(int argc, char *argv[]) {
     exit(1);
   }
 
-  string hostname = argv[1];
+  std::string hostname = argv[1];
   int port = atoi(argv[2]);
 
   NetAddress host;
@@ -91,8 +93,3 @@ main(int argc, char *argv[]) {
 
   return (0);
 }
-
-
-
-
-

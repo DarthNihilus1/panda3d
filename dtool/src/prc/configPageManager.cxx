@@ -1,19 +1,19 @@
-// Filename: configPageManager.cxx
-// Created by:  drose (15Oct04)
-//
-////////////////////////////////////////////////////////////////////
-//
-// PANDA 3D SOFTWARE
-// Copyright (c) Carnegie Mellon University.  All rights reserved.
-//
-// All use of this software is subject to the terms of the revised BSD
-// license.  You should have received a copy of this license along
-// with this source code in a file named "LICENSE."
-//
-////////////////////////////////////////////////////////////////////
+/**
+ * PANDA 3D SOFTWARE
+ * Copyright (c) Carnegie Mellon University.  All rights reserved.
+ *
+ * All use of this software is subject to the terms of the revised BSD
+ * license.  You should have received a copy of this license along
+ * with this source code in a file named "LICENSE."
+ *
+ * @file configPageManager.cxx
+ * @author drose
+ * @date 2004-10-15
+ */
 
 #include "configPageManager.h"
 #include "configDeclaration.h"
+#include "configVariableBool.h"
 #include "configVariableString.h"
 #include "configPage.h"
 #include "prcKeyRegistry.h"
@@ -38,16 +38,19 @@
 #include <algorithm>
 #include <ctype.h>
 
-ConfigPageManager *ConfigPageManager::_global_ptr = NULL;
+#ifndef _WIN32
+#include <dlfcn.h>
+#endif
 
-////////////////////////////////////////////////////////////////////
-//     Function: ConfigPageManager::Constructor
-//       Access: Protected
-//  Description: The constructor is private (actually, just protected,
-//               but only to avoid a gcc compiler warning) because it
-//               should not be explicitly constructed.  There is only
-//               one ConfigPageManager, and it constructs itself.
-////////////////////////////////////////////////////////////////////
+using std::string;
+
+ConfigPageManager *ConfigPageManager::_global_ptr = nullptr;
+
+/**
+ * The constructor is private (actually, just protected, but only to avoid a
+ * gcc compiler warning) because it should not be explicitly constructed.
+ * There is only one ConfigPageManager, and it constructs itself.
+ */
 ConfigPageManager::
 ConfigPageManager() {
   _next_page_seq = 1;
@@ -61,34 +64,28 @@ ConfigPageManager() {
 #endif  // PRC_PUBLIC_KEYS_INCLUDE
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: ConfigPageManager::Destructor
-//       Access: Protected
-//  Description: The ConfigPageManager destructor should never be
-//               called, because this is a global object that is never
-//               freed.
-////////////////////////////////////////////////////////////////////
+/**
+ * The ConfigPageManager destructor should never be called, because this is a
+ * global object that is never freed.
+ */
 ConfigPageManager::
 ~ConfigPageManager() {
   prc_cat->error()
     << "Internal error--ConfigPageManager destructor called!\n";
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: ConfigPageManager::reload_implicit_pages
-//       Access: Published
-//  Description: Searches the PRC_DIR and/or PRC_PATH directories for
-//               *.prc files and loads them in as pages.
-//
-//               This may be called after startup, to force the system
-//               to re-read all of the implicit prc files.
-////////////////////////////////////////////////////////////////////
+/**
+ * Searches the PRC_DIR and/or PRC_PATH directories for *.prc files and loads
+ * them in as pages.
+ *
+ * This may be called after startup, to force the system to re-read all of the
+ * implicit prc files.
+ */
 void ConfigPageManager::
 reload_implicit_pages() {
   if (_currently_loading) {
-    // This is a recursion protector.  We can get recursion feedback
-    // between config and notify, as each tries to use the other at
-    // construction.
+    // This is a recursion protector.  We can get recursion feedback between
+    // config and notify, as each tries to use the other at construction.
     return;
   }
   _currently_loading = true;
@@ -100,20 +97,74 @@ reload_implicit_pages() {
   }
   _implicit_pages.clear();
 
-  // PRC_PATTERNS lists one or more filename templates separated by
-  // spaces.  Pull them out and store them in _prc_patterns.
+  // If we are running inside a deployed application, see if it exposes
+  // information about how the PRC data should be initialized.
+  struct BlobInfo {
+    uint64_t blob_offset;
+    uint64_t blob_size;
+    uint16_t version;
+    uint16_t num_pointers;
+    uint16_t codepage;
+    uint16_t flags;
+    uint64_t reserved;
+    const void *module_table;
+    const char *prc_data;
+    const char *default_prc_dir;
+    const char *prc_dir_envvars;
+    const char *prc_path_envvars;
+    const char *prc_patterns;
+    const char *prc_encrypted_patterns;
+    const char *prc_encryption_key;
+    const char *prc_executable_patterns;
+    const char *prc_executable_args_envvar;
+    const char *main_dir;
+    const char *log_filename;
+  };
+#ifdef _WIN32
+  const BlobInfo *blobinfo = (const BlobInfo *)GetProcAddress(GetModuleHandle(NULL), "blobinfo");
+#elif defined(RTLD_MAIN_ONLY)
+  const BlobInfo *blobinfo = (const BlobInfo *)dlsym(RTLD_MAIN_ONLY, "blobinfo");
+//#elif defined(RTLD_SELF)
+//  const BlobInfo *blobinfo = (const BlobInfo *)dlsym(RTLD_SELF, "blobinfo");
+#else
+  const BlobInfo *blobinfo = (const BlobInfo *)dlsym(dlopen(NULL, RTLD_NOW), "blobinfo");
+#endif
+  if (blobinfo == nullptr) {
+#ifndef _WIN32
+    // Clear the error flag.
+    dlerror();
+#endif
+  } else if (blobinfo->version == 0 || blobinfo->num_pointers < 10) {
+    blobinfo = nullptr;
+  }
+
+  if (blobinfo != nullptr) {
+    if (blobinfo->num_pointers >= 11 && blobinfo->main_dir != nullptr) {
+      ExecutionEnvironment::set_environment_variable("MAIN_DIR", blobinfo->main_dir);
+    } else {
+      // Make sure that py_panda.cxx won't override MAIN_DIR.
+      ExecutionEnvironment::set_environment_variable("MAIN_DIR",
+        ExecutionEnvironment::get_environment_variable("MAIN_DIR"));
+    }
+  }
+
+  // PRC_PATTERNS lists one or more filename templates separated by spaces.
+  // Pull them out and store them in _prc_patterns.
   _prc_patterns.clear();
 
   string prc_patterns = PRC_PATTERNS;
+  if (blobinfo != nullptr && blobinfo->prc_patterns != nullptr) {
+    prc_patterns = blobinfo->prc_patterns;
+  }
   if (!prc_patterns.empty()) {
     vector_string pat_list;
     ConfigDeclaration::extract_words(prc_patterns, pat_list);
     _prc_patterns.reserve(pat_list.size());
     for (size_t i = 0; i < pat_list.size(); ++i) {
       GlobPattern glob(pat_list[i]);
-#ifdef WIN32
-      // On windows, the file system is case-insensitive, so the
-      // pattern should be too.
+#ifdef _WIN32
+      // On windows, the file system is case-insensitive, so the pattern
+      // should be too.
       glob.set_case_sensitive(false);
 #endif  // WIN32
       _prc_patterns.push_back(glob);
@@ -124,13 +175,16 @@ reload_implicit_pages() {
   _prc_encrypted_patterns.clear();
 
   string prc_encrypted_patterns = PRC_ENCRYPTED_PATTERNS;
+  if (blobinfo != nullptr && blobinfo->prc_encrypted_patterns != nullptr) {
+    prc_encrypted_patterns = blobinfo->prc_encrypted_patterns;
+  }
   if (!prc_encrypted_patterns.empty()) {
     vector_string pat_list;
     ConfigDeclaration::extract_words(prc_encrypted_patterns, pat_list);
     _prc_encrypted_patterns.reserve(pat_list.size());
     for (size_t i = 0; i < pat_list.size(); ++i) {
       GlobPattern glob(pat_list[i]);
-#ifdef WIN32
+#ifdef _WIN32
       glob.set_case_sensitive(false);
 #endif  // WIN32
       _prc_encrypted_patterns.push_back(glob);
@@ -141,13 +195,16 @@ reload_implicit_pages() {
   _prc_executable_patterns.clear();
 
   string prc_executable_patterns = PRC_EXECUTABLE_PATTERNS;
+  if (blobinfo != nullptr && blobinfo->prc_executable_patterns != nullptr) {
+    prc_executable_patterns = blobinfo->prc_executable_patterns;
+  }
   if (!prc_executable_patterns.empty()) {
     vector_string pat_list;
     ConfigDeclaration::extract_words(prc_executable_patterns, pat_list);
     _prc_executable_patterns.reserve(pat_list.size());
     for (size_t i = 0; i < pat_list.size(); ++i) {
       GlobPattern glob(pat_list[i]);
-#ifdef WIN32
+#ifdef _WIN32
       glob.set_case_sensitive(false);
 #endif  // WIN32
       _prc_executable_patterns.push_back(glob);
@@ -157,10 +214,13 @@ reload_implicit_pages() {
   // Now build up the search path for .prc files.
   _search_path.clear();
 
-  // PRC_DIR_ENVVARS lists one or more environment variables separated
-  // by spaces.  Pull them out, and each of those contains the name of
-  // a single directory to search.  Add it to the search path.
+  // PRC_DIR_ENVVARS lists one or more environment variables separated by
+  // spaces.  Pull them out, and each of those contains the name of a single
+  // directory to search.  Add it to the search path.
   string prc_dir_envvars = PRC_DIR_ENVVARS;
+  if (blobinfo != nullptr && blobinfo->prc_dir_envvars != nullptr) {
+    prc_dir_envvars = blobinfo->prc_dir_envvars;
+  }
   if (!prc_dir_envvars.empty()) {
     vector_string prc_dir_envvar_list;
     ConfigDeclaration::extract_words(prc_dir_envvars, prc_dir_envvar_list);
@@ -175,12 +235,14 @@ reload_implicit_pages() {
       }
     }
   }
-  
-  // PRC_PATH_ENVVARS lists one or more environment variables separated
-  // by spaces.  Pull them out, and then each one of those contains a
-  // list of directories to search.  Add each of those to the search
-  // path.
+
+  // PRC_PATH_ENVVARS lists one or more environment variables separated by
+  // spaces.  Pull them out, and then each one of those contains a list of
+  // directories to search.  Add each of those to the search path.
   string prc_path_envvars = PRC_PATH_ENVVARS;
+  if (blobinfo != nullptr && blobinfo->prc_path_envvars != nullptr) {
+    prc_path_envvars = blobinfo->prc_path_envvars;
+  }
   if (!prc_path_envvars.empty()) {
     vector_string prc_path_envvar_list;
     ConfigDeclaration::extract_words(prc_path_envvars, prc_path_envvar_list);
@@ -201,17 +263,18 @@ reload_implicit_pages() {
       }
     }
   }
-  
-  // PRC_PATH2_ENVVARS is a special variable that is rarely used; it
-  // exists primarily to support the Cygwin-based "ctattach" tools
-  // used by the Walt Disney VR Studio.  This defines a set of
-  // environment variable(s) that define a search path, as above;
-  // except that the directory names on these search paths are
-  // Panda-style filenames, not Windows-style filenames; and the path
-  // separator is always a space character, regardless of
-  // DEFAULT_PATHSEP.
+
+/*
+ * PRC_PATH2_ENVVARS is a special variable that is rarely used; it exists
+ * primarily to support the Cygwin-based "ctattach" tools used by the Walt
+ * Disney VR Studio.  This defines a set of environment variable(s) that
+ * define a search path, as above; except that the directory names on these
+ * search paths are Panda-style filenames, not Windows-style filenames; and
+ * the path separator is always a space character, regardless of
+ * DEFAULT_PATHSEP.
+ */
   string prc_path2_envvars = PRC_PATH2_ENVVARS;
-  if (!prc_path2_envvars.empty()) {
+  if (!prc_path2_envvars.empty() && blobinfo == nullptr) {
     vector_string prc_path_envvar_list;
     ConfigDeclaration::extract_words(prc_path2_envvars, prc_path_envvar_list);
     for (size_t i = 0; i < prc_path_envvar_list.size(); ++i) {
@@ -230,11 +293,14 @@ reload_implicit_pages() {
       }
     }
   }
-  
+
   if (_search_path.is_empty()) {
     // If nothing's on the search path (PRC_DIR and PRC_PATH were not
     // defined), then use the DEFAULT_PRC_DIR.
     string default_prc_dir = DEFAULT_PRC_DIR;
+    if (blobinfo != nullptr && blobinfo->default_prc_dir != nullptr) {
+      default_prc_dir = blobinfo->default_prc_dir;
+    }
     if (!default_prc_dir.empty()) {
       // It's already from-os-specific by ppremake.
       Filename prc_dir_filename = default_prc_dir;
@@ -244,17 +310,16 @@ reload_implicit_pages() {
     }
   }
 
-  // Now find all of the *.prc files (or whatever matches
-  // PRC_PATTERNS) on the path.
+  // Now find all of the *.prc files (or whatever matches PRC_PATTERNS) on the
+  // path.
   ConfigFiles config_files;
 
-  // Use a set to ensure that we only visit each directory once, even
-  // if it appears multiple times (under different aliases!) in the
-  // path.
-  set<Filename> unique_dirnames;
+  // Use a set to ensure that we only visit each directory once, even if it
+  // appears multiple times (under different aliases!) in the path.
+  std::set<Filename> unique_dirnames;
 
-  // We walk through the list of directories in forward order, so that
-  // the most important directories are visited first.
+  // We walk through the list of directories in forward order, so that the
+  // most important directories are visited first.
   for (size_t di = 0; di < _search_path.get_num_directories(); ++di) {
     const Filename &directory = _search_path.get_directory(di);
     if (directory.is_directory()) {
@@ -265,10 +330,10 @@ reload_implicit_pages() {
         directory.scan_directory(files);
 
         // We walk through the directory's list of files in reverse
-        // alphabetical order, because for historical reasons, the
-        // most important file within a directory is the
-        // alphabetically last file of that directory, and we still
-        // want to visit the most important files first.
+        // alphabetical order, because for historical reasons, the most
+        // important file within a directory is the alphabetically last file
+        // of that directory, and we still want to visit the most important
+        // files first.
         vector_string::reverse_iterator fi;
         for (fi = files.rbegin(); fi != files.rend(); ++fi) {
           int file_flags = 0;
@@ -308,12 +373,24 @@ reload_implicit_pages() {
     }
   }
 
-  // Now we have a list of filenames in order from most important to
-  // least important.  Walk through the list in reverse order to load
-  // their contents, because we want the first file in the list (the
-  // most important) to be on the top of the stack.
-  ConfigFiles::reverse_iterator ci;
   int i = 1;
+
+  // If prc_data is predefined, we load it as an implicit page.
+  if (blobinfo != nullptr && blobinfo->prc_data != nullptr) {
+    ConfigPage *page = new ConfigPage("builtin", true, i);
+    ++i;
+    _implicit_pages.push_back(page);
+    _pages_sorted = false;
+
+    std::istringstream in(blobinfo->prc_data);
+    page->read_prc(in);
+  }
+
+  // Now we have a list of filenames in order from most important to least
+  // important.  Walk through the list in reverse order to load their
+  // contents, because we want the first file in the list (the most important)
+  // to be on the top of the stack.
+  ConfigFiles::reverse_iterator ci;
   for (ci = config_files.rbegin(); ci != config_files.rend(); ++ci) {
     const ConfigFile &file = (*ci);
     Filename filename = file._filename;
@@ -324,6 +401,9 @@ reload_implicit_pages() {
       string command = filename.to_os_specific();
 
       string envvar = PRC_EXECUTABLE_ARGS_ENVVAR;
+      if (blobinfo != nullptr && blobinfo->prc_executable_args_envvar != nullptr) {
+        envvar = blobinfo->prc_executable_args_envvar;
+      }
       if (!envvar.empty()) {
         string args = ExecutionEnvironment::get_environment_variable(envvar);
         if (!args.empty()) {
@@ -337,13 +417,13 @@ reload_implicit_pages() {
       ++i;
       _implicit_pages.push_back(page);
       _pages_sorted = false;
-      
+
       page->read_prc(ifs);
 
     } else if ((file._file_flags & FF_decrypt) != 0) {
       // Read and decrypt the file.
       filename.set_binary();
-      
+
       pifstream in;
       if (!filename.open_read(in)) {
         prc_cat.error()
@@ -353,14 +433,18 @@ reload_implicit_pages() {
         ++i;
         _implicit_pages.push_back(page);
         _pages_sorted = false;
-        
-        page->read_encrypted_prc(in, PRC_ENCRYPTION_KEY);
+
+        if (blobinfo != nullptr && blobinfo->prc_encryption_key != nullptr) {
+          page->read_encrypted_prc(in, blobinfo->prc_encryption_key);
+        } else {
+          page->read_encrypted_prc(in, PRC_ENCRYPTION_KEY);
+        }
       }
 
     } else if ((file._file_flags & FF_read) != 0) {
       // Just read the file.
       filename.set_text();
-      
+
       pifstream in;
       if (!filename.open_read(in)) {
         prc_cat.error()
@@ -370,7 +454,7 @@ reload_implicit_pages() {
         ++i;
         _implicit_pages.push_back(page);
         _pages_sorted = false;
-        
+
         page->read_prc(in);
       }
     }
@@ -385,8 +469,8 @@ reload_implicit_pages() {
   invalidate_cache();
 
 #ifdef USE_PANDAFILESTREAM
-  // Update this very low-level config variable here, for lack of any
-  // better place.
+  // Update this very low-level config variable here, for lack of any better
+  // place.
   ConfigVariableEnum<PandaFileStreamBuf::NewlineMode> newline_mode
     ("newline-mode", PandaFileStreamBuf::NM_native,
      PRC_DESC("Controls how newlines are written by Panda applications writing "
@@ -397,9 +481,9 @@ reload_implicit_pages() {
   PandaFileStreamBuf::_newline_mode = newline_mode;
 #endif  // USE_PANDAFILESTREAM
 
-#ifdef WIN32
-  // We don't necessarily want an error dialog when we fail to load a
-  // .dll file.  But sometimes it is useful for debugging.
+#ifdef _WIN32
+  // We don't necessarily want an error dialog when we fail to load a .dll
+  // file.  But sometimes it is useful for debugging.
   ConfigVariableBool show_dll_error_dialog
     ("show-dll-error-dialog", false,
      PRC_DESC("Set this true to enable the Windows system dialog that pops "
@@ -412,19 +496,16 @@ reload_implicit_pages() {
     SetErrorMode(0);
   } else {
     SetErrorMode(SEM_FAILCRITICALERRORS);
-  } 
+  }
 #endif
 
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: ConfigPageManager::make_explicit_page
-//       Access: Published
-//  Description: Creates and returns a new, empty ConfigPage.  This
-//               page will be stacked on top of any pages that were
-//               created before; it may shadow variable declarations
-//               that are defined in previous pages.
-////////////////////////////////////////////////////////////////////
+/**
+ * Creates and returns a new, empty ConfigPage.  This page will be stacked on
+ * top of any pages that were created before; it may shadow variable
+ * declarations that are defined in previous pages.
+ */
 ConfigPage *ConfigPageManager::
 make_explicit_page(const string &name) {
   ConfigPage *page = new ConfigPage(name, false, _next_page_seq);
@@ -435,16 +516,13 @@ make_explicit_page(const string &name) {
   return page;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: ConfigPageManager::delete_explicit_page
-//       Access: Published
-//  Description: Removes a previously-constructed ConfigPage from the
-//               set of active pages, and deletes it.  The ConfigPage
-//               object is no longer valid after this call.  Returns
-//               true if the page is successfully deleted, or false if
-//               it was unknown (which should never happen if the page
-//               was legitimately constructed).
-////////////////////////////////////////////////////////////////////
+/**
+ * Removes a previously-constructed ConfigPage from the set of active pages,
+ * and deletes it.  The ConfigPage object is no longer valid after this call.
+ * Returns true if the page is successfully deleted, or false if it was
+ * unknown (which should never happen if the page was legitimately
+ * constructed).
+ */
 bool ConfigPageManager::
 delete_explicit_page(ConfigPage *page) {
   Pages::iterator pi;
@@ -459,25 +537,21 @@ delete_explicit_page(ConfigPage *page) {
   return false;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: ConfigPageManager::output
-//       Access: Published
-//  Description: 
-////////////////////////////////////////////////////////////////////
+/**
+ *
+ */
 void ConfigPageManager::
-output(ostream &out) const {
-  out << "ConfigPageManager, " 
-      << _explicit_pages.size() + _implicit_pages.size() 
+output(std::ostream &out) const {
+  out << "ConfigPageManager, "
+      << _explicit_pages.size() + _implicit_pages.size()
       << " pages.";
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: ConfigPageManager::write
-//       Access: Published
-//  Description: 
-////////////////////////////////////////////////////////////////////
+/**
+ *
+ */
 void ConfigPageManager::
-write(ostream &out) const {
+write(std::ostream &out) const {
   check_sort_pages();
   out << _explicit_pages.size() << " explicit pages:\n";
 
@@ -516,14 +590,12 @@ write(ostream &out) const {
   }
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: ConfigPageManager::get_global_ptr
-//       Access: Published
-//  Description: 
-////////////////////////////////////////////////////////////////////
+/**
+ *
+ */
 ConfigPageManager *ConfigPageManager::
 get_global_ptr() {
-  if (_global_ptr == (ConfigPageManager *)NULL) {
+  if (_global_ptr == nullptr) {
     _global_ptr = new ConfigPageManager;
   }
   return _global_ptr;
@@ -537,13 +609,10 @@ public:
   }
 };
 
-////////////////////////////////////////////////////////////////////
-//     Function: ConfigPageManager::sort_pages
-//       Access: Private
-//  Description: Sorts the list of pages into priority order,
-//               so that the page at the front of the list is
-//               the one that shadows all following pages.
-////////////////////////////////////////////////////////////////////
+/**
+ * Sorts the list of pages into priority order, so that the page at the front
+ * of the list is the one that shadows all following pages.
+ */
 void ConfigPageManager::
 sort_pages() {
   sort(_implicit_pages.begin(), _implicit_pages.end(), CompareConfigPages());
@@ -552,27 +621,22 @@ sort_pages() {
   _pages_sorted = true;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: ConfigPageManager::scan_auto_prc_dir
-//       Access: Private
-//  Description: Checks for the prefix "<auto>" in the value of the
-//               $PRC_DIR environment variable (or in the compiled-in
-//               DEFAULT_PRC_DIR value).  If it is found, then the
-//               actual directory is determined by searching upward
-//               from the executable's starting directory, or from the
-//               current working directory, until at least one .prc
-//               file is found.
-//
-//               Returns true if the prc_dir has been filled with a
-//               valid directory name, false if no good directory name
-//               was found.
-////////////////////////////////////////////////////////////////////
+/**
+ * Checks for the prefix "<auto>" in the value of the $PRC_DIR environment
+ * variable (or in the compiled-in DEFAULT_PRC_DIR value).  If it is found,
+ * then the actual directory is determined by searching upward from the
+ * executable's starting directory, or from the current working directory,
+ * until at least one .prc file is found.
+ *
+ * Returns true if the prc_dir has been filled with a valid directory name,
+ * false if no good directory name was found.
+ */
 bool ConfigPageManager::
 scan_auto_prc_dir(Filename &prc_dir) const {
   string prc_dir_string = prc_dir;
   if (prc_dir_string.substr(0, 6) == "<auto>") {
     Filename suffix = prc_dir_string.substr(6);
-    
+
     // Start at the dtool directory.
     Filename dtool = ExecutionEnvironment::get_dtool_name();
     Filename dir = dtool.get_dirname();
@@ -580,7 +644,7 @@ scan_auto_prc_dir(Filename &prc_dir) const {
     if (scan_up_from(prc_dir, dir, suffix)) {
       return true;
     }
-    
+
     // Try the program's directory.
     dir = ExecutionEnvironment::get_environment_variable("MAIN_DIR");
     if (scan_up_from(prc_dir, dir, suffix)) {
@@ -588,7 +652,7 @@ scan_auto_prc_dir(Filename &prc_dir) const {
     }
 
     // Didn't find it; too bad.
-    cerr << "Warning: unable to auto-locate config files in directory named by \""
+    std::cerr << "Warning: unable to auto-locate config files in directory named by \""
          << prc_dir << "\".\n";
     return false;
   }
@@ -597,22 +661,19 @@ scan_auto_prc_dir(Filename &prc_dir) const {
   return true;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: ConfigPageManager::scan_up_from
-//       Access: Private
-//  Description: Used to implement scan_auto_prc_dir(), above, this
-//               scans upward from the indicated directory name until
-//               a directory is found that includes at least one .prc
-//               file, or the root directory is reached.  
-//
-//               If a match is found, puts it result and returns true;
-//               otherwise, returns false.
-////////////////////////////////////////////////////////////////////
+/**
+ * Used to implement scan_auto_prc_dir(), above, this scans upward from the
+ * indicated directory name until a directory is found that includes at least
+ * one .prc file, or the root directory is reached.
+ *
+ * If a match is found, puts it result and returns true; otherwise, returns
+ * false.
+ */
 bool ConfigPageManager::
-scan_up_from(Filename &result, const Filename &dir, 
+scan_up_from(Filename &result, const Filename &dir,
              const Filename &suffix) const {
   Filename consider(dir, suffix);
-  
+
   vector_string files;
   if (consider.is_directory()) {
     if (consider.scan_directory(files)) {
@@ -651,39 +712,15 @@ scan_up_from(Filename &result, const Filename &dir,
   return scan_up_from(result, parent, suffix);
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: ConfigPageManager::config_initialized
-//       Access: Private
-//  Description: This is called once, at startup, the first time that
-//               the config system has been initialized and is ready
-//               to read config variables.  It's intended to be a
-//               place to initialize values that are defined at a
-//               lower level than the config system itself.
-////////////////////////////////////////////////////////////////////
+/**
+ * This is called once, at startup, the first time that the config system has
+ * been initialized and is ready to read config variables.  It's intended to
+ * be a place to initialize values that are defined at a lower level than the
+ * config system itself.
+ */
 void ConfigPageManager::
 config_initialized() {
-  Notify::ptr()->config_initialized();
-
-#ifndef NDEBUG
-  ConfigVariableString panda_package_version
-    ("panda-package-version", "local_dev",
-     PRC_DESC("This can be used to specify the value returned by "
-              "PandaSystem::get_package_version_str(), in development mode only, "
-              "and only if another value has not already been compiled in.  This "
-              "is intended for developer convenience, to masquerade a development "
-              "build of Panda as a different runtime version.  Use with caution."));
-  ConfigVariableString panda_package_host_url
-    ("panda-package-host-url", "",
-     PRC_DESC("This can be used to specify the value returned by "
-              "PandaSystem::get_package_host_url(), in development mode only, "
-              "and only if another value has not already been compiled in.  This "
-              "is intended for developer convenience, to masquerade a development "
-              "build of Panda as a different runtime version.  Use with caution."));
-
-  PandaSystem *panda_sys = PandaSystem::get_global_ptr();
-  panda_sys->set_package_version_string(panda_package_version);
-  panda_sys->set_package_host_url(panda_package_host_url);
-#endif  // NDEBUG
+  Notify::config_initialized();
 
   // Also set up some other low-level things.
   ConfigVariableEnum<TextEncoder::Encoding> text_encoding

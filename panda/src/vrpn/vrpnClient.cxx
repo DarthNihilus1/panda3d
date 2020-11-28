@@ -1,16 +1,15 @@
-// Filename: vrpnClient.cxx
-// Created by:  jason (04Aug00)
-//
-////////////////////////////////////////////////////////////////////
-//
-// PANDA 3D SOFTWARE
-// Copyright (c) Carnegie Mellon University.  All rights reserved.
-//
-// All use of this software is subject to the terms of the revised BSD
-// license.  You should have received a copy of this license along
-// with this source code in a file named "LICENSE."
-//
-////////////////////////////////////////////////////////////////////
+/**
+ * PANDA 3D SOFTWARE
+ * Copyright (c) Carnegie Mellon University.  All rights reserved.
+ *
+ * All use of this software is subject to the terms of the revised BSD
+ * license.  You should have received a copy of this license along
+ * with this source code in a file named "LICENSE."
+ *
+ * @file vrpnClient.cxx
+ * @author jason
+ * @date 2000-08-04
+ */
 
 #include "vrpnClient.h"
 #include "vrpnTracker.h"
@@ -27,13 +26,13 @@
 #include "string_utils.h"
 #include "indent.h"
 
+using std::string;
+
 TypeHandle VrpnClient::_type_handle;
 
-////////////////////////////////////////////////////////////////////
-//     Function: VrpnClient::Constructor
-//       Access: Public
-//  Description:
-////////////////////////////////////////////////////////////////////
+/**
+ *
+ */
 VrpnClient::
 VrpnClient(const string &server_name) :
   _server_name(server_name)
@@ -44,7 +43,7 @@ VrpnClient(const string &server_name) :
       << "\n";
   }
   _connection = vrpn_get_connection_by_name(_server_name.c_str());
-  nassertv(_connection != (vrpn_Connection *)NULL);
+  nassertv(_connection != nullptr);
 
   if (!is_valid()) {
     vrpn_cat.warning()
@@ -53,24 +52,38 @@ VrpnClient(const string &server_name) :
   }
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: VrpnClient::Constructor
-//       Access: Public
-//  Description:
-////////////////////////////////////////////////////////////////////
+/**
+ *
+ */
 VrpnClient::
 ~VrpnClient() {
   delete _connection;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: VrpnClient::write
-//       Access: Public
-//  Description: Writes a list of the active devices that the
-//               VrpnClient is currently polling each frame.
-////////////////////////////////////////////////////////////////////
+/**
+ * Returns true if everything seems to be kosher with the server (even if
+ * there is no connection), or false otherwise.
+ */
+bool VrpnClient::
+is_valid() const {
+  return (_connection->doing_okay() != 0);
+}
+
+/**
+ * Returns true if the connection is established successfully, false
+ * otherwise.
+ */
+bool VrpnClient::
+is_connected() const {
+  return (_connection->connected() != 0);
+}
+
+/**
+ * Writes a list of the active devices that the VrpnClient is currently
+ * polling each frame.
+ */
 void VrpnClient::
-write(ostream &out, int indent_level) const {
+write(std::ostream &out, int indent_level) const {
   indent(out, indent_level)
     << "VrpnClient, server " << _server_name << "\n";
 
@@ -123,19 +136,15 @@ write(ostream &out, int indent_level) const {
   }
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: VrpnClient::make_device
-//       Access: Protected, Virtual
-//  Description: Creates and returns a new ClientDevice of the
-//               appropriate type, according to the requested
-//               device_type and device_name.  Returns NULL if a
-//               matching device cannot be found.
-//
-//               This is guaranteed not to be called twice for a given
-//               device_type/device_name combination (unless
-//               disconnect_device() has already been called for the
-//               same device_type/device_name).
-////////////////////////////////////////////////////////////////////
+/**
+ * Creates and returns a new ClientDevice of the appropriate type, according
+ * to the requested device_type and device_name.  Returns NULL if a matching
+ * device cannot be found.
+ *
+ * This is guaranteed not to be called twice for a given
+ * device_type/device_name combination (unless disconnect_device() has already
+ * been called for the same device_type/device_name).
+ */
 PT(ClientDevice) VrpnClient::
 make_device(TypeHandle device_type, const string &device_name) {
   if (device_type == ClientTrackerDevice::get_class_type()) {
@@ -151,23 +160,18 @@ make_device(TypeHandle device_type, const string &device_name) {
     return make_dial_device(device_name);
 
   } else {
-    return NULL;
+    return nullptr;
   }
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: VrpnClient::disconnect_device
-//       Access: Protected, Virtual
-//  Description: Removes the device, which is presumably about to
-//               destruct, from the list of connected devices, and
-//               frees any data required to support it.  This device
-//               will no longer receive automatic updates with each
-//               poll.
-//
-//               The return value is true if the device was
-//               disconnected, or false if it was unknown (e.g. it was
-//               disconnected previously).
-////////////////////////////////////////////////////////////////////
+/**
+ * Removes the device, which is presumably about to destruct, from the list of
+ * connected devices, and frees any data required to support it.  This device
+ * will no longer receive automatic updates with each poll.
+ *
+ * The return value is true if the device was disconnected, or false if it was
+ * unknown (e.g.  it was disconnected previously).
+ */
 bool VrpnClient::
 disconnect_device(TypeHandle device_type, const string &device_name,
                   ClientDevice *device) {
@@ -196,15 +200,12 @@ disconnect_device(TypeHandle device_type, const string &device_name,
   return false;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: VrpnClient::do_poll
-//       Access: Protected, Virtual
-//  Description: Implements the polling and updating of connected
-//               devices, if the ClientBase requires this.  This may
-//               be called in a sub-thread if
-//               fork_asynchronous_thread() was called; otherwise, it
-//               will be called once per frame.
-////////////////////////////////////////////////////////////////////
+/**
+ * Implements the polling and updating of connected devices, if the ClientBase
+ * requires this.  This may be called in a sub-thread if
+ * fork_asynchronous_thread() was called; otherwise, it will be called once
+ * per frame.
+ */
 void VrpnClient::
 do_poll() {
   ClientBase::do_poll();
@@ -241,34 +242,27 @@ do_poll() {
   }
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: VrpnClient::make_tracker_device
-//       Access: Private
-//  Description: Creates a new tracker device.  The device_name is
-//               parsed for sensor and data_type information.
-//
-//               The device_name may be one of the following:
-//
-//                    tracker_name
-//                    tracker_name:N
-//                    tracker_name:N[pva]
-//
-//               Where N is an integer sensor number, and [pva] is one
-//               of the lowercase letters p, v, or a.
-//
-//               In the first form, the device connects to the
-//               indicated tracker, and reports position information
-//               on sensor number 0.
-//
-//               In the second form, the device connects to the
-//               indicated tracker, and reports position information
-//               on the indicated sensor number.
-//
-//               In the third form, the device connects to the
-//               indicated tracker, and reports either position,
-//               velocity, or acceleration information on the
-//               indicated sensor number.
-////////////////////////////////////////////////////////////////////
+/**
+ * Creates a new tracker device.  The device_name is parsed for sensor and
+ * data_type information.
+ *
+ * The device_name may be one of the following:
+ *
+ * tracker_name tracker_name:N tracker_name:N[pva]
+ *
+ * Where N is an integer sensor number, and [pva] is one of the lowercase
+ * letters p, v, or a.
+ *
+ * In the first form, the device connects to the indicated tracker, and
+ * reports position information on sensor number 0.
+ *
+ * In the second form, the device connects to the indicated tracker, and
+ * reports position information on the indicated sensor number.
+ *
+ * In the third form, the device connects to the indicated tracker, and
+ * reports either position, velocity, or acceleration information on the
+ * indicated sensor number.
+ */
 PT(ClientDevice) VrpnClient::
 make_tracker_device(const string &device_name) {
   if (vrpn_cat.is_debug()) {
@@ -325,12 +319,10 @@ make_tracker_device(const string &device_name) {
   return device;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: VrpnClient::make_button_device
-//       Access: Private
-//  Description: Creates a new button device.  The device_name is sent
-//               verbatim to the VRPN library.
-////////////////////////////////////////////////////////////////////
+/**
+ * Creates a new button device.  The device_name is sent verbatim to the VRPN
+ * library.
+ */
 PT(ClientDevice) VrpnClient::
 make_button_device(const string &device_name) {
   if (vrpn_cat.is_debug()) {
@@ -352,12 +344,10 @@ make_button_device(const string &device_name) {
   return device;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: VrpnClient::make_analog_device
-//       Access: Private
-//  Description: Creates a new analog device.  The device_name is sent
-//               verbatim to the VRPN library.
-////////////////////////////////////////////////////////////////////
+/**
+ * Creates a new analog device.  The device_name is sent verbatim to the VRPN
+ * library.
+ */
 PT(ClientDevice) VrpnClient::
 make_analog_device(const string &device_name) {
   if (vrpn_cat.is_debug()) {
@@ -379,12 +369,10 @@ make_analog_device(const string &device_name) {
   return device;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: VrpnClient::make_dial_device
-//       Access: Private
-//  Description: Creates a new dial device.  The device_name is sent
-//               verbatim to the VRPN library.
-////////////////////////////////////////////////////////////////////
+/**
+ * Creates a new dial device.  The device_name is sent verbatim to the VRPN
+ * library.
+ */
 PT(ClientDevice) VrpnClient::
 make_dial_device(const string &device_name) {
   if (vrpn_cat.is_debug()) {
@@ -406,12 +394,9 @@ make_dial_device(const string &device_name) {
   return device;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: VrpnClient::disconnect_tracker_device
-//       Access: Private
-//  Description: Removes the tracker device from the list of things to
-//               be updated.
-////////////////////////////////////////////////////////////////////
+/**
+ * Removes the tracker device from the list of things to be updated.
+ */
 void VrpnClient::
 disconnect_tracker_device(VrpnTrackerDevice *device) {
   VrpnTracker *vrpn_tracker = device->get_vrpn_tracker();
@@ -421,12 +406,9 @@ disconnect_tracker_device(VrpnTrackerDevice *device) {
   }
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: VrpnClient::disconnect_button_device
-//       Access: Private
-//  Description: Removes the button device from the list of things to
-//               be updated.
-////////////////////////////////////////////////////////////////////
+/**
+ * Removes the button device from the list of things to be updated.
+ */
 void VrpnClient::
 disconnect_button_device(VrpnButtonDevice *device) {
   VrpnButton *vrpn_button = device->get_vrpn_button();
@@ -436,12 +418,9 @@ disconnect_button_device(VrpnButtonDevice *device) {
   }
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: VrpnClient::disconnect_analog_device
-//       Access: Private
-//  Description: Removes the analog device from the list of things to
-//               be updated.
-////////////////////////////////////////////////////////////////////
+/**
+ * Removes the analog device from the list of things to be updated.
+ */
 void VrpnClient::
 disconnect_analog_device(VrpnAnalogDevice *device) {
   VrpnAnalog *vrpn_analog = device->get_vrpn_analog();
@@ -451,12 +430,9 @@ disconnect_analog_device(VrpnAnalogDevice *device) {
   }
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: VrpnClient::disconnect_dial_device
-//       Access: Private
-//  Description: Removes the dial device from the list of things to
-//               be updated.
-////////////////////////////////////////////////////////////////////
+/**
+ * Removes the dial device from the list of things to be updated.
+ */
 void VrpnClient::
 disconnect_dial_device(VrpnDialDevice *device) {
   VrpnDial *vrpn_dial = device->get_vrpn_dial();
@@ -466,13 +442,10 @@ disconnect_dial_device(VrpnDialDevice *device) {
   }
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: VrpnClient::get_tracker
-//       Access: Private
-//  Description: Finds a VrpnTracker of the indicated name, and
-//               returns it if one already exists, or creates a new
-//               one if it does not.
-////////////////////////////////////////////////////////////////////
+/**
+ * Finds a VrpnTracker of the indicated name, and returns it if one already
+ * exists, or creates a new one if it does not.
+ */
 VrpnTracker *VrpnClient::
 get_tracker(const string &tracker_name) {
   Trackers::iterator ti;
@@ -493,12 +466,10 @@ get_tracker(const string &tracker_name) {
   return vrpn_tracker;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: VrpnClient::free_tracker
-//       Access: Private
-//  Description: Removes and deletes the indicated VrpnTracker, which
-//               is no longer referenced by any VrpnTrackerDevices.
-////////////////////////////////////////////////////////////////////
+/**
+ * Removes and deletes the indicated VrpnTracker, which is no longer
+ * referenced by any VrpnTrackerDevices.
+ */
 void VrpnClient::
 free_tracker(VrpnTracker *vrpn_tracker) {
   nassertv(vrpn_tracker->is_empty());
@@ -517,13 +488,10 @@ free_tracker(VrpnTracker *vrpn_tracker) {
   delete vrpn_tracker;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: VrpnClient::get_button
-//       Access: Private
-//  Description: Finds a VrpnButton of the indicated name, and
-//               returns it if one already exists, or creates a new
-//               one if it does not.
-////////////////////////////////////////////////////////////////////
+/**
+ * Finds a VrpnButton of the indicated name, and returns it if one already
+ * exists, or creates a new one if it does not.
+ */
 VrpnButton *VrpnClient::
 get_button(const string &button_name) {
   Buttons::iterator bi;
@@ -544,12 +512,10 @@ get_button(const string &button_name) {
   return vrpn_button;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: VrpnClient::free_button
-//       Access: Private
-//  Description: Removes and deletes the indicated VrpnButton, which
-//               is no longer referenced by any VrpnButtonDevices.
-////////////////////////////////////////////////////////////////////
+/**
+ * Removes and deletes the indicated VrpnButton, which is no longer referenced
+ * by any VrpnButtonDevices.
+ */
 void VrpnClient::
 free_button(VrpnButton *vrpn_button) {
   nassertv(vrpn_button->is_empty());
@@ -568,13 +534,10 @@ free_button(VrpnButton *vrpn_button) {
   delete vrpn_button;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: VrpnClient::get_analog
-//       Access: Private
-//  Description: Finds a VrpnAnalog of the indicated name, and
-//               returns it if one already exists, or creates a new
-//               one if it does not.
-////////////////////////////////////////////////////////////////////
+/**
+ * Finds a VrpnAnalog of the indicated name, and returns it if one already
+ * exists, or creates a new one if it does not.
+ */
 VrpnAnalog *VrpnClient::
 get_analog(const string &analog_name) {
   Analogs::iterator ai;
@@ -595,12 +558,10 @@ get_analog(const string &analog_name) {
   return vrpn_analog;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: VrpnClient::free_analog
-//       Access: Private
-//  Description: Removes and deletes the indicated VrpnAnalog, which
-//               is no longer referenced by any VrpnAnalogDevices.
-////////////////////////////////////////////////////////////////////
+/**
+ * Removes and deletes the indicated VrpnAnalog, which is no longer referenced
+ * by any VrpnAnalogDevices.
+ */
 void VrpnClient::
 free_analog(VrpnAnalog *vrpn_analog) {
   nassertv(vrpn_analog->is_empty());
@@ -619,13 +580,10 @@ free_analog(VrpnAnalog *vrpn_analog) {
   delete vrpn_analog;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: VrpnClient::get_dial
-//       Access: Private
-//  Description: Finds a VrpnDial of the indicated name, and
-//               returns it if one already exists, or creates a new
-//               one if it does not.
-////////////////////////////////////////////////////////////////////
+/**
+ * Finds a VrpnDial of the indicated name, and returns it if one already
+ * exists, or creates a new one if it does not.
+ */
 VrpnDial *VrpnClient::
 get_dial(const string &dial_name) {
   Dials::iterator di;
@@ -646,12 +604,10 @@ get_dial(const string &dial_name) {
   return vrpn_dial;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: VrpnClient::free_dial
-//       Access: Private
-//  Description: Removes and deletes the indicated VrpnDial, which
-//               is no longer referenced by any VrpnDialDevices.
-////////////////////////////////////////////////////////////////////
+/**
+ * Removes and deletes the indicated VrpnDial, which is no longer referenced
+ * by any VrpnDialDevices.
+ */
 void VrpnClient::
 free_dial(VrpnDial *vrpn_dial) {
   nassertv(vrpn_dial->is_empty());
@@ -682,23 +638,20 @@ typedef struct {
 } VrpnClientInfo;
 
 
-////////////////////////////////////////////////////////////////////
-//     Function: VrpnClient::add_remote_tracker
-//       Access: Public, Virtual
-//  Description: Creates a new vrpn remote tracker object and registers
-//               a callback with it.
-////////////////////////////////////////////////////////////////////
+/**
+ * Creates a new vrpn remote tracker object and registers a callback with it.
+ */
 bool VrpnClient::
 add_remote_tracker(const string &tracker, int sensor) {
 
   vrpn_Tracker_Remote *vrpn_tracker = new vrpn_Tracker_Remote(tracker.c_str(), _connection);
-  if (vrpn_tracker == (vrpn_Tracker_Remote *)NULL) {
+  if (vrpn_tracker == nullptr) {
     return false;
   }
 
-  //Now package up the information that needs to be passed to the
-  //callback function to allow it to determine for which tracker we
-  //are receiving information for
+  // Now package up the information that needs to be passed to the callback
+  // function to allow it to determine for which tracker we are receiving
+  // information for
   VrpnClientInfo *data = new VrpnClientInfo;
   data->device_name = tracker;
   data->self = this;
@@ -714,23 +667,20 @@ add_remote_tracker(const string &tracker, int sensor) {
   return true;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: VrpnClient::add_remote_analog
-//       Access: Public, Virtual
-//  Description: Creates a new vrpn remote analog object and registers
-//               a callback with it.
-////////////////////////////////////////////////////////////////////
+/**
+ * Creates a new vrpn remote analog object and registers a callback with it.
+ */
 bool VrpnClient::
 add_remote_analog(const string &analog) {
 
   vrpn_Analog_Remote *vrpn_analog = new vrpn_Analog_Remote(analog.c_str(), _connection);
-  if (vrpn_analog == (vrpn_Analog_Remote *)NULL) {
+  if (vrpn_analog == nullptr) {
     return false;
   }
 
-  //Now package up the information that needs to be passed to the
-  //callback function to allow it to determine for which analog we
-  //are receiving information for
+  // Now package up the information that needs to be passed to the callback
+  // function to allow it to determine for which analog we are receiving
+  // information for
   VrpnClientInfo *data = new VrpnClientInfo;
   data->device_name = analog;
   data->self = this;
@@ -743,23 +693,20 @@ add_remote_analog(const string &analog) {
   return true;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: VrpnClient::add_remote_button
-//       Access: Public, Virtual
-//  Description: Creates a new vrpn remote button object and registers
-//               a callback with it.
-////////////////////////////////////////////////////////////////////
+/**
+ * Creates a new vrpn remote button object and registers a callback with it.
+ */
 bool VrpnClient::
 add_remote_button(const string &button) {
 
   vrpn_Button_Remote *vrpn_button = new vrpn_Button_Remote(button.c_str(), _connection);
-  if (vrpn_button == (vrpn_Button_Remote *)NULL) {
+  if (vrpn_button == nullptr) {
     return false;
   }
 
-  //Now package up the information that needs to be passed to the
-  //callback function to allow it to determine for which button we
-  //are receiving information for
+  // Now package up the information that needs to be passed to the callback
+  // function to allow it to determine for which button we are receiving
+  // information for
   VrpnClientInfo *data = new VrpnClientInfo;
   data->device_name = button;
   data->self = this;
@@ -772,23 +719,20 @@ add_remote_button(const string &button) {
   return true;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: VrpnClient::add_remote_dial
-//       Access: Public, Virtual
-//  Description: Creates a new vrpn remote dial object and registers
-//               a callback with it.
-////////////////////////////////////////////////////////////////////
+/**
+ * Creates a new vrpn remote dial object and registers a callback with it.
+ */
 bool VrpnClient::
 add_remote_dial(const string &dial) {
 
   vrpn_Dial_Remote *vrpn_dial = new vrpn_Dial_Remote(dial.c_str(), _connection);
-  if (vrpn_dial == (vrpn_Dial_Remote *)NULL) {
+  if (vrpn_dial == nullptr) {
     return false;
   }
 
-  //Now package up the information that needs to be passed to the
-  //callback function to allow it to determine for which dial we
-  //are receiving information for
+  // Now package up the information that needs to be passed to the callback
+  // function to allow it to determine for which dial we are receiving
+  // information for
   VrpnClientInfo *data = new VrpnClientInfo;
   data->device_name = dial;
   data->self = this;
@@ -801,127 +745,104 @@ add_remote_dial(const string &dial) {
   return true;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: VrpnClient::max_analog_channels
-//       Access: Public, Virtual
-//  Description: Max number of analog channels
-////////////////////////////////////////////////////////////////////
+/**
+ * Max number of analog channels
+ */
 int VrpnClient::
 max_analog_channels() {
   return vrpn_CHANNEL_MAX;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: VrpnClient::poll_trackers
-//       Access: Public, Virtual
-//  Description: Calls mainloop for the registered tracker object
-//         Note: In a non-threaded case, this may need to come up with
-//               some kind of cacheing scheme so we don't call mainloop
-//               multiple times when a user is just asking for the data
-//               of multiple sensors on 1 tracker (as that is the interface
-//               supported).  This is a non-trivial problem as it is
-//               difficult to know when we should and shouldn't cache.
-////////////////////////////////////////////////////////////////////
+/**
+ * Calls mainloop for the registered tracker object Note: In a non-threaded
+ * case, this may need to come up with some kind of cacheing scheme so we
+ * don't call mainloop multiple times when a user is just asking for the data
+ * of multiple sensors on 1 tracker (as that is the interface supported).
+ * This is a non-trivial problem as it is difficult to know when we should and
+ * shouldn't cache.
+ */
 void VrpnClient::
 poll_tracker(const string &tracker) {
   _vrpn_trackers[tracker]->mainloop();
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: VrpnClient::poll_analog
-//       Access: Public, Virtual
-//  Description: Calls mainloop for the registered analog object
-////////////////////////////////////////////////////////////////////
+/**
+ * Calls mainloop for the registered analog object
+ */
 void VrpnClient::
 poll_analog(const string &analog) {
   _vrpn_analogs[analog]->mainloop();
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: VrpnClient::poll_button
-//       Access: Public, Virtual
-//  Description: Calls mainloop for the registered button object
-////////////////////////////////////////////////////////////////////
+/**
+ * Calls mainloop for the registered button object
+ */
 void VrpnClient::
 poll_button(const string &button) {
   _vrpn_buttons[button]->mainloop();
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: VrpnClient::poll_dial
-//       Access: Public, Virtual
-//  Description: Calls mainloop for the registered dial object
-////////////////////////////////////////////////////////////////////
+/**
+ * Calls mainloop for the registered dial object
+ */
 void VrpnClient::
 poll_dial(const string &dial) {
   _vrpn_dials[dial]->mainloop();
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: VrpnClient::st_tracker_position
-//       Access: Private, Static
-//  Description: Callback function that merely passes the data down
-//               to the appropriate non-static function
-////////////////////////////////////////////////////////////////////
+/**
+ * Callback function that merely passes the data down to the appropriate non-
+ * static function
+ */
 void VRPN_CALLBACK VrpnClient::
 st_tracker_position(void *userdata, const vrpn_TRACKERCB info) {
   VrpnClientInfo *data = (VrpnClientInfo *)userdata;
   ((VrpnClient *)data->self)->tracker_position(data->device_name, info);
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: VrpnClient::st_tracker_velocity
-//       Access: Private, Static
-//  Description: Callback function that merely passes the data down
-//               to the appropriate non-static function
-////////////////////////////////////////////////////////////////////
+/**
+ * Callback function that merely passes the data down to the appropriate non-
+ * static function
+ */
 void VRPN_CALLBACK VrpnClient::
 st_tracker_velocity(void *userdata, const vrpn_TRACKERVELCB info) {
   VrpnClientInfo *data = (VrpnClientInfo *)userdata;
   ((VrpnClient *)data->self)->tracker_velocity(data->device_name, info);
 }
-////////////////////////////////////////////////////////////////////
-//     Function: VrpnClient::st_tracker_acceleration
-//       Access: Private, Static
-//  Description: Callback function that merely passes the data down
-//               to the appropriate non-static function
-////////////////////////////////////////////////////////////////////
+/**
+ * Callback function that merely passes the data down to the appropriate non-
+ * static function
+ */
 void VRPN_CALLBACK VrpnClient::
 st_tracker_acceleration(void *userdata, const vrpn_TRACKERACCCB info) {
   VrpnClientInfo *data = (VrpnClientInfo *)userdata;
   ((VrpnClient *)data->self)->tracker_acceleration(data->device_name, info);
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: VrpnClient::st_analog
-//       Access: Private, Static
-//  Description: Callback function that merely passes the data down
-//               to the appropriate non-static function
-////////////////////////////////////////////////////////////////////
+/**
+ * Callback function that merely passes the data down to the appropriate non-
+ * static function
+ */
 void VrpnClient::
 st_analog(void *userdata, const vrpn_ANALOGCB info) {
   VrpnClientInfo *data = (VrpnClientInfo *)userdata;
   ((VrpnClient *)data->self)->analog(data->device_name, info);
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: VrpnClient::st_button
-//       Access: Private, Static
-//  Description: Callback function that merely passes the data down
-//               to the appropriate non-static function
-////////////////////////////////////////////////////////////////////
+/**
+ * Callback function that merely passes the data down to the appropriate non-
+ * static function
+ */
 void VrpnClient::
 st_button(void *userdata, const vrpn_BUTTONCB info) {
   VrpnClientInfo *data = (VrpnClientInfo *)userdata;
   ((VrpnClient *)data->self)->button(data->device_name, info);
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: VrpnClient::st_dial
-//       Access: Private, Static
-//  Description: Callback function that merely passes the data down
-//               to the appropriate non-static function
-////////////////////////////////////////////////////////////////////
+/**
+ * Callback function that merely passes the data down to the appropriate non-
+ * static function
+ */
 void VrpnClient::
 st_dial(void *userdata, const vrpn_DIALCB info) {
   VrpnClientInfo *data = (VrpnClientInfo *)userdata;

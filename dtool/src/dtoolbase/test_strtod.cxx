@@ -1,16 +1,15 @@
-// Filename: test_strtod.cxx
-// Created by:  drose (14Jun09)
-//
-////////////////////////////////////////////////////////////////////
-//
-// PANDA 3D SOFTWARE
-// Copyright (c) Carnegie Mellon University.  All rights reserved.
-//
-// All use of this software is subject to the terms of the revised BSD
-// license.  You should have received a copy of this license along
-// with this source code in a file named "LICENSE."
-//
-////////////////////////////////////////////////////////////////////
+/**
+ * PANDA 3D SOFTWARE
+ * Copyright (c) Carnegie Mellon University.  All rights reserved.
+ *
+ * All use of this software is subject to the terms of the revised BSD
+ * license.  You should have received a copy of this license along
+ * with this source code in a file named "LICENSE."
+ *
+ * @file test_strtod.cxx
+ * @author drose
+ * @date 2009-06-14
+ */
 
 #include "pstrtod.h"
 
@@ -25,11 +24,11 @@ main(int argc, char *argv[]) {
 #endif
 
   for (int i = 1; i < argc; ++i) {
-    char *endptr = NULL;
+    char *endptr = nullptr;
     double result = pstrtod(argv[i], &endptr);
-    cerr << "pstrtod - " << argv[i] << " : " << result << " : " << endptr << "\n";
+    std::cerr << "pstrtod - " << argv[i] << " : " << result << " : " << endptr << "\n";
     result = strtod(argv[i], &endptr);
-    cerr << "strtod - " << argv[i] << " : " << result << " : " << endptr << "\n";
+    std::cerr << "strtod - " << argv[i] << " : " << result << " : " << endptr << "\n";
   }
 
   return 0;

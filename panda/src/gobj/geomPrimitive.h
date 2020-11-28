@@ -1,16 +1,15 @@
-// Filename: geomPrimitive.h
-// Created by:  drose (06Mar05)
-//
-////////////////////////////////////////////////////////////////////
-//
-// PANDA 3D SOFTWARE
-// Copyright (c) Carnegie Mellon University.  All rights reserved.
-//
-// All use of this software is subject to the terms of the revised BSD
-// license.  You should have received a copy of this license along
-// with this source code in a file named "LICENSE."
-//
-////////////////////////////////////////////////////////////////////
+/**
+ * PANDA 3D SOFTWARE
+ * Copyright (c) Carnegie Mellon University.  All rights reserved.
+ *
+ * All use of this software is subject to the terms of the revised BSD
+ * license.  You should have received a copy of this license along
+ * with this source code in a file named "LICENSE."
+ *
+ * @file geomPrimitive.h
+ * @author drose
+ * @date 2005-03-06
+ */
 
 #ifndef GEOMPRIMITIVE_H
 #define GEOMPRIMITIVE_H
@@ -39,34 +38,28 @@ class GraphicsStateGuardianBase;
 class FactoryParams;
 class GeomPrimitivePipelineReader;
 
-////////////////////////////////////////////////////////////////////
-//       Class : GeomPrimitive
-// Description : This is an abstract base class for a family of
-//               classes that represent the fundamental geometry
-//               primitives that may be stored in a Geom.
-//
-//               They all have in common the fact that they are
-//               defined by tables of vertex data stored in a
-//               GeomVertexData object.  Each GeomPrimitive object
-//               contains an ordered list of integers, which index
-//               into the vertex array defined by the GeomVertexData
-//               and define the particular vertices of the
-//               GeomVertexData that are used for this primitive.
-//
-//               The meaning of a given arrangement of vertices is
-//               defined by each individual primitive type; for
-//               instance, a GeomTriangle renders a triangle from each
-//               three consecutive vertices, while a GeomTriangleStrip
-//               renders a strip of (n - 2) connected triangles from
-//               each sequence of n vertices.
-////////////////////////////////////////////////////////////////////
+/**
+ * This is an abstract base class for a family of classes that represent the
+ * fundamental geometry primitives that may be stored in a Geom.
+ *
+ * They all have in common the fact that they are defined by tables of vertex
+ * data stored in a GeomVertexData object.  Each GeomPrimitive object contains
+ * an ordered list of integers, which index into the vertex array defined by
+ * the GeomVertexData and define the particular vertices of the GeomVertexData
+ * that are used for this primitive.
+ *
+ * The meaning of a given arrangement of vertices is defined by each
+ * individual primitive type; for instance, a GeomTriangle renders a triangle
+ * from each three consecutive vertices, while a GeomTriangleStrip renders a
+ * strip of (n - 2) connected triangles from each sequence of n vertices.
+ */
 class EXPCL_PANDA_GOBJ GeomPrimitive : public CopyOnWriteObject, public GeomEnums {
 protected:
   GeomPrimitive();
   virtual PT(CopyOnWriteObject) make_cow_copy();
 
 PUBLISHED:
-  GeomPrimitive(UsageHint usage_hint);
+  explicit GeomPrimitive(UsageHint usage_hint);
   GeomPrimitive(const GeomPrimitive &copy);
   void operator = (const GeomPrimitive &copy);
   virtual ~GeomPrimitive();
@@ -93,10 +86,10 @@ PUBLISHED:
 
   // The following published methods are provided for safe, high-level
   // iteration through the vertices and sub-primitives within the
-  // GeomPrimitive class.  These work correctly regardless of the
-  // primitive type and without depending on knowledge about the way
-  // primitives' lengths are encoded.  You can also safely build up a
-  // composite primitive using these methods.
+  // GeomPrimitive class.  These work correctly regardless of the primitive
+  // type and without depending on knowledge about the way primitives' lengths
+  // are encoded.  You can also safely build up a composite primitive using
+  // these methods.
 
   INLINE bool is_composite() const;
   INLINE bool is_indexed() const;
@@ -141,6 +134,7 @@ PUBLISHED:
   CPT(GeomPrimitive) make_points() const;
   CPT(GeomPrimitive) make_lines() const;
   CPT(GeomPrimitive) make_patches() const;
+  virtual CPT(GeomPrimitive) make_adjacency() const;
 
   int get_num_bytes() const;
   INLINE int get_data_size_bytes() const;
@@ -149,26 +143,30 @@ PUBLISHED:
   MAKE_PROPERTY(data_size_bytes, get_data_size_bytes);
   MAKE_PROPERTY(modified, get_modified);
 
-  bool request_resident() const;
+  bool request_resident(Thread *current_thread = Thread::get_current_thread()) const;
 
   INLINE bool check_valid(const GeomVertexData *vertex_data) const;
+  INLINE bool check_valid(const GeomVertexDataPipelineReader *data_reader) const;
 
-  virtual void output(ostream &out) const;
-  virtual void write(ostream &out, int indent_level) const;
+  virtual void output(std::ostream &out) const;
+  virtual void write(std::ostream &out, int indent_level) const;
 
 PUBLISHED:
-  // These public methods are not intended for high-level usage.  They
-  // are public so that low-level code that absolutely needs fast
-  // access to the primitive data can get to it, but using them
-  // requires knowledge about how the component primitives are encoded
-  // within the GeomPrimitive class, and it's easy to screw something
-  // up.  Also, if too many code samples depend on this internal
-  // knowledge, it may make it difficult to extend this class later.
-  // It is recommended that application-level code use the above
-  // interfaces instead.
+/*
+ * These public methods are not intended for high-level usage.  They are
+ * public so that low-level code that absolutely needs fast access to the
+ * primitive data can get to it, but using them requires knowledge about how
+ * the component primitives are encoded within the GeomPrimitive class, and
+ * it's easy to screw something up.  Also, if too many code samples depend on
+ * this internal knowledge, it may make it difficult to extend this class
+ * later.  It is recommended that application-level code use the above
+ * interfaces instead.
+ */
 
   INLINE CPT(GeomVertexArrayData) get_vertices() const;
+  INLINE CPT(GeomVertexArrayDataHandle) get_vertices_handle(Thread *current_thread) const;
   PT(GeomVertexArrayData) modify_vertices(int num_vertices = -1);
+  INLINE PT(GeomVertexArrayDataHandle) modify_vertices_handle(Thread *current_thread);
   void set_vertices(const GeomVertexArrayData *vertices, int num_vertices = -1);
   void set_nonindexed_vertices(int first_vertex, int num_vertices);
 
@@ -254,10 +252,9 @@ private:
 
 private:
   // A GeomPrimitive keeps a list (actually, a map) of all the
-  // PreparedGraphicsObjects tables that it has been prepared into.
-  // Each PGO conversely keeps a list (a set) of all the Geoms that
-  // have been prepared there.  When either destructs, it removes
-  // itself from the other's list.
+  // PreparedGraphicsObjects tables that it has been prepared into.  Each PGO
+  // conversely keeps a list (a set) of all the Geoms that have been prepared
+  // there.  When either destructs, it removes itself from the other's list.
   typedef pmap<PreparedGraphicsObjects *, IndexBufferContext *> Contexts;
   Contexts _contexts;
 
@@ -348,21 +345,19 @@ private:
   friend class GeomPrimitivePipelineReader;
 };
 
-////////////////////////////////////////////////////////////////////
-//       Class : GeomPrimitivePipelineReader
-// Description : Encapsulates the data from a GeomPrimitive,
-//               pre-fetched for one stage of the pipeline.
-////////////////////////////////////////////////////////////////////
+/**
+ * Encapsulates the data from a GeomPrimitive, pre-fetched for one stage of
+ * the pipeline.
+ */
 class EXPCL_PANDA_GOBJ GeomPrimitivePipelineReader : public GeomEnums {
 public:
-  INLINE GeomPrimitivePipelineReader(const GeomPrimitive *object, Thread *current_thread);
-private:
-  INLINE GeomPrimitivePipelineReader(const GeomPrimitivePipelineReader &copy);
-  INLINE void operator = (const GeomPrimitivePipelineReader &copy);
-
-public:
+  INLINE GeomPrimitivePipelineReader(CPT(GeomPrimitive) object, Thread *current_thread);
+  GeomPrimitivePipelineReader(const GeomPrimitivePipelineReader &copy) = delete;
   INLINE ~GeomPrimitivePipelineReader();
+
   ALLOC_DELETED_CHAIN(GeomPrimitivePipelineReader);
+
+  GeomPrimitivePipelineReader &operator = (const GeomPrimitivePipelineReader &copy) = delete;
 
   INLINE const GeomPrimitive *get_object() const;
   INLINE Thread *get_current_thread() const;
@@ -377,13 +372,13 @@ public:
   INLINE int get_num_vertices() const;
   int get_vertex(int i) const;
   int get_num_primitives() const;
+  void get_referenced_vertices(BitArray &bits) const;
   INLINE int get_min_vertex() const;
   INLINE int get_max_vertex() const;
   INLINE int get_data_size_bytes() const;
   INLINE UpdateSeq get_modified() const;
   bool check_valid(const GeomVertexDataPipelineReader *data_reader) const;
   INLINE int get_index_stride() const;
-  INLINE const GeomVertexArrayDataHandle *get_vertices_reader() const;
   INLINE const unsigned char *get_read_pointer(bool force) const;
   INLINE int get_strip_cut_index() const;
   INLINE CPTA_int get_ends() const;
@@ -392,13 +387,15 @@ public:
 
   INLINE IndexBufferContext *prepare_now(PreparedGraphicsObjects *prepared_objects,
                                          GraphicsStateGuardianBase *gsg) const;
+  INLINE bool draw(GraphicsStateGuardianBase *gsg, bool force) const;
 
 private:
   CPT(GeomPrimitive) _object;
   Thread *_current_thread;
   const GeomPrimitive::CData *_cdata;
 
-  CPT(GeomVertexArrayDataHandle) _vertices_reader;
+  CPT(GeomVertexArrayData) _vertices;
+  const GeomVertexArrayData::CData *_vertices_cdata;
 
 public:
   static TypeHandle get_class_type() {
@@ -412,7 +409,7 @@ private:
   static TypeHandle _type_handle;
 };
 
-INLINE ostream &operator << (ostream &out, const GeomPrimitive &obj);
+INLINE std::ostream &operator << (std::ostream &out, const GeomPrimitive &obj);
 
 #include "geomPrimitive.I"
 

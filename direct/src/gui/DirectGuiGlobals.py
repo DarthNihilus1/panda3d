@@ -1,12 +1,10 @@
-"""Undocumented Module"""
-
-__all__ = []
-
-
 """
 Global definitions used by Direct Gui Classes and handy constants
 that can be used during widget construction
 """
+
+__all__ = []
+
 from panda3d.core import *
 
 defaultFont = None
@@ -19,8 +17,9 @@ drawOrder = 100
 panel = None
 
 # USEFUL GUI CONSTANTS
-# Constant used to indicate that an option can only be set by a call
-# to the constructor.
+
+#: Constant used to indicate that an option can only be set by a call
+#: to the constructor.
 INITOPT = ['initopt']
 
 # Mouse buttons
@@ -71,6 +70,8 @@ B3PRESS = PGButton.getPressPrefix() + MouseButton.three().getName() + '-'
 B1RELEASE = PGButton.getReleasePrefix() + MouseButton.one().getName() + '-'
 B2RELEASE = PGButton.getReleasePrefix() + MouseButton.two().getName() + '-'
 B3RELEASE = PGButton.getReleasePrefix() + MouseButton.three().getName() + '-'
+WHEELUP = PGButton.getReleasePrefix() + MouseButton.wheelUp().getName() + '-'
+WHEELDOWN = PGButton.getReleasePrefix() + MouseButton.wheelDown().getName() + '-'
 # For DirectEntry widgets
 OVERFLOW = PGEntry.getOverflowPrefix()
 ACCEPT = PGEntry.getAcceptPrefix() + KeyboardButton.enter().getName() + '-'
@@ -86,6 +87,9 @@ ADJUST = PGSliderBar.getAdjustPrefix()
 IMAGE_SORT_INDEX = 10
 GEOM_SORT_INDEX = 20
 TEXT_SORT_INDEX = 30
+
+FADE_SORT_INDEX = 1000
+NO_FADE_SORT_INDEX = 2000
 
 # Handy conventions for organizing top-level gui objects in loose buckets.
 BACKGROUND_SORT_INDEX = -100
@@ -124,6 +128,8 @@ def getDefaultFont():
     return defaultFont
 
 def setDefaultFont(newFont):
+    """Changes the default font for DirectGUI items.  To change the default
+    font across the board, see :meth:`.TextNode.setDefaultFont`. """
     global defaultFont
     defaultFont = newFont
 
@@ -158,6 +164,16 @@ def setDefaultPanel(newPanel):
     global panel
     panel = newPanel
 
-#from OnscreenText import *
-#from OnscreenGeom import *
-#from OnscreenImage import *
+get_default_rollover_sound = getDefaultRolloverSound
+set_default_rollover_sound = setDefaultRolloverSound
+get_default_click_sound = getDefaultClickSound
+set_default_click_sound = setDefaultClickSound
+get_default_font = getDefaultFont
+set_default_font = setDefaultFont
+get_default_dialog_geom = getDefaultDialogGeom
+get_default_dialog_relief = getDefaultDialogRelief
+set_default_dialog_geom = setDefaultDialogGeom
+get_default_draw_order = getDefaultDrawOrder
+set_default_draw_order = setDefaultDrawOrder
+get_default_panel = getDefaultPanel
+set_default_panel = setDefaultPanel

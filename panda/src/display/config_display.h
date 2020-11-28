@@ -1,16 +1,15 @@
-// Filename: config_display.h
-// Created by:  drose (06Oct99)
-//
-////////////////////////////////////////////////////////////////////
-//
-// PANDA 3D SOFTWARE
-// Copyright (c) Carnegie Mellon University.  All rights reserved.
-//
-// All use of this software is subject to the terms of the revised BSD
-// license.  You should have received a copy of this license along
-// with this source code in a file named "LICENSE."
-//
-////////////////////////////////////////////////////////////////////
+/**
+ * PANDA 3D SOFTWARE
+ * Copyright (c) Carnegie Mellon University.  All rights reserved.
+ *
+ * All use of this software is subject to the terms of the revised BSD
+ * license.  You should have received a copy of this license along
+ * with this source code in a file named "LICENSE."
+ *
+ * @file config_display.h
+ * @author drose
+ * @date 1999-10-06
+ */
 
 #ifndef CONFIG_DISPLAY_H
 #define CONFIG_DISPLAY_H
@@ -69,10 +68,12 @@ extern EXPCL_PANDA_DISPLAY ConfigVariableBool default_stereo_camera;
 extern EXPCL_PANDA_DISPLAY ConfigVariableBool color_scale_via_lighting;
 extern EXPCL_PANDA_DISPLAY ConfigVariableBool alpha_scale_via_texture;
 extern EXPCL_PANDA_DISPLAY ConfigVariableBool allow_incomplete_render;
+extern EXPCL_PANDA_DISPLAY ConfigVariableBool old_alpha_blend;
 
 extern EXPCL_PANDA_DISPLAY ConfigVariableInt win_size;
 extern EXPCL_PANDA_DISPLAY ConfigVariableInt win_origin;
 extern EXPCL_PANDA_DISPLAY ConfigVariableBool fullscreen;
+extern EXPCL_PANDA_DISPLAY ConfigVariableBool maximized;
 extern EXPCL_PANDA_DISPLAY ConfigVariableBool undecorated;
 extern EXPCL_PANDA_DISPLAY ConfigVariableBool win_fixed_size;
 extern EXPCL_PANDA_DISPLAY ConfigVariableBool cursor_hidden;
@@ -108,7 +109,6 @@ extern EXPCL_PANDA_DISPLAY ConfigVariableDouble pixel_zoom;
 
 extern EXPCL_PANDA_DISPLAY ConfigVariableColor background_color;
 extern EXPCL_PANDA_DISPLAY ConfigVariableBool sync_video;
-extern EXPCL_PANDA_DISPLAY ConfigVariableBool basic_shaders_only;
 
 extern EXPCL_PANDA_DISPLAY void init_libdisplay();
 

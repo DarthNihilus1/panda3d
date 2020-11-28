@@ -1,16 +1,15 @@
-// Filename: config_distort.cxx
-// Created by:  drose (11Dec01)
-//
-////////////////////////////////////////////////////////////////////
-//
-// PANDA 3D SOFTWARE
-// Copyright (c) Carnegie Mellon University.  All rights reserved.
-//
-// All use of this software is subject to the terms of the revised BSD
-// license.  You should have received a copy of this license along
-// with this source code in a file named "LICENSE."
-//
-////////////////////////////////////////////////////////////////////
+/**
+ * PANDA 3D SOFTWARE
+ * Copyright (c) Carnegie Mellon University.  All rights reserved.
+ *
+ * All use of this software is subject to the terms of the revised BSD
+ * license.  You should have received a copy of this license along
+ * with this source code in a file named "LICENSE."
+ *
+ * @file config_distort.cxx
+ * @author drose
+ * @date 2001-12-11
+ */
 
 #include "config_distort.h"
 #include "cylindricalLens.h"
@@ -20,6 +19,10 @@
 #include "projectionScreen.h"
 
 #include "dconfig.h"
+
+#if !defined(CPPPARSER) && !defined(LINK_ALL_STATIC) && !defined(BUILDING_PANDAFX)
+  #error Buildsystem error: BUILDING_PANDAFX not defined
+#endif
 
 Configure(config_distort);
 NotifyCategoryDef(distort, "");
@@ -37,14 +40,12 @@ ConfigVariableBool project_invert_uvs
           "these graphics drivers.  If it fails to do this, you should "
           "probably set copy-texture-inverted instead, which is more general."));
 
-////////////////////////////////////////////////////////////////////
-//     Function: init_libdistort
-//  Description: Initializes the library.  This must be called at
-//               least once before any of the functions or classes in
-//               this library can be used.  Normally it will be
-//               called by the static initializers and need not be
-//               called explicitly, but special cases exist.
-////////////////////////////////////////////////////////////////////
+/**
+ * Initializes the library.  This must be called at least once before any of
+ * the functions or classes in this library can be used.  Normally it will be
+ * called by the static initializers and need not be called explicitly, but
+ * special cases exist.
+ */
 void
 init_libdistort() {
   static bool initialized = false;

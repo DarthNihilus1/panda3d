@@ -1,16 +1,15 @@
-// Filename: mayaPview.cxx
-// Created by:  drose (10Mar03)
-//
-////////////////////////////////////////////////////////////////////
-//
-// PANDA 3D SOFTWARE
-// Copyright (c) Carnegie Mellon University.  All rights reserved.
-//
-// All use of this software is subject to the terms of the revised BSD
-// license.  You should have received a copy of this license along
-// with this source code in a file named "LICENSE."
-//
-////////////////////////////////////////////////////////////////////
+/**
+ * PANDA 3D SOFTWARE
+ * Copyright (c) Carnegie Mellon University.  All rights reserved.
+ *
+ * All use of this software is subject to the terms of the revised BSD
+ * license.  You should have received a copy of this license along
+ * with this source code in a file named "LICENSE."
+ *
+ * @file mayaPview.cxx
+ * @author drose
+ * @date 2003-03-10
+ */
 
 #ifdef __MACH__
 #define __OPENTRANSPORTPROVIDERS__
@@ -20,7 +19,7 @@
 #include "mayaToEggConverter.h"
 #include "eggData.h"
 #include "load_egg_file.h"
-#include "config_util.h"
+#include "config_putil.h"
 #include "config_chan.h"
 #include "config_gobj.h"
 #include "textNode.h"
@@ -28,8 +27,8 @@
 #include "distanceUnit.h"
 #include "configVariableEnum.h"
 
-// We must define this to prevent Maya from doubly-declaring its
-// MApiVersion string in this file as well as in libmayaegg.
+// We must define this to prevent Maya from doubly-declaring its MApiVersion
+// string in this file as well as in libmayaegg.
 #define _MApiVersion
 
 #include "pre_maya_include.h"
@@ -42,28 +41,24 @@
 #include <maya/MProgressWindow.h>
 #include "post_maya_include.h"
 
-// On Windows, we have code to fork pview as a separate process, which
-// seems to be better for Maya.
-#ifdef WIN32_VC
+// On Windows, we have code to fork pview as a separate process, which seems
+// to be better for Maya.
+#ifdef _WIN32
 #include <windows.h>
 #include <process.h>
 #define SEPARATE_PVIEW 1
-#endif  // WIN32_VC
+#endif  // _WIN32
 
-////////////////////////////////////////////////////////////////////
-//     Function: MayaPview::Constructor
-//       Access: Public
-//  Description:
-////////////////////////////////////////////////////////////////////
+/**
+ *
+ */
 MayaPview::
 MayaPview() {
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: MayaPview::doIt
-//       Access: Public, Virtual
-//  Description: Called when the plugin command is invoked.
-////////////////////////////////////////////////////////////////////
+/**
+ * Called when the plugin command is invoked.
+ */
 MStatus MayaPview::
 doIt(const MArgList &args) {
   MStatus result;
@@ -99,9 +94,9 @@ doIt(const MArgList &args) {
   Filename bam_filename = Filename::temporary("", "pview");
   bam_filename.set_extension("bam");
 
-  // Since we're just writing to a bam file in this process, and
-  // running pview in a separate process, we don't actually need to
-  // load textures at this point.  Disable the loading of textures.
+  // Since we're just writing to a bam file in this process, and running pview
+  // in a separate process, we don't actually need to load textures at this
+  // point.  Disable the loading of textures.
   textures_header_only = true;
 
   NodePath root("root");
@@ -122,38 +117,36 @@ doIt(const MArgList &args) {
 
   MProgressWindow::setProgressStatus("Spawning pview");
   MProgressWindow::advanceProgress(1);
-  
+
   // Now spawn a pview instance to view this temporary file.
-  string pview_args = "-clD";
+  std::string pview_args = "-clD";
   if (animate) {
     pview_args = "-clDa";
   }
 
-  // On Windows, we use the spawn function to run pview
-  // asynchronously.
-  string quoted = string("\"") + bam_filename.get_fullpath() + string("\"");
+  // On Windows, we use the spawn function to run pview asynchronously.
+  std::string quoted = std::string("\"") + bam_filename.get_fullpath() + std::string("\"");
   nout << "pview " << pview_args << " " << quoted << "\n";
-  int retval = _spawnlp(_P_DETACH, "pview", 
-                        "pview", pview_args.c_str(), quoted.c_str(), NULL);
+  int retval = _spawnlp(_P_DETACH, "pview",
+                        "pview", pview_args.c_str(), quoted.c_str(), nullptr);
   if (retval == -1) {
     bam_filename.unlink();
     MProgressWindow::endProgress();
     return MS::kFailure;
   }
 
-  nout << "pview running.\n"; 
+  nout << "pview running.\n";
   MProgressWindow::endProgress();
 
 #else  // SEPARATE_PVIEW
   // We'll run PandaFramework directly within this process.
 
-  // Maya seems to run each invocation of the plugin in a separate
-  // thread.  To minimize conflict in our
-  // not-yet-completely-thread-safe Panda, we'll create a separate
-  // PandaFramework for each invocation, even though in principle we
-  // could be sharing one framework for all of them.
+  // Maya seems to run each invocation of the plugin in a separate thread.  To
+  // minimize conflict in our not-yet-completely-thread-safe Panda, we'll
+  // create a separate PandaFramework for each invocation, even though in
+  // principle we could be sharing one framework for all of them.
   int argc = 0;
-  char **argv = NULL;
+  char **argv = nullptr;
   PandaFramework framework;
   framework.open_framework(argc, argv);
   framework.set_window_title("Panda Viewer");
@@ -161,7 +154,7 @@ doIt(const MArgList &args) {
 
   PT(WindowFramework) window;
   window = framework.open_window();
-  if (window == (WindowFramework *)NULL) {
+  if (window == nullptr) {
     // Couldn't open a window.
     nout << "Couldn't open a window!\n";
     MProgressWindow::endProgress();
@@ -181,8 +174,8 @@ doIt(const MArgList &args) {
   loading->set_align(TextNode::A_center);
   loading->set_text("Loading...");
 
-  // Allow a couple of frames to go by so the window will be fully
-  // created and the text will be visible.
+  // Allow a couple of frames to go by so the window will be fully created and
+  // the text will be visible.
   framework.do_frame(Thread::get_current_thread());
   framework.do_frame(Thread::get_current_thread());
 
@@ -213,22 +206,18 @@ doIt(const MArgList &args) {
   return MS::kSuccess;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: MayaPview::creator
-//       Access: Public, Static
-//  Description: This is used to create a new instance of the plugin.
-////////////////////////////////////////////////////////////////////
+/**
+ * This is used to create a new instance of the plugin.
+ */
 void *MayaPview::
 creator() {
   return new MayaPview;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: MayaPview::convert
-//       Access: Private
-//  Description: Actually converts the Maya selection to Panda
-//               geometry, and parents it to the indicated NodePath.
-////////////////////////////////////////////////////////////////////
+/**
+ * Actually converts the Maya selection to Panda geometry, and parents it to
+ * the indicated NodePath.
+ */
 bool MayaPview::
 convert(const NodePath &parent, bool animate) {
   // Now make a converter to get all the Maya structures.
@@ -251,9 +240,9 @@ convert(const NodePath &parent, bool animate) {
   PathReplace *path_replace = converter.get_path_replace();
 
   // Accept relative pathnames in the Maya file.
-  Filename source_file = 
+  Filename source_file =
     Filename::from_os_specific(MFileIO::currentFile().asChar());
-  string source_dir = source_file.get_dirname();
+  std::string source_dir = source_file.get_dirname();
   if (!source_dir.empty()) {
     path_replace->_path.append_directory(source_dir);
   }
@@ -274,14 +263,14 @@ convert(const NodePath &parent, bool animate) {
   MProgressWindow::setProgressStatus("Converting to bam");
   MProgressWindow::advanceProgress(1);
 
-  // Now the converter has filled up our egg structure with data, so
-  // convert this egg data to Panda data for immediate viewing.
+  // Now the converter has filled up our egg structure with data, so convert
+  // this egg data to Panda data for immediate viewing.
   DistanceUnit input_units = converter.get_input_units();
   ConfigVariableEnum<DistanceUnit> ptloader_units("ptloader-units", DU_invalid);
-  if (input_units != DU_invalid && ptloader_units != DU_invalid && 
+  if (input_units != DU_invalid && ptloader_units != DU_invalid &&
       input_units != ptloader_units) {
-    // Convert the file to the units specified by the ptloader-units
-    // Configrc variable.
+    // Convert the file to the units specified by the ptloader-units Configrc
+    // variable.
     nout
       << "Converting from " << format_long_unit(input_units)
       << " to " << format_long_unit(ptloader_units) << "\n";
@@ -292,7 +281,7 @@ convert(const NodePath &parent, bool animate) {
   egg_data->set_coordinate_system(CS_default);
   PT(PandaNode) result = load_egg_data(egg_data);
 
-  if (result == (PandaNode *)NULL) {
+  if (result == nullptr) {
     nout << "Unable to load converted egg data.\n";
     return false;
   }
@@ -304,16 +293,15 @@ convert(const NodePath &parent, bool animate) {
 
 
 
-////////////////////////////////////////////////////////////////////
-//     Function: initializePlugin
-//  Description: Called by Maya when the plugin is loaded.
-////////////////////////////////////////////////////////////////////
-EXPCL_MISC MStatus 
+/**
+ * Called by Maya when the plugin is loaded.
+ */
+EXPCL_MISC MStatus
 initializePlugin(MObject obj) {
-  // This code is just for debugging, to cause Notify to write its
-  // output to a log file we can inspect, so we can see the error
-  // messages output by DX7 or DX8 just before it does a panic exit
-  // (and thereby shuts down Maya and its output window).
+  // This code is just for debugging, to cause Notify to write its output to a
+  // log file we can inspect, so we can see the error messages output by DX7
+  // or DX8 just before it does a panic exit (and thereby shuts down Maya and
+  // its output window).
   /*
   MultiplexStream *local_nout = new MultiplexStream();
   Notify::ptr()->set_ostream_ptr(local_nout, 0);
@@ -331,10 +319,9 @@ initializePlugin(MObject obj) {
   return status;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: uninitializePlugin
-//  Description: Called by Maya when the plugin is unloaded.
-////////////////////////////////////////////////////////////////////
+/**
+ * Called by Maya when the plugin is unloaded.
+ */
 EXPCL_MISC MStatus
 uninitializePlugin(MObject obj) {
   MFnPlugin plugin(obj);

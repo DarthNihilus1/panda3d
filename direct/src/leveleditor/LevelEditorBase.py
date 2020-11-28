@@ -9,10 +9,10 @@ from direct.showbase.DirectObject import *
 from direct.directtools.DirectUtil import *
 from direct.gui.DirectGui import *
 
-from CurveEditor import *
-from FileMgr import *
-from ActionMgr import *
-from MayaConverter import *
+from .CurveEditor import *
+from .FileMgr import *
+from .ActionMgr import *
+from .MayaConverter import *
 
 class LevelEditorBase(DirectObject):
     """ Base Class for Panda3D LevelEditor """
@@ -305,7 +305,7 @@ class LevelEditorBase(DirectObject):
         if self.settingsFile is None:
             return
 
-        self.ui.SetCursor(wx.StockCursor(wx.CURSOR_WAIT))
+        self.ui.SetCursor(wx.Cursor(wx.CURSOR_WAIT))
         try:
             f = open(self.settingsFile, 'r')
             configLines = f.readlines()
@@ -342,7 +342,7 @@ class LevelEditorBase(DirectObject):
             self.ui.updateMenu()
         except:
             pass
-        self.ui.SetCursor(wx.StockCursor(wx.CURSOR_ARROW))
+        self.ui.SetCursor(wx.Cursor(wx.CURSOR_ARROW))
 
     def convertMaya(self, modelname, callBack, obj=None, isAnim=False):
         if obj and isAnim:

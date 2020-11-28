@@ -1,58 +1,52 @@
-// Filename: mayaToEgg.cxx
-// Created by:  drose (15Feb00)
-//
-// Additional Maintenance by the PandaSE team
-// Carnegie Mellon Entertainment Technology Center
-// Spring '10
-// Team Members:
-// Deepak Chandraskeran - producer / programmer
-// Andrew Gartner - programmer/technical artist
-// Federico Perazzi - programmer
-// Shuying Feng - programmer
-// Wei-Feng Huang - programmer
-// (Egger additions by Andrew Gartner and Wei-Feng Huang)
-// The egger can now support vertex color in a variety
-// of combinations with flat color and file color textures
-// (see set_vertex_color).  Also, there are two new 
-// command line options "legacy-shaders" and "texture-copy".
-// The first treats any Maya material/shader as if it were 
-// a legacy shader. Passing it through the legacy codepath.
-// This feature was originally intended to fix a bug where
-// flat-color was being ignored in the modern (Phong) codepath
-// However, with the new vertex and flat color functions it
-// may not be necessary.  Still, until the newer color functions
-// have been tried and tested more, the feature has been left in
-// to anticipate any problems that may arise. The texture copy
-// feature was added to provide a way to resolve build path issues
-// and can support both relative and absolute paths. The feature
-// will copy any file maps/textures to the specified directory
-// and update the egg file accordingly.
-//
-////////////////////////////////////////////////////////////////////
-//
-// PANDA 3D SOFTWARE
-// Copyright (c) Carnegie Mellon University.  All rights reserved.
-//
-// All use of this software is subject to the terms of the revised BSD
-// license.  You should have received a copy of this license along
-// with this source code in a file named "LICENSE."
-//
-////////////////////////////////////////////////////////////////////
+/**
+ * PANDA 3D SOFTWARE
+ * Copyright (c) Carnegie Mellon University.  All rights reserved.
+ *
+ * All use of this software is subject to the terms of the revised BSD
+ * license.  You should have received a copy of this license along
+ * with this source code in a file named "LICENSE."
+ *
+ * @file mayaToEgg.cxx
+ * @author drose
+ * @date 2000-02-15
+ *
+ * Additional Maintenance by the PandaSE team
+ * Carnegie Mellon Entertainment Technology Center
+ * Spring '10
+ * Team Members:
+ * Deepak Chandraskeran - producer / programmer
+ * Andrew Gartner - programmer/technical artist
+ * Federico Perazzi - programmer
+ * Shuying Feng - programmer
+ * Wei-Feng Huang - programmer
+ * (Egger additions by Andrew Gartner and Wei-Feng Huang)
+ * The egger can now support vertex color in a variety
+ * of combinations with flat color and file color textures
+ * (see set_vertex_color).  Also, there are two new
+ * command line options "legacy-shaders" and "texture-copy".
+ * The first treats any Maya material/shader as if it were
+ * a legacy shader. Passing it through the legacy codepath.
+ * This feature was originally intended to fix a bug where
+ * flat-color was being ignored in the modern (Phong) codepath
+ * However, with the new vertex and flat color functions it
+ * may not be necessary.  Still, until the newer color functions
+ * have been tried and tested more, the feature has been left in
+ * to anticipate any problems that may arise. The texture copy
+ * feature was added to provide a way to resolve build path issues
+ * and can support both relative and absolute paths. The feature
+ * will copy any file maps/textures to the specified directory
+ * and update the egg file accordingly.
+ */
 
 #include "mayaToEgg.h"
 #include "mayaToEggConverter.h"
 #include "config_mayaegg.h"
 #include "config_maya.h"  // for maya_cat
 #include "globPattern.h"
-#ifdef _WIN32
-  #include "pystub.h"
-#endif
 
-////////////////////////////////////////////////////////////////////
-//     Function: MayaToEgg::Constructor
-//       Access: Public
-//  Description:
-////////////////////////////////////////////////////////////////////
+/**
+ *
+ */
 MayaToEgg::
 MayaToEgg() :
   SomethingToEgg("Maya", ".mb")
@@ -82,7 +76,7 @@ MayaToEgg() :
      "Specify the fit tolerance for Maya polygon tesselation.  The smaller "
      "the number, the more polygons will be generated.  The default is "
      "0.01.",
-     &MayaToEgg::dispatch_double, NULL, &_polygon_tolerance);
+     &MayaToEgg::dispatch_double, nullptr, &_polygon_tolerance);
 
   add_option
     ("bface", "", 0,
@@ -136,7 +130,7 @@ MayaToEgg() :
      "transforms in the egg file.  The option may be one of all, model, "
      "dcs, or none.  The default is model, which means only transforms on "
      "nodes that have the model flag or the dcs flag are preserved.",
-     &MayaToEgg::dispatch_transform_type, NULL, &_transform_type);
+     &MayaToEgg::dispatch_transform_type, nullptr, &_transform_type);
 
   add_option
     ("subroot", "name", 0,
@@ -146,7 +140,7 @@ MayaToEgg() :
      "like * or ?).  This parameter may be repeated multiple times to name "
      "multiple roots.  If it is omitted altogether, the entire file is "
      "converted.",
-     &MayaToEgg::dispatch_vector_string, NULL, &_subroots);
+     &MayaToEgg::dispatch_vector_string, nullptr, &_subroots);
 
   add_option
     ("subset", "name", 0,
@@ -156,7 +150,7 @@ MayaToEgg() :
      "like * or ?).  This parameter may be repeated multiple times to name "
      "multiple roots.  If it is omitted altogether, the entire file is "
      "converted.",
-     &MayaToEgg::dispatch_vector_string, NULL, &_subsets);
+     &MayaToEgg::dispatch_vector_string, nullptr, &_subsets);
 
   add_option
     ("exclude", "name", 0,
@@ -165,7 +159,7 @@ MayaToEgg() :
      "name matches the parameter (which may include globbing characters "
      "like * or ?).  This parameter may be repeated multiple times to name "
      "multiple roots.",
-     &MayaToEgg::dispatch_vector_string, NULL, &_excludes);
+     &MayaToEgg::dispatch_vector_string, nullptr, &_excludes);
 
   add_option
     ("ignore-slider", "name", 0,
@@ -174,19 +168,19 @@ MayaToEgg() :
      "and it will not become a part of the animation.  This "
      "parameter may including globbing characters, and it may be repeated "
      "as needed.",
-     &MayaToEgg::dispatch_vector_string, NULL, &_ignore_sliders);
+     &MayaToEgg::dispatch_vector_string, nullptr, &_ignore_sliders);
 
   add_option
     ("force-joint", "name", 0,
      "Specifies the name of a DAG node that maya2egg "
      "should treat as a joint, even if it does not appear to be a Maya joint "
      "and does not appear to be animated.",
-     &MayaToEgg::dispatch_vector_string, NULL, &_force_joints);
+     &MayaToEgg::dispatch_vector_string, nullptr, &_force_joints);
 
   add_option
     ("v", "", 0,
      "Increase verbosity.  More v's means more verbose.",
-     &MayaToEgg::dispatch_count, NULL, &_verbose);
+     &MayaToEgg::dispatch_count, nullptr, &_verbose);
 
   add_option
     ("legacy-shaders", "", 0,
@@ -194,10 +188,10 @@ MayaToEgg() :
      "and treat all shaders as if they were Lamberts (legacy).",
      &MayaToEgg::dispatch_none, &_legacy_shader);
 
-  // Unfortunately, the Maya API doesn't allow us to differentiate
-  // between relative and absolute pathnames--everything comes out as
-  // an absolute pathname, even if it is stored in the Maya file as a
-  // relative path.  So we can't support -noabs.
+  // Unfortunately, the Maya API doesn't allow us to differentiate between
+  // relative and absolute pathnames--everything comes out as an absolute
+  // pathname, even if it is stored in the Maya file as a relative path.  So
+  // we can't support -noabs.
   remove_option("noabs");
 
   _verbose = 0;
@@ -206,11 +200,9 @@ MayaToEgg() :
   _got_tbnauto = true;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: MayaToEgg::run
-//       Access: Public
-//  Description:
-////////////////////////////////////////////////////////////////////
+/**
+ *
+ */
 void MayaToEgg::
 run() {
   // Set the verbose level by using Notify.
@@ -230,9 +222,8 @@ run() {
     _path_replace->_copy_into_directory = _legacy_copytex_dir;
   }
 
-  // Let's convert the output file to a full path before we initialize
-  // Maya, since Maya now has a nasty habit of changing the current
-  // directory.
+  // Let's convert the output file to a full path before we initialize Maya,
+  // since Maya now has a nasty habit of changing the current directory.
   if (_got_output_filename) {
     _output_filename.make_absolute();
     _path_replace->_path_directory.make_absolute();
@@ -240,8 +231,8 @@ run() {
 
   nout << "Initializing Maya.\n";
   MayaToEggConverter converter(_program_name);
-  //reverting directories is really not needed for maya2egg.  It's
-  //more needed for mayaeggloader and such
+  // reverting directories is really not needed for maya2egg.  It's more
+  // needed for mayaeggloader and such
   if (!converter.open_api(false)) {
     nout << "Unable to initialize Maya.\n";
     exit(1);
@@ -311,10 +302,10 @@ run() {
     exit(1);
   }
 
-  // Use the standard Maya units, if the user didn't specify
-  // otherwise.  This always returns centimeters, which is the way all
-  // Maya files are stored internally (and is the units returned by
-  // all of the API functions called here).
+  // Use the standard Maya units, if the user didn't specify otherwise.  This
+  // always returns centimeters, which is the way all Maya files are stored
+  // internally (and is the units returned by all of the API functions called
+  // here).
   if (_input_units == DU_invalid) {
     _input_units = converter.get_input_units();
   }
@@ -323,14 +314,12 @@ run() {
   nout << "\n";
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: MayaToEgg::dispatch_transform_type
-//       Access: Protected, Static
-//  Description: Dispatches a parameter that expects a
-//               MayaToEggConverter::TransformType option.
-////////////////////////////////////////////////////////////////////
+/**
+ * Dispatches a parameter that expects a MayaToEggConverter::TransformType
+ * option.
+ */
 bool MayaToEgg::
-dispatch_transform_type(const string &opt, const string &arg, void *var) {
+dispatch_transform_type(const std::string &opt, const std::string &arg, void *var) {
   MayaToEggConverter::TransformType *ip = (MayaToEggConverter::TransformType *)var;
   (*ip) = MayaToEggConverter::string_transform_type(arg);
 
@@ -344,15 +333,8 @@ dispatch_transform_type(const string &opt, const string &arg, void *var) {
 }
 
 int main(int argc, char *argv[]) {
-  // We don't want pystub on linux, since it gives problems with Maya's python.
-#ifdef _WIN32
-  // A call to pystub() to force libpystub.so to be linked in.
-  pystub();
-#endif
-
   MayaToEgg prog;
   prog.parse_command_line(argc, argv);
   prog.run();
   return 0;
 }
-

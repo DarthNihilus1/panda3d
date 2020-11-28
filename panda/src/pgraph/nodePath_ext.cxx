@@ -1,19 +1,22 @@
-// Filename: nodePath_ext.cxx
-// Created by:  rdb (09Dec13)
-//
-////////////////////////////////////////////////////////////////////
-//
-// PANDA 3D SOFTWARE
-// Copyright (c) Carnegie Mellon University.  All rights reserved.
-//
-// All use of this software is subject to the terms of the revised BSD
-// license.  You should have received a copy of this license along
-// with this source code in a file named "LICENSE."
-//
-////////////////////////////////////////////////////////////////////
+/**
+ * PANDA 3D SOFTWARE
+ * Copyright (c) Carnegie Mellon University.  All rights reserved.
+ *
+ * All use of this software is subject to the terms of the revised BSD
+ * license.  You should have received a copy of this license along
+ * with this source code in a file named "LICENSE."
+ *
+ * @file nodePath_ext.cxx
+ * @author rdb
+ * @date 2013-12-09
+ */
 
 #include "nodePath_ext.h"
 #include "typedWritable_ext.h"
+#include "shaderInput_ext.h"
+#include "shaderAttrib.h"
+
+using std::move;
 
 #ifdef HAVE_PYTHON
 
@@ -25,17 +28,15 @@ extern struct Dtool_PyTypedObject Dtool_LPoint3d;
 #else
 extern struct Dtool_PyTypedObject Dtool_LPoint3f;
 #endif
+extern struct Dtool_PyTypedObject Dtool_NodePath;
+extern struct Dtool_PyTypedObject Dtool_PandaNode;
 #endif  // CPPPARSER
 
-////////////////////////////////////////////////////////////////////
-//     Function: Extension<NodePath>::__copy__
-//       Access: Published
-//  Description: A special Python method that is invoked by
-//               copy.copy(node).  Unlike the NodePath copy
-//               constructor, this makes a duplicate copy of the
-//               underlying PandaNode (but shares children, instead of
-//               copying them or omitting them).
-////////////////////////////////////////////////////////////////////
+/**
+ * A special Python method that is invoked by copy.copy(node).  Unlike the
+ * NodePath copy constructor, this makes a duplicate copy of the underlying
+ * PandaNode (but shares children, instead of copying them or omitting them).
+ */
 NodePath Extension<NodePath>::
 __copy__() const {
   if (_this->is_empty()) {
@@ -43,26 +44,22 @@ __copy__() const {
     return *_this;
   }
 
-  // If we do have a node, duplicate it, and wrap it in a new
-  // NodePath.
+  // If we do have a node, duplicate it, and wrap it in a new NodePath.
   return NodePath(invoke_extension(_this->node()).__copy__());
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: Extension<NodePath>::__deepcopy__
-//       Access: Published
-//  Description: A special Python method that is invoked by
-//               copy.deepcopy(np).  This calls copy_to() unless the
-//               NodePath is already present in the provided
-//               dictionary.
-////////////////////////////////////////////////////////////////////
+/**
+ * A special Python method that is invoked by copy.deepcopy(np).  This calls
+ * copy_to() unless the NodePath is already present in the provided
+ * dictionary.
+ */
 PyObject *Extension<NodePath>::
 __deepcopy__(PyObject *self, PyObject *memo) const {
   extern struct Dtool_PyTypedObject Dtool_NodePath;
 
   // Borrowed reference.
   PyObject *dupe = PyDict_GetItem(memo, self);
-  if (dupe != NULL) {
+  if (dupe != nullptr) {
     // Already in the memo dictionary.
     Py_INCREF(dupe);
     return dupe;
@@ -79,116 +76,130 @@ __deepcopy__(PyObject *self, PyObject *memo) const {
                                 true, false);
   if (PyDict_SetItem(memo, self, dupe) != 0) {
     Py_DECREF(dupe);
-    return NULL;
+    return nullptr;
   }
 
   return dupe;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: Extension<NodePath>::__reduce__
-//       Access: Published
-//  Description: This special Python method is implement to provide
-//               support for the pickle module.
-//
-//               This hooks into the native pickle and cPickle
-//               modules, but it cannot properly handle
-//               self-referential BAM objects.
-////////////////////////////////////////////////////////////////////
+/**
+ * This special Python method is implement to provide support for the pickle
+ * module.
+ *
+ * This hooks into the native pickle and cPickle modules, but it cannot
+ * properly handle self-referential BAM objects.
+ */
 PyObject *Extension<NodePath>::
 __reduce__(PyObject *self) const {
-  return __reduce_persist__(self, NULL);
+  return __reduce_persist__(self, nullptr);
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: Extension<NodePath>::__reduce_persist__
-//       Access: Published
-//  Description: This special Python method is implement to provide
-//               support for the pickle module.
-//
-//               This is similar to __reduce__, but it provides
-//               additional support for the missing persistent-state
-//               object needed to properly support self-referential
-//               BAM objects written to the pickle stream.  This hooks
-//               into the pickle and cPickle modules implemented in
-//               direct/src/stdpy.
-////////////////////////////////////////////////////////////////////
+/**
+ * This special Python method is implement to provide support for the pickle
+ * module.
+ *
+ * This is similar to __reduce__, but it provides additional support for the
+ * missing persistent-state object needed to properly support self-referential
+ * BAM objects written to the pickle stream.  This hooks into the pickle and
+ * cPickle modules implemented in direct/src/stdpy.
+ */
 PyObject *Extension<NodePath>::
 __reduce_persist__(PyObject *self, PyObject *pickler) const {
-  // We should return at least a 2-tuple, (Class, (args)): the
-  // necessary class object whose constructor we should call
-  // (e.g. this), and the arguments necessary to reconstruct this
-  // object.
+  // We should return at least a 2-tuple, (Class, (args)): the necessary class
+  // object whose constructor we should call (e.g.  this), and the arguments
+  // necessary to reconstruct this object.
 
-  BamWriter *writer = NULL;
-  if (pickler != NULL) {
+  BamWriter *writer = nullptr;
+  if (pickler != nullptr) {
     PyObject *py_writer = PyObject_GetAttrString(pickler, "bamWriter");
-    if (py_writer == NULL) {
+    if (py_writer == nullptr) {
       // It's OK if there's no bamWriter.
       PyErr_Clear();
     } else {
-      DTOOL_Call_ExtractThisPointerForType(py_writer, &Dtool_BamWriter, (void **)&writer);
+      DtoolInstance_GetPointer(py_writer, writer, Dtool_BamWriter);
       Py_DECREF(py_writer);
     }
   }
 
   // We have a non-empty NodePath.
 
-  string bam_stream;
+  vector_uchar bam_stream;
   if (!_this->encode_to_bam_stream(bam_stream, writer)) {
-    ostringstream stream;
+    std::ostringstream stream;
     stream << "Could not bamify " << _this;
-    string message = stream.str();
+    std::string message = stream.str();
     PyErr_SetString(PyExc_TypeError, message.c_str());
-    return NULL;
+    return nullptr;
   }
 
   // Start by getting this class object.
-  PyObject *this_class = PyObject_Type(self);
-  if (this_class == NULL) {
-    return NULL;
+  PyObject *this_class = (PyObject *)Py_TYPE(self);
+  if (this_class == nullptr) {
+    return nullptr;
   }
 
   PyObject *func;
-  if (writer != NULL) {
-    // The modified pickle support: call the "persistent" version of
-    // this function, which receives the unpickler itself as an
-    // additional parameter.
+  if (writer != nullptr) {
+    // The modified pickle support: call the "persistent" version of this
+    // function, which receives the unpickler itself as an additional
+    // parameter.
     func = Extension<TypedWritable>::find_global_decode(this_class, "py_decode_NodePath_from_bam_stream_persist");
-    if (func == NULL) {
+    if (func == nullptr) {
       PyErr_SetString(PyExc_TypeError, "Couldn't find py_decode_NodePath_from_bam_stream_persist()");
-      Py_DECREF(this_class);
-      return NULL;
+      return nullptr;
     }
 
   } else {
-    // The traditional pickle support: call the non-persistent version
-    // of this function.
-
+    // The traditional pickle support: call the non-persistent version of this
+    // function.
     func = Extension<TypedWritable>::find_global_decode(this_class, "py_decode_NodePath_from_bam_stream");
-    if (func == NULL) {
+    if (func == nullptr) {
       PyErr_SetString(PyExc_TypeError, "Couldn't find py_decode_NodePath_from_bam_stream()");
-      Py_DECREF(this_class);
-      return NULL;
+      return nullptr;
     }
   }
 
-  PyObject *result = Py_BuildValue("(O(s#))", func, bam_stream.data(), (Py_ssize_t) bam_stream.size());
-  Py_DECREF(func);
-  Py_DECREF(this_class);
+  // PyTuple_SET_ITEM conveniently borrows the reference it is passed.
+  PyObject *args = PyTuple_New(1);
+  PyTuple_SET_ITEM(args, 0, Dtool_WrapValue(bam_stream));
+
+  PyObject *tuple = PyTuple_New(2);
+  PyTuple_SET_ITEM(tuple, 0, func);
+  PyTuple_SET_ITEM(tuple, 1, args);
+  return tuple;
+}
+
+/**
+ * Returns the associated node's tags.
+ */
+PyObject *Extension<NodePath>::
+get_tags() const {
+  // An empty NodePath returns None
+  if (_this->is_empty()) {
+    Py_INCREF(Py_None);
+    return Py_None;
+  }
+
+  // Just call PandaNode.tags rather than defining a whole new interface.
+  PT(PandaNode) node = _this->node();
+  PyObject *py_node = DTool_CreatePyInstanceTyped
+    ((void *)node.p(), Dtool_PandaNode, true, false, node->get_type_index());
+
+  // DTool_CreatePyInstanceTyped() steals a C++ reference.
+  node.cheat() = nullptr;
+
+  PyObject *result = PyObject_GetAttrString(py_node, "tags");
+  Py_DECREF(py_node);
   return result;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: Extension<NodePath>::find_net_python_tag
-//       Access: Published
-//  Description: Returns the lowest ancestor of this node that
-//               contains a tag definition with the indicated key, if
-//               any, or an empty NodePath if no ancestor of this node
-//               contains this tag definition.  See set_python_tag().
-////////////////////////////////////////////////////////////////////
+/**
+ * Returns the lowest ancestor of this node that contains a tag definition
+ * with the indicated key, if any, or an empty NodePath if no ancestor of this
+ * node contains this tag definition.  See set_python_tag().
+ */
 NodePath Extension<NodePath>::
-find_net_python_tag(const string &key) const {
+find_net_python_tag(PyObject *key) const {
   if (_this->is_empty()) {
     return NodePath::not_found();
   }
@@ -199,50 +210,105 @@ find_net_python_tag(const string &key) const {
   return invoke_extension(&parent).find_net_python_tag(key);
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: py_decode_NodePath_from_bam_stream
-//       Access: Published
-//  Description: This wrapper is defined as a global function to suit
-//               pickle's needs.
-////////////////////////////////////////////////////////////////////
+/**
+ * This wrapper is defined as a global function to suit pickle's needs.
+ */
 NodePath
-py_decode_NodePath_from_bam_stream(const string &data) {
-  return py_decode_NodePath_from_bam_stream_persist(NULL, data);
+py_decode_NodePath_from_bam_stream(vector_uchar data) {
+  return py_decode_NodePath_from_bam_stream_persist(nullptr, move(data));
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: py_decode_NodePath_from_bam_stream_persist
-//       Access: Published
-//  Description: This wrapper is defined as a global function to suit
-//               pickle's needs.
-////////////////////////////////////////////////////////////////////
+/**
+ * This wrapper is defined as a global function to suit pickle's needs.
+ */
 NodePath
-py_decode_NodePath_from_bam_stream_persist(PyObject *unpickler, const string &data) {
-  BamReader *reader = NULL;
-  if (unpickler != NULL) {
+py_decode_NodePath_from_bam_stream_persist(PyObject *unpickler, vector_uchar data) {
+  BamReader *reader = nullptr;
+  if (unpickler != nullptr) {
     PyObject *py_reader = PyObject_GetAttrString(unpickler, "bamReader");
-    if (py_reader == NULL) {
+    if (py_reader == nullptr) {
       // It's OK if there's no bamReader.
       PyErr_Clear();
     } else {
-      DTOOL_Call_ExtractThisPointerForType(py_reader, &Dtool_BamReader, (void **)&reader);
+      DtoolInstance_GetPointer(py_reader, reader, Dtool_BamReader);
       Py_DECREF(py_reader);
     }
   }
 
-  return NodePath::decode_from_bam_stream(data, reader);
+  return NodePath::decode_from_bam_stream(move(data), reader);
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: Extension<NodePath>::get_tight_bounds
-//       Access: Published
-//  Description: Returns the tight bounds as a 2-tuple of LPoint3
-//               objects.  This is a convenience function for Python
-//               users, among which the use of calc_tight_bounds
-//               may be confusing.
-//
-//               Returns None if calc_tight_bounds returned false.
-////////////////////////////////////////////////////////////////////
+/**
+ * Sets a single shader input.
+ */
+void Extension<NodePath>::
+set_shader_input(CPT_InternalName name, PyObject *value, int priority) {
+  PT(PandaNode) node = _this->node();
+  CPT(RenderAttrib) prev_attrib = node->get_attrib(ShaderAttrib::get_class_slot());
+  PT(ShaderAttrib) attrib;
+  if (prev_attrib == nullptr) {
+    attrib = new ShaderAttrib();
+  } else {
+    attrib = new ShaderAttrib(*(const ShaderAttrib *)prev_attrib.p());
+  }
+
+  ShaderInput &input = attrib->_inputs[name];
+  invoke_extension(&input).__init__(move(name), value, priority);
+
+  if (!_PyErr_OCCURRED()) {
+    node->set_attrib(ShaderAttrib::return_new(attrib));
+  }
+}
+
+/**
+ * Sets multiple shader inputs at the same time.  This can be significantly
+ * more efficient if many inputs need to be set at the same time.
+ */
+void Extension<NodePath>::
+set_shader_inputs(PyObject *args, PyObject *kwargs) {
+  if (PyObject_Size(args) > 0) {
+    Dtool_Raise_TypeError("NodePath.set_shader_inputs takes only keyword arguments");
+    return;
+  }
+
+  PT(PandaNode) node = _this->node();
+  CPT(RenderAttrib) prev_attrib = node->get_attrib(ShaderAttrib::get_class_slot());
+  PT(ShaderAttrib) attrib;
+  if (prev_attrib == nullptr) {
+    attrib = new ShaderAttrib();
+  } else {
+    attrib = new ShaderAttrib(*(const ShaderAttrib *)prev_attrib.p());
+  }
+
+  PyObject *key, *value;
+  Py_ssize_t pos = 0;
+
+  while (PyDict_Next(kwargs, &pos, &key, &value)) {
+    char *buffer;
+    Py_ssize_t length;
+    buffer = (char *)PyUnicode_AsUTF8AndSize(key, &length);
+    if (buffer == nullptr) {
+      Dtool_Raise_TypeError("NodePath.set_shader_inputs accepts only string keywords");
+      return;
+    }
+
+    CPT_InternalName name(std::string(buffer, length));
+    ShaderInput &input = attrib->_inputs[name];
+    invoke_extension(&input).__init__(move(name), value);
+  }
+
+  if (!_PyErr_OCCURRED()) {
+    node->set_attrib(ShaderAttrib::return_new(attrib));
+  }
+}
+
+/**
+ * Returns the tight bounds as a 2-tuple of LPoint3 objects.  This is a
+ * convenience function for Python users, among which the use of
+ * calc_tight_bounds may be confusing.
+ *
+ * Returns None if calc_tight_bounds returned false.
+ */
 PyObject *Extension<NodePath>::
 get_tight_bounds(const NodePath &other) const {
   LPoint3 *min_point = new LPoint3;

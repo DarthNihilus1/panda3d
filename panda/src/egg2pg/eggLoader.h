@@ -1,16 +1,15 @@
-// Filename: eggLoader.h
-// Created by:  drose (26Feb02)
-//
-////////////////////////////////////////////////////////////////////
-//
-// PANDA 3D SOFTWARE
-// Copyright (c) Carnegie Mellon University.  All rights reserved.
-//
-// All use of this software is subject to the terms of the revised BSD
-// license.  You should have received a copy of this license along
-// with this source code in a file named "LICENSE."
-//
-////////////////////////////////////////////////////////////////////
+/**
+ * PANDA 3D SOFTWARE
+ * Copyright (c) Carnegie Mellon University.  All rights reserved.
+ *
+ * All use of this software is subject to the terms of the revised BSD
+ * license.  You should have received a copy of this license along
+ * with this source code in a file named "LICENSE."
+ *
+ * @file eggLoader.h
+ * @author drose
+ * @date 2002-02-26
+ */
 
 #ifndef EGGLOADER_H
 #define EGGLOADER_H
@@ -59,15 +58,13 @@ class EggRenderState;
 class CharacterMaker;
 
 
-////////////////////////////////////////////////////////////////////
-//       Class : EggLoader
-// Description : Converts an egg data structure, possibly read from an
-//               egg file but not necessarily, into a scene graph
-//               suitable for rendering.
-//
-//               This class isn't exported from this package.
-////////////////////////////////////////////////////////////////////
-class EggLoader {
+/**
+ * Converts an egg data structure, possibly read from an egg file but not
+ * necessarily, into a scene graph suitable for rendering.
+ *
+ * This class isn't exported from this package.
+ */
+class EXPCL_PANDA_EGG2PG EggLoader {
 public:
   EggLoader();
   EggLoader(const EggData *data);
@@ -76,7 +73,7 @@ public:
   void reparent_decals();
   void start_sequences();
 
-  void make_polyset(EggBin *egg_bin, PandaNode *parent, 
+  void make_polyset(EggBin *egg_bin, PandaNode *parent,
                     const LMatrix4d *transform, bool is_dynamic,
                     CharacterMaker *character_maker);
 
@@ -110,7 +107,7 @@ private:
   typedef pmap<PrimitiveUnifier, PT(GeomPrimitive) > UniquePrimitives;
   typedef pvector< PT(GeomPrimitive) > Primitives;
 
-  void show_normals(EggVertexPool *vertex_pool, GeomNode *geom_node);  
+  void show_normals(EggVertexPool *vertex_pool, GeomNode *geom_node);
 
   void make_nurbs_curve(EggNurbsCurve *egg_curve, PandaNode *parent,
                         const LMatrix4d &mat);
@@ -139,10 +136,10 @@ private:
   PandaNode *make_node(EggTable *egg_table, PandaNode *parent);
   PandaNode *make_node(EggGroupNode *egg_group, PandaNode *parent);
 
-  void check_for_polysets(EggGroup *egg_group, bool &all_polysets, 
+  void check_for_polysets(EggGroup *egg_group, bool &all_polysets,
                           bool &any_hidden);
   PT(GeomVertexData) make_vertex_data
-  (const EggRenderState *render_state, EggVertexPool *vertex_pool, 
+  (const EggRenderState *render_state, EggVertexPool *vertex_pool,
    EggNode *primitive_home, const LMatrix4d &transform, TransformBlendTable *blend_table,
    bool is_dynamic, CharacterMaker *character_maker, bool ignore_color);
   PT(TransformBlendTable) make_blend_table
@@ -150,11 +147,11 @@ private:
    CharacterMaker *character_maker);
   void record_morph
   (GeomVertexArrayFormat *array_format,
-   CharacterMaker *character_maker, const string &morph_name, 
+   CharacterMaker *character_maker, const std::string &morph_name,
    InternalName *column_name, int num_components);
 
-  void make_primitive(const EggRenderState *render_state, 
-                      EggPrimitive *egg_prim, 
+  void make_primitive(const EggRenderState *render_state,
+                      EggPrimitive *egg_prim,
                       UniquePrimitives &unique_primitives,
                       Primitives &primitives,
                       bool has_overall_color, const LColor &overall_color);
@@ -166,6 +163,8 @@ private:
   bool make_sphere(EggGroup *start_group, EggGroup::CollideFlags flags,
                    LPoint3 &center, PN_stdfloat &radius, LColor &color);
 
+  bool make_box(EggGroup *start_group, EggGroup::CollideFlags flags,
+                const LMatrix4 &xform, LPoint3 &min_p, LPoint3 &max_p);
   bool make_box(EggGroup *start_group, EggGroup::CollideFlags flags,
                 LPoint3 &min_p, LPoint3 &max_p, LColor &color);
 
@@ -183,13 +182,13 @@ private:
                           EggGroup::CollideFlags flags);
   void make_collision_inv_sphere(EggGroup *egg_group, CollisionNode *cnode,
                                  EggGroup::CollideFlags flags);
-  void make_collision_tube(EggGroup *egg_group, CollisionNode *cnode,
-                           EggGroup::CollideFlags flags);
+  void make_collision_capsule(EggGroup *egg_group, CollisionNode *cnode,
+                              EggGroup::CollideFlags flags);
   void make_collision_floor_mesh(EggGroup *egg_group, CollisionNode *cnode,
                            EggGroup::CollideFlags flags);
   void apply_collision_flags(CollisionSolid *solid,
                              EggGroup::CollideFlags flags);
-  EggGroup *find_collision_geometry(EggGroup *egg_group, 
+  EggGroup *find_collision_geometry(EggGroup *egg_group,
                                     EggGroup::CollideFlags flags);
   CollisionPlane *create_collision_plane(EggPolygon *egg_poly,
                                          EggGroup *parent_group);
@@ -197,28 +196,28 @@ private:
                                  EggGroup *parent_group,
                                  EggGroup::CollideFlags flags);
 
-  void create_collision_floor_mesh(CollisionNode *cnode, 
+  void create_collision_floor_mesh(CollisionNode *cnode,
                                  EggGroup *parent_group,
                                  EggGroup::CollideFlags flags);
 
   void apply_deferred_nodes(PandaNode *node, const DeferredNodeProperty &prop);
   bool expand_all_object_types(EggNode *egg_node);
-  bool expand_object_types(EggGroup *egg_group, const pset<string> &expanded,
-                           const pvector<string> &expanded_history);
-  bool do_expand_object_type(EggGroup *egg_group, const pset<string> &expanded,
-                             const pvector<string> &expanded_history,
-                             const string &object_type);
+  bool expand_object_types(EggGroup *egg_group, const pset<std::string> &expanded,
+                           const pvector<std::string> &expanded_history);
+  bool do_expand_object_type(EggGroup *egg_group, const pset<std::string> &expanded,
+                             const pvector<std::string> &expanded_history,
+                             const std::string &object_type);
 
-  static TextureStage::CombineMode 
-  get_combine_mode(const EggTexture *egg_tex, 
+  static TextureStage::CombineMode
+  get_combine_mode(const EggTexture *egg_tex,
                    EggTexture::CombineChannel channel);
 
   static TextureStage::CombineSource
-  get_combine_source(const EggTexture *egg_tex, 
+  get_combine_source(const EggTexture *egg_tex,
                      EggTexture::CombineChannel channel, int n);
 
   static TextureStage::CombineOperand
-  get_combine_operand(const EggTexture *egg_tex, 
+  get_combine_operand(const EggTexture *egg_tex,
                       EggTexture::CombineChannel channel, int n);
 
   static ColorBlendAttrib::Mode

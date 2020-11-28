@@ -1,17 +1,16 @@
-// Filename: interfaceMakerPythonObj.cxx
-// Created by:  drose (19Sep01)
-//
-////////////////////////////////////////////////////////////////////
-//
-// PANDA 3D SOFTWARE
-// Copyright (c) Carnegie Mellon University.  All rights reserved.
-//
-// All use of this software is subject to the terms of the revised BSD
-// license.  You should have received a copy of this license along
-// with this source code in a file named "LICENSE."
-//
-////////////////////////////////////////////////////////////////////
- 
+/**
+ * PANDA 3D SOFTWARE
+ * Copyright (c) Carnegie Mellon University.  All rights reserved.
+ *
+ * All use of this software is subject to the terms of the revised BSD
+ * license.  You should have received a copy of this license along
+ * with this source code in a file named "LICENSE."
+ *
+ * @file interfaceMakerPythonObj.cxx
+ * @author drose
+ * @date 2001-09-19
+ */
+
 #include "interfaceMakerPythonObj.h"
 #include "interrogateBuilder.h"
 #include "interrogate.h"
@@ -26,33 +25,29 @@
 #include "interrogateFunction.h"
 #include "cppFunctionType.h"
 
-////////////////////////////////////////////////////////////////////
-//     Function: InterfaceMakerPythonObj::Constructor
-//       Access: Public
-//  Description:
-////////////////////////////////////////////////////////////////////
+using std::ostream;
+using std::string;
+
+/**
+ *
+ */
 InterfaceMakerPythonObj::
 InterfaceMakerPythonObj(InterrogateModuleDef *def) :
   InterfaceMakerPython(def)
 {
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: InterfaceMakerPythonObj::Destructor
-//       Access: Public, Virtual
-//  Description:
-////////////////////////////////////////////////////////////////////
+/**
+ *
+ */
 InterfaceMakerPythonObj::
 ~InterfaceMakerPythonObj() {
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: InterfaceMakerPythonObj::write_prototypes
-//       Access: Public, Virtual
-//  Description: Generates the list of function prototypes
-//               corresponding to the functions that will be output in
-//               write_functions().
-////////////////////////////////////////////////////////////////////
+/**
+ * Generates the list of function prototypes corresponding to the functions
+ * that will be output in write_functions().
+ */
 void InterfaceMakerPythonObj::
 write_prototypes(ostream &out, ostream *out_h) {
   FunctionsByIndex::iterator fi;
@@ -65,13 +60,10 @@ write_prototypes(ostream &out, ostream *out_h) {
   InterfaceMakerPython::write_prototypes(out,out_h);
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: InterfaceMakerPythonObj::write_functions
-//       Access: Public, Virtual
-//  Description: Generates the list of functions that are appropriate
-//               for this interface.  This function is called *before*
-//               write_prototypes(), above.
-////////////////////////////////////////////////////////////////////
+/**
+ * Generates the list of functions that are appropriate for this interface.
+ * This function is called *before* write_prototypes(), above.
+ */
 void InterfaceMakerPythonObj::
 write_functions(ostream &out) {
   FunctionsByIndex::iterator fi;
@@ -91,12 +83,9 @@ write_functions(ostream &out) {
   }
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: InterfaceMakerPythonObj::write_module
-//       Access: Public, Virtual
-//  Description: Generates whatever additional code is required to
-//               support a module file.
-////////////////////////////////////////////////////////////////////
+/**
+ * Generates whatever additional code is required to support a module file.
+ */
 void InterfaceMakerPythonObj::
 write_module(ostream &out,ostream *out_h, InterrogateModuleDef *def) {
   InterfaceMakerPython::write_module(out,out_h, def);
@@ -108,25 +97,25 @@ write_module(ostream &out,ostream *out_h, InterrogateModuleDef *def) {
     Object *object = (*oi).second;
 
     Functions::iterator fi;
-    for (fi = object->_constructors.begin(); 
-         fi != object->_constructors.end(); 
+    for (fi = object->_constructors.begin();
+         fi != object->_constructors.end();
          ++fi) {
       Function *func = (*fi);
-      out << "  { \"" << func->_ifunc.get_name() << "\", &" << func->_name 
+      out << "  { \"" << func->_ifunc.get_name() << "\", &" << func->_name
           << ", METH_VARARGS },\n";
     }
-  }  
-  out << "  { NULL, NULL }\n"
+  }
+  out << "  { nullptr, nullptr }\n"
       << "};\n\n"
 
       << "#if PY_MAJOR_VERSION >= 3\n"
       << "static struct PyModuleDef python_obj_module = {\n"
       << "  PyModuleDef_HEAD_INIT,\n"
       << "  \"" << def->library_name << "\",\n"
-      << "  NULL,\n"
+      << "  nullptr,\n"
       << "  -1,\n"
       << "  python_obj_funcs,\n"
-      << "  NULL, NULL, NULL, NULL\n"
+      << "  nullptr, nullptr, nullptr, nullptr\n"
       << "};\n\n"
 
       << "#define INIT_FUNC PyObject *PyInit_" << def->library_name << "\n"
@@ -151,52 +140,41 @@ write_module(ostream &out,ostream *out_h, InterrogateModuleDef *def) {
       << "}\n\n";
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: InterfaceMakerPythonObj::synthesize_this_parameter
-//       Access: Public, Virtual
-//  Description: This method should be overridden and redefined to
-//               return true for interfaces that require the implicit
-//               "this" parameter, if present, to be passed as the
-//               first parameter to any wrapper functions.
-////////////////////////////////////////////////////////////////////
+/**
+ * This method should be overridden and redefined to return true for
+ * interfaces that require the implicit "this" parameter, if present, to be
+ * passed as the first parameter to any wrapper functions.
+ */
 bool InterfaceMakerPythonObj::
 synthesize_this_parameter() {
   return true;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: InterfaceMakerPythonObj::get_builder_name
-//       Access: Public, Static
-//  Description: Returns the name of the InterfaceMaker function
-//               generated to define the Python class for the
-//               indicated struct type.
-////////////////////////////////////////////////////////////////////
+/**
+ * Returns the name of the InterfaceMaker function generated to define the
+ * Python class for the indicated struct type.
+ */
 string InterfaceMakerPythonObj::
 get_builder_name(CPPType *struct_type) {
-  return "get_python_class_" + 
+  return "get_python_class_" +
     InterrogateBuilder::clean_identifier(struct_type->get_local_name(&parser));
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: InterfaceMakerPythonObj::get_wrapper_prefix
-//       Access: Protected, Virtual
-//  Description: Returns the prefix string used to generate wrapper
-//               function names.
-////////////////////////////////////////////////////////////////////
+/**
+ * Returns the prefix string used to generate wrapper function names.
+ */
 string InterfaceMakerPythonObj::
 get_wrapper_prefix() {
   return "wpo_";
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: InterfaceMakerPythonObj::write_class_wrapper
-//       Access: Private
-//  Description: Writes a function that will define the Python class.
-////////////////////////////////////////////////////////////////////
+/**
+ * Writes a function that will define the Python class.
+ */
 void InterfaceMakerPythonObj::
 write_class_wrapper(ostream &out, InterfaceMaker::Object *object) {
   CPPType *struct_type = object->_itype._cpptype;
-  if (struct_type == (CPPType *)NULL) {
+  if (struct_type == nullptr) {
     return;
   }
 
@@ -210,7 +188,7 @@ write_class_wrapper(ostream &out, InterfaceMaker::Object *object) {
       << " */\n"
       << "PyObject *\n"
       << name << "() {\n"
-      << "  static PyObject *wrapper = (PyObject *)NULL;\n"
+      << "  static PyObject *wrapper = nullptr;\n"
       << "  static PyMethodDef methods[] = {\n";
 
   int methods_size = 0;
@@ -220,7 +198,7 @@ write_class_wrapper(ostream &out, InterfaceMaker::Object *object) {
   for (fi = object->_methods.begin(); fi != object->_methods.end(); ++fi) {
     Function *func = (*fi);
     if (func->_has_this) {
-      out << "  { \"" << func->_ifunc.get_name() << "\", &" << func->_name 
+      out << "  { \"" << func->_ifunc.get_name() << "\", &" << func->_name
           << ", METH_VARARGS },\n";
       methods_size++;
     }
@@ -233,7 +211,7 @@ write_class_wrapper(ostream &out, InterfaceMaker::Object *object) {
   for (fi = object->_methods.begin(); fi != object->_methods.end(); ++fi) {
     Function *func = (*fi);
     if (!func->_has_this) {
-      out << "  { \"" << func->_ifunc.get_name() << "\", &" << func->_name 
+      out << "  { \"" << func->_ifunc.get_name() << "\", &" << func->_name
           << ", METH_VARARGS },\n";
       class_methods_size++;
     }
@@ -241,7 +219,7 @@ write_class_wrapper(ostream &out, InterfaceMaker::Object *object) {
 
   out << "  };\n"
       << "  static const int class_methods_size = " << class_methods_size << ";\n\n"
-      << "  if (wrapper == (PyObject *)NULL) {\n"
+      << "  if (wrapper == nullptr) {\n"
       << "    int i;\n"
       << "    PyObject *bases = PyTuple_New(0);\n"
       << "    PyObject *dict = PyDict_New();\n"
@@ -253,13 +231,13 @@ write_class_wrapper(ostream &out, InterfaceMaker::Object *object) {
       << "    wrapper = PyClass_New(bases, dict, name);\n"
       << "    for (i = 0; i < methods_size; ++i) {\n"
       << "      PyObject *function, *method;\n"
-      << "      function = PyCFunction_New(&methods[i], (PyObject *)NULL);\n"
-      << "      method = PyMethod_New(function, (PyObject *)NULL, wrapper);\n"
+      << "      function = PyCFunction_New(&methods[i], nullptr);\n"
+      << "      method = PyMethod_New(function, nullptr, wrapper);\n"
       << "      PyDict_SetItemString(dict, methods[i].ml_name, method);\n"
       << "    }\n"
       << "    for (i = 0; i < class_methods_size; ++i) {\n"
       << "      PyObject *function;\n"
-      << "      function = PyCFunction_New(&class_methods[i], (PyObject *)NULL);\n"
+      << "      function = PyCFunction_New(&class_methods[i], nullptr);\n"
       << "      PyDict_SetItemString(dict, class_methods[i].ml_name, function);\n"
       << "    }\n"
       << "  }\n"
@@ -267,23 +245,19 @@ write_class_wrapper(ostream &out, InterfaceMaker::Object *object) {
       << "}\n\n";
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: InterfaceMakerPythonObj::write_prototype_for
-//       Access: Private
-//  Description: Writes the prototype for the indicated function.
-////////////////////////////////////////////////////////////////////
+/**
+ * Writes the prototype for the indicated function.
+ */
 void InterfaceMakerPythonObj::
 write_prototype_for(ostream &out, InterfaceMaker::Function *func) {
   out << "static PyObject *"
       << func->_name << "(PyObject *self, PyObject *args);\n";
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: InterfaceMakerPythonObj::write_function_for
-//       Access: Private
-//  Description: Writes the definition for a function that will call
-//               the indicated C++ function or method.
-////////////////////////////////////////////////////////////////////
+/**
+ * Writes the definition for a function that will call the indicated C++
+ * function or method.
+ */
 void InterfaceMakerPythonObj::
 write_function_for(ostream &out, InterfaceMaker::Function *func) {
   Function::Remaps::const_iterator ri;
@@ -309,25 +283,22 @@ write_function_for(ostream &out, InterfaceMaker::Function *func) {
     write_function_instance(out, 2, func, remap, expected_params);
   }
 
-  // If we get here in the generated code, none of the parameters were
-  // valid.  Generate an error exception.  (We don't rely on the error
-  // already generated by ParseTuple(), because it only reports the
-  // error for one flavor of the function, whereas we might accept
-  // multiple flavors for the different overloaded C++ function
-  // signatures.
+  // If we get here in the generated code, none of the parameters were valid.
+  // Generate an error exception.  (We don't rely on the error already
+  // generated by ParseTuple(), because it only reports the error for one
+  // flavor of the function, whereas we might accept multiple flavors for the
+  // different overloaded C++ function signatures.
 
   out << "  PyErr_SetString(PyExc_TypeError, \"" << expected_params << "\");\n"
-      << "  return (PyObject *)NULL;\n";
+      << "  return nullptr;\n";
 
   out << "}\n\n";
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: InterfaceMakerPythonObj::write_function_instance
-//       Access: Private
-//  Description: Writes out the part of a function that handles a
-//               single instance of an overloaded function.
-////////////////////////////////////////////////////////////////////
+/**
+ * Writes out the part of a function that handles a single instance of an
+ * overloaded function.
+ */
 void InterfaceMakerPythonObj::
 write_function_instance(ostream &out, int indent_level,
                         InterfaceMaker::Function *func,
@@ -336,7 +307,7 @@ write_function_instance(ostream &out, int indent_level,
   indent(out, indent_level + 2) << "/* ";
   remap->write_orig_prototype(out, 0);
   out << " */\n\n";
-  
+
   string format_specifiers;
   string parameter_list;
   vector_string pexprs;
@@ -344,10 +315,10 @@ write_function_instance(ostream &out, int indent_level,
   string extra_param_check;
   string extra_cleanup;
 
-  // Make one pass through the parameter list.  We will output a
-  // one-line temporary variable definition for each parameter, while
-  // simultaneously building the ParseTuple() function call and also
-  // the parameter expression list for call_function().
+  // Make one pass through the parameter list.  We will output a one-line
+  // temporary variable definition for each parameter, while simultaneously
+  // building the ParseTuple() function call and also the parameter expression
+  // list for call_function().
 
   expected_params += remap->_cppfunc->get_simple_name();
   expected_params += "(";
@@ -363,8 +334,8 @@ write_function_instance(ostream &out, int indent_level,
     CPPType *type = remap->_parameters[pn]._remap->get_new_type();
     string param_name = remap->get_parameter_name(pn);
 
-    // This is the string to convert our local variable to the
-    // appropriate C++ type.  Normally this is just a cast.
+    // This is the string to convert our local variable to the appropriate C++
+    // type.  Normally this is just a cast.
     string pexpr_string =
       "(" + type->get_local_name(&parser) + ")" + param_name;
 
@@ -398,7 +369,7 @@ write_function_instance(ostream &out, int indent_level,
       format_specifiers += "O";
       parameter_list += ", &" + param_name;
       extra_convert += " PyObject *" + param_name + "_long = PyNumber_Long(" + param_name + ");";
-      extra_param_check += "|| (" + param_name + "_long == NULL)";
+      extra_param_check += "|| (" + param_name + "_long == nullptr)";
       pexpr_string = "PyLong_AsUnsignedLongLong(" + param_name + "_long)";
       extra_cleanup += " Py_XDECREF(" + param_name + "_long);";
       expected_params += "long";
@@ -408,7 +379,7 @@ write_function_instance(ostream &out, int indent_level,
       format_specifiers += "O";
       parameter_list += ", &" + param_name;
       extra_convert += " PyObject *" + param_name + "_long = PyNumber_Long(" + param_name + ");";
-      extra_param_check += "|| (" + param_name + "_long == NULL)";
+      extra_param_check += "|| (" + param_name + "_long == nullptr)";
       pexpr_string = "PyLong_AsLongLong(" + param_name + "_long)";
       extra_cleanup += " Py_XDECREF(" + param_name + "_long);";
       expected_params += "long";
@@ -418,7 +389,7 @@ write_function_instance(ostream &out, int indent_level,
       format_specifiers += "O";
       parameter_list += ", &" + param_name;
       extra_convert += " PyObject *" + param_name + "_uint = PyNumber_Long(" + param_name + ");";
-      extra_param_check += "|| (" + param_name + "_uint == NULL)";
+      extra_param_check += "|| (" + param_name + "_uint == nullptr)";
       pexpr_string = "(unsigned int)PyLong_AsUnsignedLong(" + param_name + "_uint)";
       extra_cleanup += " Py_XDECREF(" + param_name + "_uint);";
       expected_params += "unsigned int";
@@ -484,7 +455,7 @@ write_function_instance(ostream &out, int indent_level,
     indent(out, indent_level + 6)
       << "PyErr_SetString(PyExc_TypeError, \"Invalid parameters.\");\n";
     indent(out, indent_level + 6)
-      << "return (PyObject *)NULL;\n";
+      << "return nullptr;\n";
     indent(out, indent_level + 4)
       << "}\n";
   }
@@ -494,11 +465,11 @@ write_function_instance(ostream &out, int indent_level,
       << "in_interpreter = 0;\n";
   }
 
-  if (!remap->_void_return && 
+  if (!remap->_void_return &&
       remap->_return_type->new_type_is_atomic_string()) {
-    // Treat strings as a special case.  We don't want to format the
-    // return expression.
-    string return_expr = 
+    // Treat strings as a special case.  We don't want to format the return
+    // expression.
+    string return_expr =
       remap->call_function(out, indent_level + 4, false, "param0", pexprs);
 
     CPPType *type = remap->_return_type->get_orig_type();
@@ -520,7 +491,7 @@ write_function_instance(ostream &out, int indent_level,
     pack_return_value(out, indent_level + 4, remap, return_expr);
 
   } else {
-    string return_expr = 
+    string return_expr =
       remap->call_function(out, indent_level + 4, true, "param0", pexprs);
     if (return_expr.empty()) {
       if (track_interpreter) {
@@ -562,12 +533,10 @@ write_function_instance(ostream &out, int indent_level,
     << "}\n";
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: InterfaceMakerPythonObj::pack_return_value
-//       Access: Private
-//  Description: Outputs a command to pack the indicated expression,
-//               of the return_type type, as a Python return value.
-////////////////////////////////////////////////////////////////////
+/**
+ * Outputs a command to pack the indicated expression, of the return_type
+ * type, as a Python return value.
+ */
 void InterfaceMakerPythonObj::
 pack_return_value(ostream &out, int indent_level,
                   FunctionRemap *remap, string return_expr) {
@@ -639,7 +608,7 @@ pack_return_value(ostream &out, int indent_level,
 
     FunctionWriterPtrToPython *writer = get_ptr_to_python(type);
     indent(out, indent_level)
-      << "return " << writer->get_name() << "((" 
+      << "return " << writer->get_name() << "(("
       << writer->get_pointer_type()->get_local_name(&parser) << ")"
       << return_expr << ", " << caller_manages << ");\n";
 
@@ -650,13 +619,10 @@ pack_return_value(ostream &out, int indent_level,
   }
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: InterfaceMakerPythonObj::get_ptr_from_python
-//       Access: Private
-//  Description: Returns a FunctionWriter pointer suitable for
-//               converting from a Python wrapper of the indicated
-//               type to the corresponding C++ pointer.
-////////////////////////////////////////////////////////////////////
+/**
+ * Returns a FunctionWriter pointer suitable for converting from a Python
+ * wrapper of the indicated type to the corresponding C++ pointer.
+ */
 FunctionWriterPtrFromPython *InterfaceMakerPythonObj::
 get_ptr_from_python(CPPType *type) {
   PtrConverter::iterator ci;
@@ -666,19 +632,16 @@ get_ptr_from_python(CPPType *type) {
     return (FunctionWriterPtrFromPython *)(*ci).second;
   }
 
-  FunctionWriter *writer = 
+  FunctionWriter *writer =
     _function_writers.add_writer(new FunctionWriterPtrFromPython(type));
   _from_python.insert(PtrConverter::value_type(type, writer));
   return (FunctionWriterPtrFromPython *)writer;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: InterfaceMakerPythonObj::get_ptr_to_python
-//       Access: Private
-//  Description: Returns a FunctionWriter pointer suitable for
-//               converting from a C++ pointer of the indicated
-//               type to the corresponding Python wrapper.
-////////////////////////////////////////////////////////////////////
+/**
+ * Returns a FunctionWriter pointer suitable for converting from a C++ pointer
+ * of the indicated type to the corresponding Python wrapper.
+ */
 FunctionWriterPtrToPython *InterfaceMakerPythonObj::
 get_ptr_to_python(CPPType *type) {
   PtrConverter::iterator ci;
@@ -688,7 +651,7 @@ get_ptr_to_python(CPPType *type) {
     return (FunctionWriterPtrToPython *)(*ci).second;
   }
 
-  FunctionWriter *writer = 
+  FunctionWriter *writer =
     _function_writers.add_writer(new FunctionWriterPtrToPython(type));
   _to_python.insert(PtrConverter::value_type(type, writer));
   return (FunctionWriterPtrToPython *)writer;

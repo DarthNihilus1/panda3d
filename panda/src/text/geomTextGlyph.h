@@ -1,16 +1,15 @@
-// Filename: geomTextGlyph.h
-// Created by:  drose (31Mar05)
-//
-////////////////////////////////////////////////////////////////////
-//
-// PANDA 3D SOFTWARE
-// Copyright (c) Carnegie Mellon University.  All rights reserved.
-//
-// All use of this software is subject to the terms of the revised BSD
-// license.  You should have received a copy of this license along
-// with this source code in a file named "LICENSE."
-//
-////////////////////////////////////////////////////////////////////
+/**
+ * PANDA 3D SOFTWARE
+ * Copyright (c) Carnegie Mellon University.  All rights reserved.
+ *
+ * All use of this software is subject to the terms of the revised BSD
+ * license.  You should have received a copy of this license along
+ * with this source code in a file named "LICENSE."
+ *
+ * @file geomTextGlyph.h
+ * @author drose
+ * @date 2005-03-31
+ */
 
 #ifndef GEOMTEXTGLYPH_H
 #define GEOMTEXTGLYPH_H
@@ -19,15 +18,12 @@
 #include "geom.h"
 #include "textGlyph.h"
 
-////////////////////////////////////////////////////////////////////
-//       Class : GeomTextGlyph
-// Description : This is a specialization on Geom for containing a
-//               primitive intended to represent a TextGlyph.
-//               Its sole purpose is to maintain the geom count on the
-//               glyph, so we can determine the actual usage count on
-//               a dynamic glyph (and thus know when it is safe to
-//               recycle the glyph).
-////////////////////////////////////////////////////////////////////
+/**
+ * This is a specialization on Geom for containing a primitive intended to
+ * represent a TextGlyph.  Its sole purpose is to maintain the geom count on
+ * the glyph, so we can determine the actual usage count on a dynamic glyph
+ * (and thus know when it is safe to recycle the glyph).
+ */
 class EXPCL_PANDA_TEXT GeomTextGlyph : public Geom {
 public:
   GeomTextGlyph(const TextGlyph *glyph, const GeomVertexData *data);
@@ -42,8 +38,8 @@ public:
   virtual bool copy_primitives_from(const Geom *other);
   void count_geom(const Geom *other);
 
-  virtual void output(ostream &out) const;
-  virtual void write(ostream &out, int indent_level = 0) const;
+  virtual void output(std::ostream &out) const;
+  virtual void write(std::ostream &out, int indent_level = 0) const;
 
   void add_glyph(const TextGlyph *glyph);
 

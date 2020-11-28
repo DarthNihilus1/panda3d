@@ -1,29 +1,24 @@
-// Filename: binToC.cxx
-// Created by:  drose (18Jul03)
-//
-////////////////////////////////////////////////////////////////////
-//
-// PANDA 3D SOFTWARE
-// Copyright (c) Carnegie Mellon University.  All rights reserved.
-//
-// All use of this software is subject to the terms of the revised BSD
-// license.  You should have received a copy of this license along
-// with this source code in a file named "LICENSE."
-//
-////////////////////////////////////////////////////////////////////
-
+/**
+ * PANDA 3D SOFTWARE
+ * Copyright (c) Carnegie Mellon University.  All rights reserved.
+ *
+ * All use of this software is subject to the terms of the revised BSD
+ * license.  You should have received a copy of this license along
+ * with this source code in a file named "LICENSE."
+ *
+ * @file binToC.cxx
+ * @author drose
+ * @date 2003-07-18
+ */
 
 #include "binToC.h"
-#include "pystub.h"
 
 // The number of bytes across the page to write.
 static const int col_width = 11;
 
-////////////////////////////////////////////////////////////////////
-//     Function: BinToC::Constructor
-//       Access: Public
-//  Description:
-////////////////////////////////////////////////////////////////////
+/**
+ *
+ */
 BinToC::
 BinToC() :
   WithOutputFile(true, true, false)
@@ -43,7 +38,7 @@ BinToC() :
   add_option
     ("n", "name", 0,
      "Specify the name of the table that is generated.",
-     &BinToC::dispatch_string, NULL, &_table_name);
+     &BinToC::dispatch_string, nullptr, &_table_name);
 
   add_option
     ("static", "", 0,
@@ -66,31 +61,28 @@ BinToC() :
   _table_name = "data";
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: BinToC::run
-//       Access: Public
-//  Description:
-////////////////////////////////////////////////////////////////////
+/**
+ *
+ */
 void BinToC::
 run() {
-  ifstream in;
+  std::ifstream in;
   if (!_input_filename.open_read(in)) {
     nout << "Unable to read " << _input_filename << ".\n";
     exit(1);
   }
 
-  ostream &out = get_output();
-  string static_keyword;
+  std::ostream &out = get_output();
+  std::string static_keyword;
   if (_static_table) {
     static_keyword = "static ";
   }
 
-  string table_type = "const unsigned char ";
-  string length_type = "const int ";
+  std::string table_type = "const unsigned char ";
+  std::string length_type = "const int ";
   if (_for_string) {
-    // Actually, declaring the table as "const char" causes VC7 to
-    // yell about truncating all of the values >= 0x80.
-    // table_type = "const char ";
+    // Actually, declaring the table as "const char" causes VC7 to yell about
+    // truncating all of the values >= 0x80. table_type = "const char ";
     length_type = "const size_t ";
   }
 
@@ -104,12 +96,11 @@ run() {
       << "#include <stddef.h>\n"
       << "\n"
       << static_keyword << table_type << _table_name << "[] = {";
-  out << hex << setfill('0');
+  out << std::hex << std::setfill('0');
   int count = 0;
   int col = 0;
-  unsigned int ch;
-  ch = in.get();
-  while (!in.fail() && !in.eof()) {
+  int ch = in.get();
+  while (!in.fail() && ch != EOF) {
     if (col == 0) {
       out << "\n  ";
     } else if (col == col_width) {
@@ -118,21 +109,19 @@ run() {
     } else {
       out << ", ";
     }
-    out << "0x" << setw(2) << ch;
+    out << "0x" << std::setw(2) << (unsigned int)ch;
     col++;
     count++;
     ch = in.get();
   }
   out << "\n};\n\n"
       << static_keyword << length_type << _table_name << "_len = "
-      << dec << count << ";\n\n";
+      << std::dec << count << ";\n\n";
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: BinToC::handle_args
-//       Access: Protected, Virtual
-//  Description:
-////////////////////////////////////////////////////////////////////
+/**
+ *
+ */
 bool BinToC::
 handle_args(ProgramBase::Args &args) {
   if (args.size() == 2 && !_got_output_filename) {
@@ -153,9 +142,6 @@ handle_args(ProgramBase::Args &args) {
 
 
 int main(int argc, char *argv[]) {
-  // A call to pystub() to force libpystub.so to be linked in.
-  pystub();
-
   BinToC prog;
   prog.parse_command_line(argc, argv);
   prog.run();

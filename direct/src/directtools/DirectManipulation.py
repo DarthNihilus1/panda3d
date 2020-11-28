@@ -1,10 +1,9 @@
 from direct.showbase.DirectObject import DirectObject
-from DirectGlobals import *
-from DirectUtil import *
-from DirectGeometry import *
-from DirectSelection import SelectionRay
+from .DirectGlobals import *
+from .DirectUtil import *
+from .DirectGeometry import *
+from .DirectSelection import SelectionRay
 from direct.task import Task
-import types
 from copy import deepcopy
 
 class DirectManipulationControl(DirectObject):
@@ -187,7 +186,7 @@ class DirectManipulationControl(DirectObject):
 
     def drawMarquee(self, startX, startY):
         if self.marquee:
-            self.marquee.remove()
+            self.marquee.removeNode()
             self.marquee = None
 
         if base.direct.cameraControl.useMayaCamControls and base.direct.fAlt:
@@ -229,7 +228,7 @@ class DirectManipulationControl(DirectObject):
             skipFlags |= SKIP_CAMERA * (1 - base.getControl())
 
             if self.marquee:
-                self.marquee.remove()
+                self.marquee.removeNode()
                 self.marquee = None
                 base.direct.deselectAll()
 
@@ -1067,7 +1066,7 @@ class ObjectHandles(NodePath, DirectObject):
         # Load up object handles model and assign it to self
         self.assign(loader.loadModel('models/misc/objectHandles'))
         self.setName(name)
-        self.scalingNode = NodePath(self)
+        self.scalingNode = self.getChild(0)
         self.scalingNode.setName('ohScalingNode')
         self.ohScalingFactor = 1.0
         self.directScalingFactor = 1.0
@@ -1207,7 +1206,7 @@ class ObjectHandles(NodePath, DirectObject):
         self.reparentTo(hidden)
 
     def enableHandles(self, handles):
-        if type(handles) == types.ListType:
+        if type(handles) == list:
             for handle in handles:
                 self.enableHandle(handle)
         elif handles == 'x':
@@ -1256,7 +1255,7 @@ class ObjectHandles(NodePath, DirectObject):
             self.zScaleGroup.reparentTo(self.zHandles)
 
     def disableHandles(self, handles):
-        if type(handles) == types.ListType:
+        if type(handles) == list:
             for handle in handles:
                 self.disableHandle(handle)
         elif handles == 'x':
@@ -1692,7 +1691,7 @@ class ObjectHandles(NodePath, DirectObject):
         np.setPos(base.direct.camera, hitPt)
         resultPt = Point3(0)
         resultPt.assign(np.getPos())
-        np.remove()
+        np.removeNode()
         del iRay
         return resultPt
 

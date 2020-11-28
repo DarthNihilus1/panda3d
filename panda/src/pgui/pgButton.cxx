@@ -1,16 +1,15 @@
-// Filename: pgButton.cxx
-// Created by:  drose (13Mar02)
-//
-////////////////////////////////////////////////////////////////////
-//
-// PANDA 3D SOFTWARE
-// Copyright (c) Carnegie Mellon University.  All rights reserved.
-//
-// All use of this software is subject to the terms of the revised BSD
-// license.  You should have received a copy of this license along
-// with this source code in a file named "LICENSE."
-//
-////////////////////////////////////////////////////////////////////
+/**
+ * PANDA 3D SOFTWARE
+ * Copyright (c) Carnegie Mellon University.  All rights reserved.
+ *
+ * All use of this software is subject to the terms of the revised BSD
+ * license.  You should have received a copy of this license along
+ * with this source code in a file named "LICENSE."
+ *
+ * @file pgButton.cxx
+ * @author drose
+ * @date 2002-03-13
+ */
 
 #include "pgButton.h"
 #include "pgMouseWatcherParameter.h"
@@ -23,13 +22,11 @@
 
 TypeHandle PGButton::_type_handle;
 
-////////////////////////////////////////////////////////////////////
-//     Function: PGButton::Constructor
-//       Access: Published
-//  Description: 
-////////////////////////////////////////////////////////////////////
+/**
+ *
+ */
 PGButton::
-PGButton(const string &name) : PGItem(name)
+PGButton(const std::string &name) : PGItem(name)
 {
   _button_down = false;
   _click_buttons.insert(MouseButton::one());
@@ -37,20 +34,16 @@ PGButton(const string &name) : PGItem(name)
   set_active(true);
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: PGButton::Destructor
-//       Access: Public, Virtual
-//  Description: 
-////////////////////////////////////////////////////////////////////
+/**
+ *
+ */
 PGButton::
 ~PGButton() {
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: PGButton::Copy Constructor
-//       Access: Public
-//  Description: 
-////////////////////////////////////////////////////////////////////
+/**
+ *
+ */
 PGButton::
 PGButton(const PGButton &copy) :
   PGItem(copy),
@@ -59,26 +52,21 @@ PGButton(const PGButton &copy) :
   _button_down = false;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: PGButton::make_copy
-//       Access: Public, Virtual
-//  Description: Returns a newly-allocated Node that is a shallow copy
-//               of this one.  It will be a different Node pointer,
-//               but its internal data may or may not be shared with
-//               that of the original Node.
-////////////////////////////////////////////////////////////////////
+/**
+ * Returns a newly-allocated Node that is a shallow copy of this one.  It will
+ * be a different Node pointer, but its internal data may or may not be shared
+ * with that of the original Node.
+ */
 PandaNode *PGButton::
 make_copy() const {
   LightReMutexHolder holder(_lock);
   return new PGButton(*this);
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: PGButton::enter_region
-//       Access: Public, Virtual
-//  Description: This is a callback hook function, called whenever the
-//               mouse enters the region.
-////////////////////////////////////////////////////////////////////
+/**
+ * This is a callback hook function, called whenever the mouse enters the
+ * region.
+ */
 void PGButton::
 enter_region(const MouseWatcherParameter &param) {
   LightReMutexHolder holder(_lock);
@@ -88,12 +76,10 @@ enter_region(const MouseWatcherParameter &param) {
   PGItem::enter_region(param);
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: PGButton::exit_region
-//       Access: Public, Virtual
-//  Description: This is a callback hook function, called whenever the
-//               mouse exits the region.
-////////////////////////////////////////////////////////////////////
+/**
+ * This is a callback hook function, called whenever the mouse exits the
+ * region.
+ */
 void PGButton::
 exit_region(const MouseWatcherParameter &param) {
   LightReMutexHolder holder(_lock);
@@ -103,13 +89,10 @@ exit_region(const MouseWatcherParameter &param) {
   PGItem::exit_region(param);
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: PGButton::press
-//       Access: Public, Virtual
-//  Description: This is a callback hook function, called whenever a
-//               mouse or keyboard button is depressed while the mouse
-//               is within the region.
-////////////////////////////////////////////////////////////////////
+/**
+ * This is a callback hook function, called whenever a mouse or keyboard
+ * button is depressed while the mouse is within the region.
+ */
 void PGButton::
 press(const MouseWatcherParameter &param, bool background) {
   LightReMutexHolder holder(_lock);
@@ -122,20 +105,21 @@ press(const MouseWatcherParameter &param, bool background) {
   PGItem::press(param, background);
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: PGButton::release
-//       Access: Public, Virtual
-//  Description: This is a callback hook function, called whenever a
-//               mouse or keyboard button previously depressed with
-//               press() is released.
-////////////////////////////////////////////////////////////////////
+/**
+ * This is a callback hook function, called whenever a mouse or keyboard
+ * button previously depressed with press() is released.
+ */
 void PGButton::
 release(const MouseWatcherParameter &param, bool background) {
   LightReMutexHolder holder(_lock);
   if (has_click_button(param.get_button())) {
     _button_down = false;
     if (get_active()) {
-      if (param.is_outside()) {
+      // Note that a "click" may come from a keyboard button press.  In that
+      // case, instead of checking that the mouse cursor is still over the
+      // button, we check whether the item has keyboard focus.
+      if (param.is_outside() &&
+          (MouseButton::is_mouse_button(param.get_button()) || !get_focus())) {
         set_state(S_ready);
       } else {
         set_state(S_rollover);
@@ -146,17 +130,15 @@ release(const MouseWatcherParameter &param, bool background) {
   PGItem::release(param, background);
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: PGButton::click
-//       Access: Public, Virtual
-//  Description: This is a callback hook function, called whenever the
-//               button is clicked down-and-up by the user normally.
-////////////////////////////////////////////////////////////////////
+/**
+ * This is a callback hook function, called whenever the button is clicked
+ * down-and-up by the user normally.
+ */
 void PGButton::
 click(const MouseWatcherParameter &param) {
   LightReMutexHolder holder(_lock);
   PGMouseWatcherParameter *ep = new PGMouseWatcherParameter(param);
-  string event = get_click_event(param.get_button());
+  std::string event = get_click_event(param.get_button());
   play_sound(event);
   throw_event(event, EventParameter(ep));
 
@@ -165,17 +147,14 @@ click(const MouseWatcherParameter &param) {
   }
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: PGButton::setup
-//       Access: Published
-//  Description: Sets up the button as a default text button using the
-//               indicated label string.  The TextNode defined by
-//               PGItem::get_text_node() will be used to create the
-//               label geometry.  This automatically sets up the frame
-//               according to the size of the text.
-////////////////////////////////////////////////////////////////////
+/**
+ * Sets up the button as a default text button using the indicated label
+ * string.  The TextNode defined by PGItem::get_text_node() will be used to
+ * create the label geometry.  This automatically sets up the frame according
+ * to the size of the text.
+ */
 void PGButton::
-setup(const string &label, PN_stdfloat bevel) {
+setup(const std::string &label, PN_stdfloat bevel) {
   LightReMutexHolder holder(_lock);
   clear_state_def(S_ready);
   clear_state_def(S_depressed);
@@ -224,14 +203,11 @@ setup(const string &label, PN_stdfloat bevel) {
   inactive->add_child(geom);
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: PGButton::setup
-//       Access: Published
-//  Description: Sets up the button using the indicated NodePath as
-//               arbitrary geometry.
-////////////////////////////////////////////////////////////////////
+/**
+ * Sets up the button using the indicated NodePath as arbitrary geometry.
+ */
 void PGButton::
-setup(const NodePath &ready, const NodePath &depressed, 
+setup(const NodePath &ready, const NodePath &depressed,
       const NodePath &rollover, const NodePath &inactive) {
   LightReMutexHolder holder(_lock);
   clear_state_def(S_ready);
@@ -251,14 +227,11 @@ setup(const NodePath &ready, const NodePath &depressed,
             min_point[2], max_point[2]);
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: PGButton::set_active
-//       Access: Published, Virtual
-//  Description: Toggles the active/inactive state of the button.  In
-//               the case of a PGButton, this also changes its visual
-//               appearance.
-////////////////////////////////////////////////////////////////////
-void PGButton:: 
+/**
+ * Toggles the active/inactive state of the button.  In the case of a
+ * PGButton, this also changes its visual appearance.
+ */
+void PGButton::
 set_active(bool active) {
   LightReMutexHolder holder(_lock);
   if (active != get_active()) {
@@ -267,45 +240,35 @@ set_active(bool active) {
   }
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: PGButton::add_click_button
-//       Access: Published
-//  Description: Adds the indicated button to the set of buttons that
-//               can effectively "click" the PGButton.  Normally, this
-//               is just MouseButton::one().  Returns true if the
-//               button was added, or false if it was already there.
-////////////////////////////////////////////////////////////////////
+/**
+ * Adds the indicated button to the set of buttons that can effectively
+ * "click" the PGButton.  Normally, this is just MouseButton::one().  Returns
+ * true if the button was added, or false if it was already there.
+ */
 bool PGButton::
 add_click_button(const ButtonHandle &button) {
   LightReMutexHolder holder(_lock);
   return _click_buttons.insert(button).second;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: PGButton::remove_click_button
-//       Access: Published
-//  Description: Removes the indicated button from the set of buttons
-//               that can effectively "click" the PGButton.  Normally,
-//               this is just MouseButton::one().  Returns true if the
-//               button was removed, or false if it was not in the
-//               set.
-////////////////////////////////////////////////////////////////////
+/**
+ * Removes the indicated button from the set of buttons that can effectively
+ * "click" the PGButton.  Normally, this is just MouseButton::one().  Returns
+ * true if the button was removed, or false if it was not in the set.
+ */
 bool PGButton::
 remove_click_button(const ButtonHandle &button) {
   LightReMutexHolder holder(_lock);
   return (_click_buttons.erase(button) != 0);
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: PGButton::has_click_button
-//       Access: Published
-//  Description: Returns true if the indicated button is on the set of
-//               buttons that can effectively "click" the PGButton.
-//               Normally, this is just MouseButton::one().
-////////////////////////////////////////////////////////////////////
+/**
+ * Returns true if the indicated button is on the set of buttons that can
+ * effectively "click" the PGButton.  Normally, this is just
+ * MouseButton::one().
+ */
 bool PGButton::
 has_click_button(const ButtonHandle &button) {
   LightReMutexHolder holder(_lock);
   return (_click_buttons.count(button) != 0);
 }
-

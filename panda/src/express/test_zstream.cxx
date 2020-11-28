@@ -1,22 +1,25 @@
-// Filename: test_zstream.cxx
-// Created by:  drose (05Aug02)
-//
-////////////////////////////////////////////////////////////////////
-//
-// PANDA 3D SOFTWARE
-// Copyright (c) Carnegie Mellon University.  All rights reserved.
-//
-// All use of this software is subject to the terms of the revised BSD
-// license.  You should have received a copy of this license along
-// with this source code in a file named "LICENSE."
-//
-////////////////////////////////////////////////////////////////////
+/**
+ * PANDA 3D SOFTWARE
+ * Copyright (c) Carnegie Mellon University.  All rights reserved.
+ *
+ * All use of this software is subject to the terms of the revised BSD
+ * license.  You should have received a copy of this license along
+ * with this source code in a file named "LICENSE."
+ *
+ * @file test_zstream.cxx
+ * @author drose
+ * @date 2002-08-05
+ */
 
 #include "pandabase.h"
 #include "zStream.h"
 #include "filename.h"
 
 #include <zlib.h>
+
+using std::cerr;
+using std::cout;
+using std::istream;
 
 void
 stream_decompress(istream &source) {
@@ -43,7 +46,7 @@ stream_compress(istream &source) {
 void
 zlib_decompress(istream &source) {
   // First, read the entire contents into a buffer.
-  string data;
+  std::string data;
 
   int ch = source.get();
   while (!source.eof() && !source.fail()) {
@@ -58,7 +61,7 @@ zlib_decompress(istream &source) {
   char *dest = (char *)PANDA_MALLOC_ARRAY(dest_len);
 
   uLongf actual_dest_len = dest_len;
-  int result = uncompress((Bytef *)dest, &actual_dest_len, 
+  int result = uncompress((Bytef *)dest, &actual_dest_len,
                           (const Bytef *)data.data(), source_len);
   if (result != Z_OK) {
     cerr << "compress result == " << result << "\n";
@@ -70,7 +73,7 @@ zlib_decompress(istream &source) {
     dest = (char *)PANDA_REALLOC_ARRAY(dest, dest_len);
 
     actual_dest_len = dest_len;
-    result = uncompress((Bytef *)dest, &actual_dest_len, 
+    result = uncompress((Bytef *)dest, &actual_dest_len,
                         (const Bytef *)data.data(), source_len);
     if (result != Z_OK) {
       cerr << "compress result == " << result << "\n";
@@ -83,7 +86,7 @@ zlib_decompress(istream &source) {
 void
 zlib_compress(istream &source) {
   // First, read the entire contents into a buffer.
-  string data;
+  std::string data;
 
   int ch = source.get();
   while (!source.eof() && !source.fail()) {
@@ -97,7 +100,7 @@ zlib_compress(istream &source) {
   char *dest = (char *)PANDA_MALLOC_ARRAY(dest_len);
 
   uLongf actual_dest_len = dest_len;
-  int result = compress((Bytef *)dest, &actual_dest_len, 
+  int result = compress((Bytef *)dest, &actual_dest_len,
                         (const Bytef *)data.data(), source_len);
 
   if (result != Z_OK) {
@@ -116,7 +119,7 @@ main(int argc, char *argv[]) {
     argc--;
     argv++;
   }
-    
+
   if (argc != 2) {
     cerr << "test_zstream [-z] file\n"
          << "compresses file to standard output, or decompresses it if the\n"

@@ -1,20 +1,19 @@
-// Filename: signPrcFile_src.cxx
-// Created by:  drose (19Oct04)
-//
-////////////////////////////////////////////////////////////////////
-//
-// PANDA 3D SOFTWARE
-// Copyright (c) Carnegie Mellon University.  All rights reserved.
-//
-// All use of this software is subject to the terms of the revised BSD
-// license.  You should have received a copy of this license along
-// with this source code in a file named "LICENSE."
-//
-////////////////////////////////////////////////////////////////////
+/**
+ * PANDA 3D SOFTWARE
+ * Copyright (c) Carnegie Mellon University.  All rights reserved.
+ *
+ * All use of this software is subject to the terms of the revised BSD
+ * license.  You should have received a copy of this license along
+ * with this source code in a file named "LICENSE."
+ *
+ * @file signPrcFile_src.cxx
+ * @author drose
+ * @date 2004-10-19
+ */
 
-// This file is intended to be #included by a generated *_sign?.cxx
-// file, one of the output files of make-prc-key.  This contains the
-// common code to sign a prc file with the given signature.
+// This file is intended to be #included by a generated *_sign?.cxx file, one
+// of the output files of make-prc-key.  This contains the common code to sign
+// a prc file with the given signature.
 
 #include "dtoolbase.h"
 
@@ -25,21 +24,22 @@
 
 #include <time.h>
 
-#include "openssl/err.h"
-#include "openssl/pem.h"
-#include "openssl/rand.h"
-#include "openssl/bio.h"
-#include "openssl/evp.h"
+#include <openssl/err.h>
+#include <openssl/pem.h>
+#include <openssl/rand.h>
+#include <openssl/bio.h>
+#include <openssl/evp.h>
+
+using std::cerr;
+using std::string;
 
 string progname = PROGNAME;
 
-////////////////////////////////////////////////////////////////////
-//     Function: output_ssl_errors
-//  Description: A convenience function that is itself a wrapper
-//               around the OpenSSL convenience function to output the
-//               recent OpenSSL errors.  This function sends the error
-//               string to cerr.
-////////////////////////////////////////////////////////////////////
+/**
+ * A convenience function that is itself a wrapper around the OpenSSL
+ * convenience function to output the recent OpenSSL errors.  This function
+ * sends the error string to cerr.
+ */
 void
 output_ssl_errors() {
   cerr << "Error occurred in SSL routines.\n";
@@ -60,14 +60,12 @@ output_ssl_errors() {
   }
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: read_prc_line
-//  Description: Reads a single line of the prc file.
-////////////////////////////////////////////////////////////////////
+/**
+ * Reads a single line of the prc file.
+ */
 void
 read_prc_line(const string &line, string &data) {
-  // Strip out lines with this prefix.  These are from a previous
-  // signature.
+  // Strip out lines with this prefix.  These are from a previous signature.
   if (line.substr(0, 3) == "##!") {
     return;
   }
@@ -77,15 +75,14 @@ read_prc_line(const string &line, string &data) {
   return;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: read_file
-//  Description: Reads the entire contents of the file, less any
-//               previous signatures, to the indicated string.
-////////////////////////////////////////////////////////////////////
+/**
+ * Reads the entire contents of the file, less any previous signatures, to the
+ * indicated string.
+ */
 void
-read_file(istream &in, string &data) {
-  // We avoid getline() here because of its notorious problem with
-  // last lines that lack a trailing newline character.
+read_file(std::istream &in, string &data) {
+  // We avoid getline() here because of its notorious problem with last lines
+  // that lack a trailing newline character.
   static const size_t buffer_size = 1024;
   char buffer[buffer_size];
 
@@ -98,7 +95,7 @@ read_file(istream &in, string &data) {
 
     // Look for the first line in the buffer..
     char *newline = (char *)memchr((void *)buffer, '\n', count);
-    if (newline == NULL) {
+    if (newline == nullptr) {
       // The buffer was one long line.  Huh.
       prev_line += string(buffer, count);
 
@@ -110,15 +107,14 @@ read_file(istream &in, string &data) {
       // Now look for the next line, etc.
       char *start = newline + 1;
       newline = (char *)memchr((void *)start, '\n', buffer_end - start);
-      while (newline != NULL) {
+      while (newline != nullptr) {
         length = newline - start;
         read_prc_line(string(start, length + 1), data);
         start = newline + 1;
         newline = (char *)memchr((void *)start, '\n', buffer_end - start);
       }
 
-      // The remaining text in the buffer is the start of the next
-      // line.
+      // The remaining text in the buffer is the start of the next line.
       length = buffer_end - start;
       prev_line = string(start, length);
     }
@@ -132,19 +128,16 @@ read_file(istream &in, string &data) {
   }
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: output_hex
-//  Description: Outputs the indicated data stream as a series of hex
-//               digits.
-////////////////////////////////////////////////////////////////////
+/**
+ * Outputs the indicated data stream as a series of hex digits.
+ */
 void
-output_hex(ostream &out, const unsigned char *data, size_t size) {
+output_hex(std::ostream &out, const unsigned char *data, size_t size) {
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: sign_prc
-//  Description: Applies the signature to the named file.
-////////////////////////////////////////////////////////////////////
+/**
+ * Applies the signature to the named file.
+ */
 void
 sign_prc(Filename filename, bool no_comments, EVP_PKEY *pkey) {
   filename.set_text();
@@ -165,10 +158,10 @@ sign_prc(Filename filename, bool no_comments, EVP_PKEY *pkey) {
   }
 
   // Append the comments before the signature (these get signed too).
-  ostringstream strm;
+  std::ostringstream strm;
   strm << "##!\n";
   if (!no_comments) {
-    time_t now = time(NULL);
+    time_t now = time(nullptr);
     struct tm *t = localtime(&now);
     char formatted[128];
     strftime(formatted, 128, "%I:%M %p %B %d, %Y", t);
@@ -181,7 +174,7 @@ sign_prc(Filename filename, bool no_comments, EVP_PKEY *pkey) {
     time_t generated_time = GENERATED_TIME;
     t = localtime(&generated_time);
     strftime(formatted, 128, "%I:%M %p %B %d, %Y", t);
-    
+
     strm << "\n"
          << "##! Signed with level " << KEY_NUMBER << " key generated on "
          << formatted << "\n"
@@ -189,13 +182,7 @@ sign_prc(Filename filename, bool no_comments, EVP_PKEY *pkey) {
   }
   data += strm.str();
 
-  EVP_MD_CTX *md_ctx;
-
-#ifdef SSL_097
-  md_ctx = EVP_MD_CTX_create();
-#else
-  md_ctx = new EVP_MD_CTX;
-#endif
+  EVP_MD_CTX *md_ctx = EVP_MD_CTX_create();
 
   EVP_SignInit(md_ctx, EVP_sha1());
   EVP_SignUpdate(md_ctx, data.data(), data.size());
@@ -209,14 +196,9 @@ sign_prc(Filename filename, bool no_comments, EVP_PKEY *pkey) {
   }
   assert(sig_size <= max_size);
 
-#ifdef SSL_097
   EVP_MD_CTX_destroy(md_ctx);
-#else
-  delete md_ctx;
-#endif
 
-  // Now open the file in write mode and rewrite it with the new
-  // signature.
+  // Now open the file in write mode and rewrite it with the new signature.
   pofstream out;
   if (!filename.open_write(out)) {
     cerr << "Unable to rewrite file " << filename << "\n";
@@ -224,31 +206,30 @@ sign_prc(Filename filename, bool no_comments, EVP_PKEY *pkey) {
   }
   cerr << "Rewriting " << filename << "\n";
 
-  out << data << hex << setfill('0');
+  out << data << std::hex << std::setfill('0');
   static const size_t row_width = 32;
   for (size_t p = 0; p < sig_size; p += row_width) {
     out << "##!sig ";
 
-//    size_t end = min(sig_size, p + row_width);
+// size_t end = min(sig_size, p + row_width);
     size_t end = sig_size;
     if(end > p+row_width)
        end = p+row_width;
 
     for (size_t q = p; q < end; q++) {
-      out << setw(2) << (unsigned int)sig_data[q];
+      out << std::setw(2) << (unsigned int)sig_data[q];
     }
     out << "\n";
   }
-  out << dec;
+  out << std::dec;
 
   delete[] sig_data;
 }
 
 
-////////////////////////////////////////////////////////////////////
-//     Function: usage
-//  Description: 
-////////////////////////////////////////////////////////////////////
+/**
+ *
+ */
 void
 usage() {
   time_t generated_time = GENERATED_TIME;
@@ -281,14 +262,13 @@ usage() {
     "       prompted interactively.\n\n";
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: main
-//  Description: 
-////////////////////////////////////////////////////////////////////
+/**
+ *
+ */
 int
 main(int argc, char **argv) {
   preprocess_argv(argc, argv);
-  if (argv[0] != NULL && *argv[0]) {
+  if (argv[0] != nullptr && *argv[0]) {
     // Get the program name from the command-line arguments, if the OS
     // provides it.
     Filename progfile = Filename::from_os_specific(argv[0]);
@@ -341,18 +321,18 @@ main(int argc, char **argv) {
   OpenSSL_add_all_algorithms();
 
   // Convert the compiled-in data to an EVP_PKEY.
-  const char *pp = NULL;
+  const char *pp = nullptr;
   if (got_pass_phrase) {
     pp = pass_phrase.c_str();
   }
 
   BIO *mbio = BIO_new_mem_buf((void *)KEY_DATA, KEY_LENGTH);
-  EVP_PKEY *pkey = PEM_read_bio_PrivateKey(mbio, NULL, NULL, (void *)pp);
+  EVP_PKEY *pkey = PEM_read_bio_PrivateKey(mbio, nullptr, nullptr, (void *)pp);
   BIO_free(mbio);
 
-  if (pkey == (EVP_PKEY *)NULL) {
-    // Actually, we're not 100% sure this was the problem, but we
-    // can't really tell why it failed, and we're 99% sure anyway.
+  if (pkey == nullptr) {
+    // Actually, we're not 100% sure this was the problem, but we can't really
+    // tell why it failed, and we're 99% sure anyway.
     cerr << "Invalid pass phrase.\n";
     exit(1);
   }

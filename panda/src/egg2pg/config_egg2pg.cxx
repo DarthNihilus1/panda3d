@@ -1,16 +1,15 @@
-// Filename: config_egg2pg.cxx
-// Created by:  drose (26Feb02)
-//
-////////////////////////////////////////////////////////////////////
-//
-// PANDA 3D SOFTWARE
-// Copyright (c) Carnegie Mellon University.  All rights reserved.
-//
-// All use of this software is subject to the terms of the revised BSD
-// license.  You should have received a copy of this license along
-// with this source code in a file named "LICENSE."
-//
-////////////////////////////////////////////////////////////////////
+/**
+ * PANDA 3D SOFTWARE
+ * Copyright (c) Carnegie Mellon University.  All rights reserved.
+ *
+ * All use of this software is subject to the terms of the revised BSD
+ * license.  You should have received a copy of this license along
+ * with this source code in a file named "LICENSE."
+ *
+ * @file config_egg2pg.cxx
+ * @author drose
+ * @date 2002-02-26
+ */
 
 #include "config_egg2pg.h"
 
@@ -20,6 +19,10 @@
 #include "configVariableManager.h"
 #include "configVariableCore.h"
 #include "eggRenderState.h"
+
+#if !defined(CPPPARSER) && !defined(LINK_ALL_STATIC) && !defined(BUILDING_PANDA_EGG2PG)
+  #error Buildsystem error: BUILDING_PANDA_EGG2PG not defined
+#endif
 
 ConfigureDef(config_egg2pg);
 NotifyCategoryDef(egg2pg, "");
@@ -191,18 +194,23 @@ ConfigVariableBool egg_implicit_alpha_binary
           "will automatically be downgraded to alpha type \"binary\" instead of "
           "whatever appears in the egg file."));
 
+ConfigVariableBool egg_force_srgb_textures
+("egg-force-srgb-textures", false,
+ PRC_DESC("If this is true, Panda3D will automatically assign the F_srgb or "
+          "F_srgb_alpha format to all textures loaded from egg files, unless "
+          "their envtype is set to a non-color map.  Keep in mind that the "
+          "model-cache must be cleared after changing this setting."));
+
 ConfigureFn(config_egg2pg) {
   init_libegg2pg();
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: init_libegg2pg
-//  Description: Initializes the library.  This must be called at
-//               least once before any of the functions or classes in
-//               this library can be used.  Normally it will be
-//               called by the static initializers and need not be
-//               called explicitly, but special cases exist.
-////////////////////////////////////////////////////////////////////
+/**
+ * Initializes the library.  This must be called at least once before any of
+ * the functions or classes in this library can be used.  Normally it will be
+ * called by the static initializers and need not be called explicitly, but
+ * special cases exist.
+ */
 void
 init_libegg2pg() {
   static bool initialized = false;
@@ -211,10 +219,10 @@ init_libegg2pg() {
   }
   initialized = true;
 
-  // Define a template for all egg-object-type-* variables, so the
-  // system knows that these variables are defined when it finds them
-  // in a user's prc file, even if we haven't actually read an egg
-  // file that uses the particular <ObjectType> field.
+  // Define a template for all egg-object-type-* variables, so the system
+  // knows that these variables are defined when it finds them in a user's prc
+  // file, even if we haven't actually read an egg file that uses the
+  // particular <ObjectType> field.
   ConfigVariableManager *cv_mgr = ConfigVariableManager::get_global_ptr();
   cv_mgr->make_variable_template
     ("egg-object-type-*",

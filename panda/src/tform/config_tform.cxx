@@ -1,16 +1,15 @@
-// Filename: config_tform.cxx
-// Created by:  drose (23Feb00)
-//
-////////////////////////////////////////////////////////////////////
-//
-// PANDA 3D SOFTWARE
-// Copyright (c) Carnegie Mellon University.  All rights reserved.
-//
-// All use of this software is subject to the terms of the revised BSD
-// license.  You should have received a copy of this license along
-// with this source code in a file named "LICENSE."
-//
-////////////////////////////////////////////////////////////////////
+/**
+ * PANDA 3D SOFTWARE
+ * Copyright (c) Carnegie Mellon University.  All rights reserved.
+ *
+ * All use of this software is subject to the terms of the revised BSD
+ * license.  You should have received a copy of this license along
+ * with this source code in a file named "LICENSE."
+ *
+ * @file config_tform.cxx
+ * @author drose
+ * @date 2000-02-23
+ */
 
 #include "config_tform.h"
 
@@ -25,6 +24,10 @@
 #include "transform2sg.h"
 
 #include "dconfig.h"
+
+#if !defined(CPPPARSER) && !defined(LINK_ALL_STATIC) && !defined(BUILDING_PANDA_TFORM)
+  #error Buildsystem error: BUILDING_PANDA_TFORM not defined
+#endif
 
 Configure(config_tform);
 NotifyCategoryDef(tform, "");

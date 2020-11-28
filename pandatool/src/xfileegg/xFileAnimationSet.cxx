@@ -1,16 +1,15 @@
-// Filename: xFileAnimationSet.cxx
-// Created by:  drose (02Oct04)
-//
-////////////////////////////////////////////////////////////////////
-//
-// PANDA 3D SOFTWARE
-// Copyright (c) Carnegie Mellon University.  All rights reserved.
-//
-// All use of this software is subject to the terms of the revised BSD
-// license.  You should have received a copy of this license along
-// with this source code in a file named "LICENSE."
-//
-////////////////////////////////////////////////////////////////////
+/**
+ * PANDA 3D SOFTWARE
+ * Copyright (c) Carnegie Mellon University.  All rights reserved.
+ *
+ * All use of this software is subject to the terms of the revised BSD
+ * license.  You should have received a copy of this license along
+ * with this source code in a file named "LICENSE."
+ *
+ * @file xFileAnimationSet.cxx
+ * @author drose
+ * @date 2004-10-02
+ */
 
 #include "xFileAnimationSet.h"
 #include "xFileToEggConverter.h"
@@ -21,43 +20,36 @@
 #include "eggXfmSAnim.h"
 #include "dcast.h"
 
-////////////////////////////////////////////////////////////////////
-//     Function: XFileAnimationSet::Constructor
-//       Access: Public
-//  Description:
-////////////////////////////////////////////////////////////////////
+/**
+ *
+ */
 XFileAnimationSet::
 XFileAnimationSet() {
   _frame_rate = 0.0;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: XFileAnimationSet::Destructor
-//       Access: Public
-//  Description:
-////////////////////////////////////////////////////////////////////
+/**
+ *
+ */
 XFileAnimationSet::
 ~XFileAnimationSet() {
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: XFileAnimationSet::create_hierarchy
-//       Access: Public
-//  Description: Sets up the hierarchy of EggTables corresponding to
-//               this AnimationSet.
-////////////////////////////////////////////////////////////////////
+/**
+ * Sets up the hierarchy of EggTables corresponding to this AnimationSet.
+ */
 bool XFileAnimationSet::
 create_hierarchy(XFileToEggConverter *converter) {
-  // Egg animation tables start off with one Table entry, enclosing a
-  // Bundle entry.
+  // Egg animation tables start off with one Table entry, enclosing a Bundle
+  // entry.
   EggTable *table = new EggTable(get_name());
   converter->get_egg_data()->add_child(table);
   EggTable *bundle = new EggTable(converter->_char_name);
   table->add_child(bundle);
   bundle->set_table_type(EggTable::TT_bundle);
 
-  // Then the Bundle contains a "<skeleton>" entry, which begins the
-  // animation table hierarchy.
+  // Then the Bundle contains a "<skeleton>" entry, which begins the animation
+  // table hierarchy.
   EggTable *skeleton = new EggTable("<skeleton>");
   bundle->add_child(skeleton);
 
@@ -67,11 +59,11 @@ create_hierarchy(XFileToEggConverter *converter) {
   // Now populate those empty tables with the frame data.
   JointData::const_iterator ji;
   for (ji = _joint_data.begin(); ji != _joint_data.end(); ++ji) {
-    const string &joint_name = (*ji).first;
+    const std::string &joint_name = (*ji).first;
     const FrameData &table = (*ji).second;
 
     EggXfmSAnim *anim_table = get_table(joint_name);
-    if (anim_table == (EggXfmSAnim *)NULL) {
+    if (anim_table == nullptr) {
       xfile_cat.warning()
         << "Frame " << joint_name << ", named by animation data, not defined.\n";
     } else {
@@ -89,7 +81,7 @@ create_hierarchy(XFileToEggConverter *converter) {
   for (ti = _tables.begin(); ti != _tables.end(); ++ti) {
     EggXfmSAnim *anim_table = (*ti).second._table;
     EggGroup *joint = (*ti).second._joint;
-    if (anim_table->empty() && joint != (EggGroup *)NULL) {
+    if (anim_table->empty() && joint != nullptr) {
       // If there's no animation data, assign the rest transform.
       anim_table->add_data(joint->get_transform3d());
     }
@@ -102,43 +94,34 @@ create_hierarchy(XFileToEggConverter *converter) {
   return true;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: XFileAnimationSet::get_table
-//       Access: Public
-//  Description: Returns the table associated with the indicated joint
-//               name.
-////////////////////////////////////////////////////////////////////
+/**
+ * Returns the table associated with the indicated joint name.
+ */
 EggXfmSAnim *XFileAnimationSet::
-get_table(const string &joint_name) const {
+get_table(const std::string &joint_name) const {
   Tables::const_iterator ti;
   ti = _tables.find(joint_name);
   if (ti != _tables.end()) {
     return (*ti).second._table;
   }
-  return NULL;
+  return nullptr;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: XFileAnimationSet::create_frame_data
-//       Access: Public
-//  Description: Returns a reference to a new FrameData table
-//               corresponding to the indicated joint.
-////////////////////////////////////////////////////////////////////
+/**
+ * Returns a reference to a new FrameData table corresponding to the indicated
+ * joint.
+ */
 XFileAnimationSet::FrameData &XFileAnimationSet::
-create_frame_data(const string &joint_name) {
+create_frame_data(const std::string &joint_name) {
   return _joint_data[joint_name];
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: XFileAnimationSet::mirror_table
-//       Access: Private
-//  Description: Builds up a new set of EggTable nodes, as a
-//               mirror of the existing set of EggGroup (joint)
-//               nodes, and saves each new table in the _tables
-//               record.
-////////////////////////////////////////////////////////////////////
+/**
+ * Builds up a new set of EggTable nodes, as a mirror of the existing set of
+ * EggGroup (joint) nodes, and saves each new table in the _tables record.
+ */
 void XFileAnimationSet::
-mirror_table(XFileToEggConverter *converter, 
+mirror_table(XFileToEggConverter *converter,
              EggGroup *model_node, EggTable *anim_node) {
   EggGroupNode::iterator gi;
   for (gi = model_node->begin(); gi != model_node->end(); ++gi) {
@@ -149,7 +132,7 @@ mirror_table(XFileToEggConverter *converter,
         // When we come to a <Joint>, create a new Table for it.
         EggTable *new_table = new EggTable(group->get_name());
         anim_node->add_child(new_table);
-        CoordinateSystem cs = 
+        CoordinateSystem cs =
           converter->get_egg_data()->get_coordinate_system();
         EggXfmSAnim *xform = new EggXfmSAnim("xform", cs);
         new_table->add_child(xform);

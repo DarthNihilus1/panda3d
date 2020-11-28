@@ -1,16 +1,15 @@
-// Filename: cullResult.cxx
-// Created by:  drose (28Feb02)
-//
-////////////////////////////////////////////////////////////////////
-//
-// PANDA 3D SOFTWARE
-// Copyright (c) Carnegie Mellon University.  All rights reserved.
-//
-// All use of this software is subject to the terms of the revised BSD
-// license.  You should have received a copy of this license along
-// with this source code in a file named "LICENSE."
-//
-////////////////////////////////////////////////////////////////////
+/**
+ * PANDA 3D SOFTWARE
+ * Copyright (c) Carnegie Mellon University.  All rights reserved.
+ *
+ * All use of this software is subject to the terms of the revised BSD
+ * license.  You should have received a copy of this license along
+ * with this source code in a file named "LICENSE."
+ *
+ * @file cullResult.cxx
+ * @author drose
+ * @date 2002-02-28
+ */
 
 #include "cullResult.h"
 #include "cullBinManager.h"
@@ -32,36 +31,29 @@
 
 TypeHandle CullResult::_type_handle;
 
-// This value is used instead of 1.0 to represent the alpha level of a
-// pixel that is to be considered "opaque" for the purposes of M_dual.
-//
-// Ideally, 1.0 is the only correct value for this.  Realistically, we
-// have to fudge it lower for two reasons:
-//
-// (1) The modelers tend to paint textures with very slight
-// transparency levels in places that are not intended to be
-// transparent, without realizing it.  These very faint transparency
-// regions are normally (almost) invisible, but when rendered with
-// M_dual they may be revealed as regions of poor alpha sorting.
-//
-// (2) There seems to be some problem in DX where, in certain
-// circumstances apparently related to automatic texture management,
-// it spontaneously drops out the bottom two bits of an eight-bit
-// alpha channel, causing a value of 255 to become a value of 252
-// instead.
-//
-// We use 256 as the denominator here (instead of, say, 255) because a
-// fractional power of two will have a terminating representation in
-// base 2, and thus will be more likely to have a precise value in
-// whatever internal representation the graphics API will use.
+/*
+ * This value is used instead of 1.0 to represent the alpha level of a pixel
+ * that is to be considered "opaque" for the purposes of M_dual.  Ideally, 1.0
+ * is the only correct value for this.  Realistically, we have to fudge it
+ * lower for two reasons: (1) The modelers tend to paint textures with very
+ * slight transparency levels in places that are not intended to be
+ * transparent, without realizing it.  These very faint transparency regions
+ * are normally (almost) invisible, but when rendered with M_dual they may be
+ * revealed as regions of poor alpha sorting.  (2) There seems to be some
+ * problem in DX where, in certain circumstances apparently related to
+ * automatic texture management, it spontaneously drops out the bottom two
+ * bits of an eight-bit alpha channel, causing a value of 255 to become a
+ * value of 252 instead.  We use 256 as the denominator here (instead of, say,
+ * 255) because a fractional power of two will have a terminating
+ * representation in base 2, and thus will be more likely to have a precise
+ * value in whatever internal representation the graphics API will use.
+ */
 static const PN_stdfloat dual_opaque_level = 252.0 / 256.0;
 static const double bin_color_flash_rate = 1.0;  // 1 state change per second
 
-////////////////////////////////////////////////////////////////////
-//     Function: CullResult::Constructor
-//       Access: Public
-//  Description:
-////////////////////////////////////////////////////////////////////
+/**
+ *
+ */
 CullResult::
 CullResult(GraphicsStateGuardianBase *gsg,
            const PStatCollector &draw_region_pcollector) :
@@ -77,14 +69,11 @@ CullResult(GraphicsStateGuardianBase *gsg,
 #endif
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: CullResult::make_next
-//       Access: Published
-//  Description: Returns a newly-allocated CullResult object that
-//               contains a copy of just the subset of the data from
-//               this CullResult object that is worth keeping around
-//               for next frame.
-////////////////////////////////////////////////////////////////////
+/**
+ * Returns a newly-allocated CullResult object that contains a copy of just
+ * the subset of the data from this CullResult object that is worth keeping
+ * around for next frame.
+ */
 PT(CullResult) CullResult::
 make_next() const {
   PT(CullResult) new_result = new CullResult(_gsg, _draw_region_pcollector);
@@ -94,9 +83,9 @@ make_next() const {
 
   for (size_t i = 0; i < _bins.size(); ++i) {
     CullBin *old_bin = _bins[i];
-    if (old_bin == (CullBin *)NULL ||
+    if (old_bin == nullptr ||
         old_bin->get_bin_type() != bin_manager->get_bin_type(i)) {
-      new_result->_bins.push_back((CullBin *)NULL);
+      new_result->_bins.push_back(nullptr);
     } else {
       new_result->_bins.push_back(old_bin->make_next());
     }
@@ -105,19 +94,18 @@ make_next() const {
   return new_result;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: CullResult::add_object
-//       Access: Published
-//  Description: Adds the indicated CullableObject to the appropriate
-//               bin.  The bin becomes the owner of the object
-//               pointer, and will eventually delete it.
-////////////////////////////////////////////////////////////////////
+/**
+ * Adds the indicated CullableObject to the appropriate bin.  The bin becomes
+ * the owner of the object pointer, and will eventually delete it.
+ */
 void CullResult::
 add_object(CullableObject *object, const CullTraverser *traverser) {
   static const LColor flash_alpha_color(0.92, 0.96, 0.10, 1.0f);
   static const LColor flash_binary_color(0.21f, 0.67f, 0.24, 1.0f);
   static const LColor flash_multisample_color(0.78f, 0.05f, 0.81f, 1.0f);
   static const LColor flash_dual_color(0.92, 0.01f, 0.01f, 1.0f);
+
+  nassertv(object->_draw_callback != nullptr || object->_geom != nullptr);
 
   bool force = !traverser->get_effective_incomplete_render();
   Thread *current_thread = traverser->get_current_thread();
@@ -140,13 +128,37 @@ add_object(CullableObject *object, const CullTraverser *traverser) {
     object->_state = object->_state->compose(get_rescale_normal_state(mode));
   }
 
+  // Check for a special wireframe setting.
+  const RenderModeAttrib *rmode;
+  if (object->_state->get_attrib(rmode)) {
+    if (rmode->get_mode() == RenderModeAttrib::M_filled_wireframe) {
+      CullableObject *wireframe_part = new CullableObject(*object);
+      wireframe_part->_state = get_wireframe_overlay_state(rmode);
+
+      if (wireframe_part->munge_geom
+          (_gsg, _gsg->get_geom_munger(wireframe_part->_state, current_thread),
+           traverser, force)) {
+        int wireframe_bin_index = bin_manager->find_bin("fixed");
+        CullBin *bin = get_bin(wireframe_bin_index);
+        nassertv(bin != nullptr);
+        check_flash_bin(wireframe_part->_state, bin_manager, wireframe_bin_index);
+        bin->add_object(wireframe_part, current_thread);
+      } else {
+        delete wireframe_part;
+      }
+
+      object->_state = object->_state->compose(get_wireframe_filled_state());
+    }
+  }
+
   // Check to see if there's a special transparency setting.
   const TransparencyAttrib *trans;
   if (object->_state->get_attrib(trans)) {
     switch (trans->get_mode()) {
     case TransparencyAttrib::M_alpha:
-      // M_alpha implies an alpha-write test, so we don't waste time
-      // writing 0-valued pixels.
+    case TransparencyAttrib::M_premultiplied_alpha:
+      // M_alpha implies an alpha-write test, so we don't waste time writing
+      // 0-valued pixels.
       object->_state = object->_state->compose(get_alpha_state());
       check_flash_transparency(object->_state, flash_alpha_color);
       break;
@@ -159,8 +171,8 @@ add_object(CullableObject *object, const CullTraverser *traverser) {
 
     case TransparencyAttrib::M_multisample:
     case TransparencyAttrib::M_multisample_mask:
-      // The multisample modes are implemented using M_binary if the
-      // GSG in use doesn't support multisample.
+      // The multisample modes are implemented using M_binary if the GSG in
+      // use doesn't support multisample.
       if (!_gsg->get_supports_multisample()) {
         object->_state = object->_state->compose(get_binary_state());
       }
@@ -176,18 +188,17 @@ add_object(CullableObject *object, const CullTraverser *traverser) {
         break;
       }
 
-      // M_dual is implemented by drawing the opaque parts first,
-      // without transparency, then drawing the transparent parts
-      // later.  This means we must copy the object and add it to
-      // both bins.  We can only do this if we do not have an
-      // explicit bin already applied; otherwise, M_dual falls back
-      // to M_alpha.
+      // M_dual is implemented by drawing the opaque parts first, without
+      // transparency, then drawing the transparent parts later.  This means
+      // we must copy the object and add it to both bins.  We can only do this
+      // if we do not have an explicit bin already applied; otherwise, M_dual
+      // falls back to M_alpha.
       {
         const CullBinAttrib *bin_attrib;
         if (!object->_state->get_attrib(bin_attrib) ||
             bin_attrib->get_bin_name().empty()) {
-          // We make a copy of the object to draw the transparent part;
-          // this gets placed in the transparent bin.
+          // We make a copy of the object to draw the transparent part; this
+          // gets placed in the transparent bin.
 #ifndef NDEBUG
           if (m_dual_transparent)
 #endif
@@ -200,7 +211,7 @@ add_object(CullableObject *object, const CullTraverser *traverser) {
                    traverser, force)) {
                 int transparent_bin_index = transparent_part->_state->get_bin_index();
                 CullBin *bin = get_bin(transparent_bin_index);
-                nassertv(bin != (CullBin *)NULL);
+                nassertv(bin != nullptr);
                 check_flash_bin(transparent_part->_state, bin_manager, transparent_bin_index);
                 bin->add_object(transparent_part, current_thread);
               } else {
@@ -208,8 +219,8 @@ add_object(CullableObject *object, const CullTraverser *traverser) {
               }
             }
 
-          // Now we can draw the opaque part.  This will end up in
-          // the opaque bin.
+          // Now we can draw the opaque part.  This will end up in the opaque
+          // bin.
           object->_state = object->_state->compose(get_dual_opaque_state());
 #ifndef NDEBUG
           if (!m_dual_opaque) {
@@ -218,8 +229,7 @@ add_object(CullableObject *object, const CullTraverser *traverser) {
           }
 #endif
         }
-        // The object is assigned to a specific bin; M_dual becomes
-        // M_alpha.
+        // The object is assigned to a specific bin; M_dual becomes M_alpha.
       }
       break;
 
@@ -229,81 +239,50 @@ add_object(CullableObject *object, const CullTraverser *traverser) {
     }
   }
 
-  // Check for a special wireframe setting.
-  const RenderModeAttrib *rmode;
-  if (object->_state->get_attrib(rmode)) {
-    if (rmode->get_mode() == RenderModeAttrib::M_filled_wireframe) {
-      CullableObject *wireframe_part = new CullableObject(*object);
-      wireframe_part->_state = get_wireframe_overlay_state(rmode);
-
-      if (wireframe_part->munge_geom
-          (_gsg, _gsg->get_geom_munger(wireframe_part->_state, current_thread),
-           traverser, force)) {
-        int wireframe_bin_index = bin_manager->find_bin("fixed");
-        CullBin *bin = get_bin(wireframe_bin_index);
-        nassertv(bin != (CullBin *)NULL);
-        check_flash_bin(wireframe_part->_state, bin_manager, wireframe_bin_index);
-        bin->add_object(wireframe_part, current_thread);
-      } else {
-        delete wireframe_part;
-      }
-
-      object->_state = object->_state->compose(get_wireframe_filled_state());
-    }
-  }
-
   int bin_index = object->_state->get_bin_index();
   CullBin *bin = get_bin(bin_index);
-  nassertv(bin != (CullBin *)NULL);
+  nassertv(bin != nullptr);
   check_flash_bin(object->_state, bin_manager, bin_index);
 
-  // Munge vertices as needed for the GSG's requirements, and the
-  // object's current state.
+  // Munge vertices as needed for the GSG's requirements, and the object's
+  // current state.
   if (object->munge_geom(_gsg, _gsg->get_geom_munger(object->_state, current_thread), traverser, force)) {
-    // The object may or may not now be fully resident, but this may
-    // not matter, since the GSG may have the necessary buffers
-    // already loaded.  We'll let the GSG ultimately decide whether to
-    // render it.
+    // The object may or may not now be fully resident, but this may not
+    // matter, since the GSG may have the necessary buffers already loaded.
+    // We'll let the GSG ultimately decide whether to render it.
     bin->add_object(object, current_thread);
   } else {
     delete object;
   }
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: CullResult::finish_cull
-//       Access: Published
-//  Description: Called after all the geoms have been added, this
-//               indicates that the cull process is finished for this
-//               frame and gives the bins a chance to do any
-//               post-processing (like sorting) before moving on to
-//               draw.
-////////////////////////////////////////////////////////////////////
+/**
+ * Called after all the geoms have been added, this indicates that the cull
+ * process is finished for this frame and gives the bins a chance to do any
+ * post-processing (like sorting) before moving on to draw.
+ */
 void CullResult::
 finish_cull(SceneSetup *scene_setup, Thread *current_thread) {
   CullBinManager *bin_manager = CullBinManager::get_global_ptr();
 
   for (size_t i = 0; i < _bins.size(); ++i) {
     if (!bin_manager->get_bin_active(i)) {
-      // If the bin isn't active, don't sort it, and don't draw it.
-      // In fact, clear it.
-      _bins[i] = NULL;
+      // If the bin isn't active, don't sort it, and don't draw it.  In fact,
+      // clear it.
+      _bins[i] = nullptr;
 
     } else {
       CullBin *bin = _bins[i];
-      if (bin != (CullBin *)NULL) {
+      if (bin != nullptr) {
         bin->finish_cull(scene_setup, current_thread);
       }
     }
   }
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: CullResult::draw
-//       Access: Published
-//  Description: Asks all the bins to draw themselves in the correct
-//               order.
-////////////////////////////////////////////////////////////////////
+/**
+ * Asks all the bins to draw themselves in the correct order.
+ */
 void CullResult::
 draw(Thread *current_thread) {
   bool force = !_gsg->get_effective_incomplete_render();
@@ -315,28 +294,25 @@ draw(Thread *current_thread) {
     int bin_index = bin_manager->get_bin(i);
     nassertv(bin_index >= 0);
 
-    if (bin_index < (int)_bins.size() && _bins[bin_index] != (CullBin *)NULL) {
+    if (bin_index < (int)_bins.size() && _bins[bin_index] != nullptr) {
+
+      _gsg->push_group_marker(_bins[bin_index]->get_name());
       _bins[bin_index]->draw(force, current_thread);
+      _gsg->pop_group_marker();
     }
   }
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: CullResult::make_result_graph
-//       Access: Published
-//  Description: Returns a special scene graph constructed to
-//               represent the results of the cull.  This will be a
-//               hierarchy of nodes, one node for each bin, each of
-//               which will in term be a parent of a number of
-//               GeomNodes, representing the geometry drawn in each
-//               bin.
-//
-//               This is useful mainly for high-level debugging and
-//               abstraction tools; it should not be mistaken for the
-//               low-level cull result itself.  For the low-level cull
-//               result, use draw() to efficiently draw the culled
-//               scene.
-////////////////////////////////////////////////////////////////////
+/**
+ * Returns a special scene graph constructed to represent the results of the
+ * cull.  This will be a hierarchy of nodes, one node for each bin, each of
+ * which will in term be a parent of a number of GeomNodes, representing the
+ * geometry drawn in each bin.
+ *
+ * This is useful mainly for high-level debugging and abstraction tools; it
+ * should not be mistaken for the low-level cull result itself.  For the low-
+ * level cull result, use draw() to efficiently draw the culled scene.
+ */
 PT(PandaNode) CullResult::
 make_result_graph() {
   PT(PandaNode) root_node = new PandaNode("cull_result");
@@ -346,9 +322,9 @@ make_result_graph() {
   int num_bins = bin_manager->get_num_bins();
   for (int i = 0; i < num_bins; i++) {
     int bin_index = bin_manager->get_bin(i);
-    nassertr(bin_index >= 0, NULL);
+    nassertr(bin_index >= 0, nullptr);
 
-    if (bin_index < (int)_bins.size() && _bins[bin_index] != (CullBin *)NULL) {
+    if (bin_index < (int)_bins.size() && _bins[bin_index] != nullptr) {
       root_node->add_child(_bins[bin_index]->make_result_graph());
     }
   }
@@ -356,26 +332,21 @@ make_result_graph() {
   return root_node;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: CullResult::bin_removed
-//       Access: Public, Static
-//  Description: Intended to be called by
-//               CullBinManager::remove_bin(), this informs all the
-//               CullResults in the world to remove the indicated
-//               bin_index from their cache if it has been cached.
-////////////////////////////////////////////////////////////////////
+/**
+ * Intended to be called by CullBinManager::remove_bin(), this informs all the
+ * CullResults in the world to remove the indicated bin_index from their cache
+ * if it has been cached.
+ */
 void CullResult::
 bin_removed(int bin_index) {
   // Do something here.
   nassertv(false);
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: CullResult::make_new_bin
-//       Access: Private
-//  Description: Allocates a new CullBin for the given bin_index and
-//               stores it for next time.
-////////////////////////////////////////////////////////////////////
+/**
+ * Allocates a new CullBin for the given bin_index and stores it for next
+ * time.
+ */
 CullBin *CullResult::
 make_new_bin(int bin_index) {
   CullBinManager *bin_manager = CullBinManager::get_global_ptr();
@@ -383,26 +354,23 @@ make_new_bin(int bin_index) {
                                               _draw_region_pcollector);
   CullBin *bin_ptr = bin.p();
 
-  if (bin_ptr != (CullBin *)NULL) {
+  if (bin_ptr != nullptr) {
     // Now store it in the vector.
     while (bin_index >= (int)_bins.size()) {
-      _bins.push_back((CullBin *)NULL);
+      _bins.push_back(nullptr);
     }
-    nassertr(bin_index >= 0 && bin_index < (int)_bins.size(), NULL);
+    nassertr(bin_index >= 0 && bin_index < (int)_bins.size(), nullptr);
 
-    // Prevent unnecessary ref/unref by swapping the PointerTos.
-    swap(_bins[bin_index], bin);
+    // Prevent unnecessary refunref by swapping the PointerTos.
+    std::swap(_bins[bin_index], bin);
   }
 
   return bin_ptr;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: CullResult::get_rescale_normal_state
-//       Access: Private
-//  Description: Returns a RenderState containing the given rescale
-//               normal attribute.
-////////////////////////////////////////////////////////////////////
+/**
+ * Returns a RenderState containing the given rescale normal attribute.
+ */
 const RenderState *CullResult::
 get_rescale_normal_state(RescaleNormalAttrib::Mode mode) {
   static CPT(RenderState) states[RescaleNormalAttrib::M_auto + 1];
@@ -413,33 +381,28 @@ get_rescale_normal_state(RescaleNormalAttrib::Mode mode) {
   return states[mode].p();
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: CullResult::get_alpha_state
-//       Access: Private
-//  Description: Returns a RenderState that changes the alpha test to
-//               > 0, for implementing M_alpha.
-////////////////////////////////////////////////////////////////////
+/**
+ * Returns a RenderState that changes the alpha test to > 0, for implementing
+ * M_alpha.
+ */
 const RenderState *CullResult::
 get_alpha_state() {
-  static CPT(RenderState) state = NULL;
-  if (state == (const RenderState *)NULL) {
-    // We don't monkey with the priority, since we want to allow the
-    // user to override this if he desires.
+  static CPT(RenderState) state = nullptr;
+  if (state == nullptr) {
+    // We don't monkey with the priority, since we want to allow the user to
+    // override this if he desires.
     state = RenderState::make(AlphaTestAttrib::make(AlphaTestAttrib::M_greater, 0.0f));
   }
   return state.p();
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: CullResult::get_binary_state
-//       Access: Private
-//  Description: Returns a RenderState that applies the effects of
-//               M_binary.
-////////////////////////////////////////////////////////////////////
+/**
+ * Returns a RenderState that applies the effects of M_binary.
+ */
 const RenderState *CullResult::
 get_binary_state() {
-  static CPT(RenderState) state = NULL;
-  if (state == (const RenderState *)NULL) {
+  static CPT(RenderState) state = nullptr;
+  if (state == nullptr) {
     state = RenderState::make(AlphaTestAttrib::make(AlphaTestAttrib::M_greater_equal, 0.5f),
                               TransparencyAttrib::make(TransparencyAttrib::M_none),
                               RenderState::get_max_priority());
@@ -448,12 +411,9 @@ get_binary_state() {
 }
 
 #ifndef NDEBUG
-////////////////////////////////////////////////////////////////////
-//     Function: CullResult::apply_flash_color
-//       Access: Private
-//  Description: Update the object's state to flash the geometry
-//               with a solid color.
-////////////////////////////////////////////////////////////////////
+/**
+ * Update the object's state to flash the geometry with a solid color.
+ */
 void CullResult::
 apply_flash_color(CPT(RenderState) &state, const LColor &flash_color) {
   int cycle = (int)(ClockObject::get_global_clock()->get_frame_time() * bin_color_flash_rate);
@@ -468,21 +428,19 @@ apply_flash_color(CPT(RenderState) &state, const LColor &flash_color) {
 }
 #endif  // NDEBUG
 
-////////////////////////////////////////////////////////////////////
-//     Function: CullResult::get_dual_transparent_state
-//       Access: Private
-//  Description: Returns a RenderState that renders only the
-//               transparent parts of an object, in support of M_dual.
-////////////////////////////////////////////////////////////////////
+/**
+ * Returns a RenderState that renders only the transparent parts of an object,
+ * in support of M_dual.
+ */
 const RenderState *CullResult::
 get_dual_transparent_state() {
-  static CPT(RenderState) state = NULL;
-  if (state == (const RenderState *)NULL) {
-    // The alpha test for > 0 prevents us from drawing empty pixels,
-    // and hence filling up the depth buffer with large empty spaces
-    // that may obscure other things.  However, this does mean we draw
-    // pixels twice where the alpha == 1.0 (since they were already
-    // drawn in the opaque pass).  This is not normally a problem.
+  static CPT(RenderState) state = nullptr;
+  if (state == nullptr) {
+    // The alpha test for > 0 prevents us from drawing empty pixels, and hence
+    // filling up the depth buffer with large empty spaces that may obscure
+    // other things.  However, this does mean we draw pixels twice where the
+    // alpha == 1.0 (since they were already drawn in the opaque pass).  This
+    // is not normally a problem.
     state = RenderState::make(AlphaTestAttrib::make(AlphaTestAttrib::M_greater, 0.0f),
                               TransparencyAttrib::make(TransparencyAttrib::M_alpha),
                               DepthWriteAttrib::make(DepthWriteAttrib::M_off),
@@ -493,8 +451,8 @@ get_dual_transparent_state() {
   if (m_dual_flash) {
     int cycle = (int)(ClockObject::get_global_clock()->get_frame_time() * bin_color_flash_rate);
     if ((cycle & 1) == 0) {
-      static CPT(RenderState) flash_state = NULL;
-      if (flash_state == (const RenderState *)NULL) {
+      static CPT(RenderState) flash_state = nullptr;
+      if (flash_state == nullptr) {
         flash_state = state->add_attrib(ColorAttrib::make_flat(LColor(0.8f, 0.2, 0.2, 1.0f)),
                                         RenderState::get_max_priority());
 
@@ -512,16 +470,14 @@ get_dual_transparent_state() {
   return state.p();
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: CullResult::get_dual_opaque_state
-//       Access: Private
-//  Description: Returns a RenderState that renders only the
-//               opaque parts of an object, in support of M_dual.
-////////////////////////////////////////////////////////////////////
+/**
+ * Returns a RenderState that renders only the opaque parts of an object, in
+ * support of M_dual.
+ */
 const RenderState *CullResult::
 get_dual_opaque_state() {
-  static CPT(RenderState) state = NULL;
-  if (state == (const RenderState *)NULL) {
+  static CPT(RenderState) state = nullptr;
+  if (state == nullptr) {
     state = RenderState::make(AlphaTestAttrib::make(AlphaTestAttrib::M_greater_equal, dual_opaque_level),
                               TransparencyAttrib::make(TransparencyAttrib::M_none),
                               RenderState::get_max_priority());
@@ -531,8 +487,8 @@ get_dual_opaque_state() {
   if (m_dual_flash) {
     int cycle = (int)(ClockObject::get_global_clock()->get_frame_time() * bin_color_flash_rate);
     if ((cycle & 1) == 0) {
-      static CPT(RenderState) flash_state = NULL;
-      if (flash_state == (const RenderState *)NULL) {
+      static CPT(RenderState) flash_state = nullptr;
+      if (flash_state == nullptr) {
         flash_state = state->add_attrib(ColorAttrib::make_flat(LColor(0.2, 0.2, 0.8f, 1.0f)),
                                         RenderState::get_max_priority());
         flash_state = flash_state->add_attrib(ColorScaleAttrib::make(LVecBase4(1.0f, 1.0f, 1.0f, 1.0f)),
@@ -547,12 +503,10 @@ get_dual_opaque_state() {
   return state.p();
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: CullResult::get_wireframe_filled_state
-//       Access: Private
-//  Description: Returns a RenderState that is composed with the
-//               filled part of an M_filled_wireframe model.
-////////////////////////////////////////////////////////////////////
+/**
+ * Returns a RenderState that is composed with the filled part of an
+ * M_filled_wireframe model.
+ */
 const RenderState *CullResult::
 get_wireframe_filled_state() {
   static CPT(RenderState) state = RenderState::make(
@@ -561,12 +515,10 @@ get_wireframe_filled_state() {
   return state.p();
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: CullResult::get_wireframe_overlay_state
-//       Access: Private
-//  Description: Returns a RenderState that renders only the
-//               wireframe part of an M_filled_wireframe model.
-////////////////////////////////////////////////////////////////////
+/**
+ * Returns a RenderState that renders only the wireframe part of an
+ * M_filled_wireframe model.
+ */
 CPT(RenderState) CullResult::
 get_wireframe_overlay_state(const RenderModeAttrib *rmode) {
   return RenderState::make(
@@ -579,4 +531,3 @@ get_wireframe_overlay_state(const RenderModeAttrib *rmode) {
                            rmode->get_thickness(),
                            rmode->get_perspective()));
 }
-

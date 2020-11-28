@@ -3,6 +3,8 @@
 The FilterManager is a convenience class that helps with the creation
 of render-to-texture buffers for image postprocessing applications.
 
+See :ref:`generalized-image-filters` for information on how to use this class.
+
 Still need to implement:
 
 * Make sure sort-order of buffers is correct.
@@ -22,6 +24,7 @@ from panda3d.core import WindowProperties, FrameBufferProperties
 from panda3d.core import Camera
 from panda3d.core import OrthographicLens
 from panda3d.core import AuxBitplaneAttrib
+from panda3d.core import LightRampAttrib
 from direct.directnotify.DirectNotifyGlobal import *
 from direct.showbase.DirectObject import DirectObject
 
@@ -124,7 +127,7 @@ class FilterManager(DirectObject):
 
         return winx,winy
 
-    def renderSceneInto(self, depthtex=None, colortex=None, auxtex=None, auxbits=0, textures=None):
+    def renderSceneInto(self, depthtex=None, colortex=None, auxtex=None, auxbits=0, textures=None, fbprops=None, clamping=None):
 
         """ Causes the scene to be rendered into the supplied textures
         instead of into the original window.  Puts a fullscreen quad
@@ -185,7 +188,10 @@ class FilterManager(DirectObject):
         # Choose the size of the offscreen buffer.
 
         (winx, winy) = self.getScaledSize(1,1,1)
-        buffer = self.createBuffer("filter-base", winx, winy, texgroup)
+        if fbprops is not None:
+            buffer = self.createBuffer("filter-base", winx, winy, texgroup, fbprops=fbprops)
+        else:
+            buffer = self.createBuffer("filter-base", winx, winy, texgroup)
 
         if (buffer == None):
             return None
@@ -204,6 +210,9 @@ class FilterManager(DirectObject):
         #cs.setShaderAuto()
         if (auxbits):
             cs.setAttrib(AuxBitplaneAttrib.make(auxbits))
+        if clamping is False:
+            # Disables clamping in the shader generator.
+            cs.setAttrib(LightRampAttrib.make_identity())
         self.camera.node().setInitialState(cs.getState())
 
         quadcamnode = Camera("filter-quad-cam")
@@ -236,7 +245,7 @@ class FilterManager(DirectObject):
 
         return quad
 
-    def renderQuadInto(self, mul=1, div=1, align=1, depthtex=None, colortex=None, auxtex0=None, auxtex1=None):
+    def renderQuadInto(self, name="filter-stage", mul=1, div=1, align=1, depthtex=None, colortex=None, auxtex0=None, auxtex1=None, fbprops=None):
 
         """ Creates an offscreen buffer for an intermediate
         computation. Installs a quad into the buffer.  Returns
@@ -250,7 +259,10 @@ class FilterManager(DirectObject):
 
         depthbits = bool(depthtex != None)
 
-        buffer = self.createBuffer("filter-stage", winx, winy, texgroup, depthbits)
+        if fbprops is not None:
+            buffer = self.createBuffer(name, winx, winy, texgroup, depthbits, fbprops=fbprops)
+        else:
+            buffer = self.createBuffer(name, winx, winy, texgroup, depthbits)
 
         if (buffer == None):
             return None
@@ -287,7 +299,7 @@ class FilterManager(DirectObject):
 
         return quad
 
-    def createBuffer(self, name, xsize, ysize, texgroup, depthbits=1):
+    def createBuffer(self, name, xsize, ysize, texgroup, depthbits=1, fbprops=None):
         """ Low-level buffer creation.  Not intended for public use. """
 
         winprops = WindowProperties()
@@ -297,6 +309,9 @@ class FilterManager(DirectObject):
         props.setRgbColor(1)
         props.setDepthBits(depthbits)
         props.setStereo(self.win.isStereo())
+        if fbprops is not None:
+            props.addProperties(fbprops)
+
         depthtex, colortex, auxtex0, auxtex1 = texgroup
         if (auxtex0 != None):
             props.setAuxRgba(1)
@@ -349,3 +364,15 @@ class FilterManager(DirectObject):
         self.nextsort = self.win.getSort() - 1000
         self.basex = 0
         self.basey = 0
+
+    #snake_case alias:
+    is_fullscreen = isFullscreen
+    resize_buffers = resizeBuffers
+    set_stacked_clears = setStackedClears
+    render_scene_into = renderSceneInto
+    get_scaled_size = getScaledSize
+    render_quad_into = renderQuadInto
+    get_clears = getClears
+    set_clears = setClears
+    create_buffer = createBuffer
+    window_event = windowEvent

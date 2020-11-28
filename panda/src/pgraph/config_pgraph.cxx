@@ -1,16 +1,15 @@
-// Filename: config_pgraph.cxx
-// Created by:  drose (21Feb02)
-//
-////////////////////////////////////////////////////////////////////
-//
-// PANDA 3D SOFTWARE
-// Copyright (c) Carnegie Mellon University.  All rights reserved.
-//
-// All use of this software is subject to the terms of the revised BSD
-// license.  You should have received a copy of this license along
-// with this source code in a file named "LICENSE."
-//
-////////////////////////////////////////////////////////////////////
+/**
+ * PANDA 3D SOFTWARE
+ * Copyright (c) Carnegie Mellon University.  All rights reserved.
+ *
+ * All use of this software is subject to the terms of the revised BSD
+ * license.  You should have received a copy of this license along
+ * with this source code in a file named "LICENSE."
+ *
+ * @file config_pgraph.cxx
+ * @author drose
+ * @date 2002-02-21
+ */
 
 #include "config_pgraph.h"
 
@@ -43,6 +42,8 @@
 #include "geomDrawCallbackData.h"
 #include "geomNode.h"
 #include "geomTransformer.h"
+#include "instanceList.h"
+#include "instancedNode.h"
 #include "lensNode.h"
 #include "light.h"
 #include "lightAttrib.h"
@@ -51,6 +52,7 @@
 #include "loaderFileType.h"
 #include "loaderFileTypeBam.h"
 #include "loaderFileTypeRegistry.h"
+#include "logicOpAttrib.h"
 #include "materialAttrib.h"
 #include "modelFlattenRequest.h"
 #include "modelLoadRequest.h"
@@ -78,7 +80,6 @@
 #include "scissorAttrib.h"
 #include "scissorEffect.h"
 #include "shadeModelAttrib.h"
-#include "shaderInput.h"
 #include "shaderAttrib.h"
 #include "shader.h"
 #include "showBoundsEffect.h"
@@ -92,6 +93,10 @@
 #include "transparencyAttrib.h"
 
 #include "dconfig.h"
+
+#if !defined(CPPPARSER) && !defined(LINK_ALL_STATIC) && !defined(BUILDING_PANDA_PGRAPH)
+  #error Buildsystem error: BUILDING_PANDA_PGRAPH not defined
+#endif
 
 ConfigureDef(config_pgraph);
 NotifyCategoryDef(pgraph, "");
@@ -228,7 +233,7 @@ ConfigVariableBool uniquify_states
           "are pointerwise equal.  This may improve caching performance, "
           "but also adds additional overhead to maintain the cache, "
           "including the need to check for a composition cycle in "
-          "the cache."));
+          "the cache.  It is highly recommended to keep this on."));
 
 ConfigVariableBool uniquify_attribs
 ("uniquify-attribs", true,
@@ -370,14 +375,12 @@ ConfigVariableBool allow_live_flatten
           "only has an effect when Panda is not compiled for a release "
           "build."));
 
-////////////////////////////////////////////////////////////////////
-//     Function: init_libpgraph
-//  Description: Initializes the library.  This must be called at
-//               least once before any of the functions or classes in
-//               this library can be used.  Normally it will be
-//               called by the static initializers and need not be
-//               called explicitly, but special cases exist.
-////////////////////////////////////////////////////////////////////
+/**
+ * Initializes the library.  This must be called at least once before any of
+ * the functions or classes in this library can be used.  Normally it will be
+ * called by the static initializers and need not be called explicitly, but
+ * special cases exist.
+ */
 void
 init_libpgraph() {
   static bool initialized = false;
@@ -415,6 +418,8 @@ init_libpgraph() {
   GeomDrawCallbackData::init_type();
   GeomNode::init_type();
   GeomTransformer::init_type();
+  InstanceList::init_type();
+  InstancedNode::init_type();
   LensNode::init_type();
   Light::init_type();
   LightAttrib::init_type();
@@ -422,6 +427,7 @@ init_libpgraph() {
   Loader::init_type();
   LoaderFileType::init_type();
   LoaderFileTypeBam::init_type();
+  LogicOpAttrib::init_type();
   MaterialAttrib::init_type();
   ModelFlattenRequest::init_type();
   ModelLoadRequest::init_type();
@@ -450,7 +456,6 @@ init_libpgraph() {
   ScissorAttrib::init_type();
   ScissorEffect::init_type();
   ShadeModelAttrib::init_type();
-  ShaderInput::init_type();
   ShaderAttrib::init_type();
   ShowBoundsEffect::init_type();
   StateMunger::init_type();
@@ -483,13 +488,17 @@ init_libpgraph() {
   Fog::register_with_read_factory();
   FogAttrib::register_with_read_factory();
   GeomNode::register_with_read_factory();
+  InstanceList::register_with_read_factory();
+  InstancedNode::register_with_read_factory();
   LensNode::register_with_read_factory();
   LightAttrib::register_with_read_factory();
   LightRampAttrib::register_with_read_factory();
+  LogicOpAttrib::register_with_read_factory();
   MaterialAttrib::register_with_read_factory();
   ModelNode::register_with_read_factory();
   ModelRoot::register_with_read_factory();
   PandaNode::register_with_read_factory();
+  ParamNodePath::register_with_read_factory();
   PlaneNode::register_with_read_factory();
   PolylightNode::register_with_read_factory();
   PortalNode::register_with_read_factory();
@@ -502,9 +511,7 @@ init_libpgraph() {
   ScissorAttrib::register_with_read_factory();
   ScissorEffect::register_with_read_factory();
   ShadeModelAttrib::register_with_read_factory();
-  ShaderInput::register_with_read_factory();
   ShaderAttrib::register_with_read_factory();
-  Shader::register_with_read_factory();
   ShowBoundsEffect::register_with_read_factory();
   TexMatrixAttrib::register_with_read_factory();
   TexProjectorEffect::register_with_read_factory();
@@ -513,9 +520,9 @@ init_libpgraph() {
   TransformState::register_with_read_factory();
   TransparencyAttrib::register_with_read_factory();
 
-  // By initializing the _states map up front, we also guarantee that
-  // the _states_lock mutex gets created before we spawn any threads
-  // (assuming no one is creating threads at static init time).
+  // By initializing the _states map up front, we also guarantee that the
+  // _states_lock mutex gets created before we spawn any threads (assuming no
+  // one is creating threads at static init time).
   TransformState::init_states();
   RenderState::init_states();
   RenderEffects::init_states();

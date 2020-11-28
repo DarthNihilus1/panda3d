@@ -1,19 +1,19 @@
-// Filename: config_collide.cxx
-// Created by:  drose (24Apr00)
-//
-////////////////////////////////////////////////////////////////////
-//
-// PANDA 3D SOFTWARE
-// Copyright (c) Carnegie Mellon University.  All rights reserved.
-//
-// All use of this software is subject to the terms of the revised BSD
-// license.  You should have received a copy of this license along
-// with this source code in a file named "LICENSE."
-//
-////////////////////////////////////////////////////////////////////
+/**
+ * PANDA 3D SOFTWARE
+ * Copyright (c) Carnegie Mellon University.  All rights reserved.
+ *
+ * All use of this software is subject to the terms of the revised BSD
+ * license.  You should have received a copy of this license along
+ * with this source code in a file named "LICENSE."
+ *
+ * @file config_collide.cxx
+ * @author drose
+ * @date 2000-04-24
+ */
 
 #include "config_collide.h"
 #include "collisionBox.h"
+#include "collisionCapsule.h"
 #include "collisionEntry.h"
 #include "collisionHandler.h"
 #include "collisionHandlerEvent.h"
@@ -39,9 +39,12 @@
 #include "collisionSolid.h"
 #include "collisionSphere.h"
 #include "collisionTraverser.h"
-#include "collisionTube.h"
 #include "collisionVisualizer.h"
 #include "dconfig.h"
+
+#if !defined(CPPPARSER) && !defined(LINK_ALL_STATIC) && !defined(BUILDING_PANDA_COLLIDE)
+  #error Buildsystem error: BUILDING_PANDA_COLLIDE not defined
+#endif
 
 Configure(config_collide);
 NotifyCategoryDef(collide, "");
@@ -108,14 +111,12 @@ ConfigVariableBool pushers_horizontal
           "set_horizontal() flag by default, false to let the move "
           "in three dimensions by default."));
 
-////////////////////////////////////////////////////////////////////
-//     Function: init_libcollide
-//  Description: Initializes the library.  This must be called at
-//               least once before any of the functions or classes in
-//               this library can be used.  Normally it will be
-//               called by the static initializers and need not be
-//               called explicitly, but special cases exist.
-////////////////////////////////////////////////////////////////////
+/**
+ * Initializes the library.  This must be called at least once before any of
+ * the functions or classes in this library can be used.  Normally it will be
+ * called by the static initializers and need not be called explicitly, but
+ * special cases exist.
+ */
 void
 init_libcollide() {
   static bool initialized = false;
@@ -125,6 +126,7 @@ init_libcollide() {
   initialized = true;
 
   CollisionBox::init_type();
+  CollisionCapsule::init_type();
   CollisionEntry::init_type();
   CollisionHandler::init_type();
   CollisionHandlerEvent::init_type();
@@ -149,14 +151,18 @@ init_libcollide() {
   CollisionSolid::init_type();
   CollisionSphere::init_type();
   CollisionTraverser::init_type();
-  CollisionTube::init_type();
 
 #ifdef DO_COLLISION_RECORDING
   CollisionRecorder::init_type();
   CollisionVisualizer::init_type();
 #endif
 
+  // Record the old name for CollisionCapsule for backwards compatibility.
+  BamWriter::record_obsolete_type_name(CollisionCapsule::get_class_type(),
+                                       "CollisionTube", 6, 44);
+
   CollisionBox::register_with_read_factory();
+  CollisionCapsule::register_with_read_factory();
   CollisionInvSphere::register_with_read_factory();
   CollisionLine::register_with_read_factory();
   CollisionNode::register_with_read_factory();
@@ -167,5 +173,4 @@ init_libcollide() {
   CollisionRay::register_with_read_factory();
   CollisionSegment::register_with_read_factory();
   CollisionSphere::register_with_read_factory();
-  CollisionTube::register_with_read_factory();
 }

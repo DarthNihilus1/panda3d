@@ -1,16 +1,15 @@
-// Filename: androidGraphicsWindow.h
-// Created by:  rdb (11Jan13)
-//
-////////////////////////////////////////////////////////////////////
-//
-// PANDA 3D SOFTWARE
-// Copyright (c) Carnegie Mellon University.  All rights reserved.
-//
-// All use of this software is subject to the terms of the revised BSD
-// license.  You should have received a copy of this license along
-// with this source code in a file named "LICENSE."
-//
-////////////////////////////////////////////////////////////////////
+/**
+ * PANDA 3D SOFTWARE
+ * Copyright (c) Carnegie Mellon University.  All rights reserved.
+ *
+ * All use of this software is subject to the terms of the revised BSD
+ * license.  You should have received a copy of this license along
+ * with this source code in a file named "LICENSE."
+ *
+ * @file androidGraphicsWindow.h
+ * @author rdb
+ * @date 2013-01-11
+ */
 
 #ifndef ANDROIDGRAPHICSWINDOW_H
 #define ANDROIDGRAPHICSWINDOW_H
@@ -28,15 +27,13 @@
 
 struct android_app;
 
-////////////////////////////////////////////////////////////////////
-//       Class : AndroidGraphicsWindow
-// Description : An interface to manage Android windows and their
-//               appropriate EGL surfaces.
-////////////////////////////////////////////////////////////////////
+/**
+ * An interface to manage Android windows and their appropriate EGL surfaces.
+ */
 class AndroidGraphicsWindow : public GraphicsWindow {
 public:
   AndroidGraphicsWindow(GraphicsEngine *engine, GraphicsPipe *pipe,
-                        const string &name,
+                        const std::string &name,
                         const FrameBufferProperties &fb_prop,
                         const WindowProperties &win_prop,
                         int flags,
@@ -74,7 +71,9 @@ private:
   EGLDisplay _egl_display;
   EGLSurface _egl_surface;
 
-  const ARect *rect;
+  int32_t _mouse_button_state;
+
+  GraphicsWindowInputDevice *_input;
 
 public:
   static TypeHandle get_class_type() {

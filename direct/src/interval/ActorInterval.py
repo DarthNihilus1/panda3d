@@ -1,11 +1,15 @@
-"""ActorInterval module: contains the ActorInterval class"""
+"""ActorInterval module: contains the ActorInterval class.
+
+See the :ref:`actor-intervals` page in the programming manual for explanation
+of this class.
+"""
 
 __all__ = ['ActorInterval', 'LerpAnimInterval']
 
 from panda3d.core import *
 from panda3d.direct import *
 from direct.directnotify.DirectNotifyGlobal import *
-import Interval
+from . import Interval
 import math
 
 class ActorInterval(Interval.Interval):
@@ -83,7 +87,7 @@ class ActorInterval(Interval.Interval):
                 if startTime == None:
                     startTime = float(self.startFrame) / float(self.frameRate)
                 endTime = startTime + duration
-                self.endFrame = duration * self.frameRate
+                self.endFrame = endTime * self.frameRate
             else:
                 # No end frame specified.  Choose the maximum of all
                 # of the controls' numbers of frames.

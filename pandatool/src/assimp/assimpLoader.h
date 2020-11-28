@@ -1,16 +1,15 @@
-// Filename: assimpLoader.h
-// Created by:  rdb (29Mar11)
-//
-////////////////////////////////////////////////////////////////////
-//
-// PANDA 3D SOFTWARE
-// Copyright (c) Carnegie Mellon University.  All rights reserved.
-//
-// All use of this software is subject to the terms of the revised BSD
-// license.  You should have received a copy of this license along
-// with this source code in a file named "LICENSE."
-//
-////////////////////////////////////////////////////////////////////
+/**
+ * PANDA 3D SOFTWARE
+ * Copyright (c) Carnegie Mellon University.  All rights reserved.
+ *
+ * All use of this software is subject to the terms of the revised BSD
+ * license.  You should have received a copy of this license along
+ * with this source code in a file named "LICENSE."
+ *
+ * @file assimpLoader.h
+ * @author rdb
+ * @date 2011-03-29
+ */
 
 #ifndef ASSIMPLOADER_H
 #define ASSIMPLOADER_H
@@ -21,8 +20,8 @@
 #include "texture.h"
 #include "pmap.h"
 
-#include "assimp/scene.h"
-#include "assimp/Importer.hpp"
+#include <assimp/scene.h>
+#include <assimp/Importer.hpp>
 
 class Character;
 class CharacterJointBundle;
@@ -36,20 +35,17 @@ struct char_cmp {
   }
 };
 typedef pmap<const char *, const aiNode *, char_cmp> BoneMap;
-typedef pmap<const char *, PT(Character), char_cmp> CharacterMap;
 
-////////////////////////////////////////////////////////////////////
-//       Class : AssimpLoader
-// Description : Class that interfaces with Assimp and builds Panda
-//               nodes to represent the Assimp structures.
-//               The loader should be reusable.
-////////////////////////////////////////////////////////////////////
+/**
+ * Class that interfaces with Assimp and builds Panda nodes to represent the
+ * Assimp structures.  The loader should be reusable.
+ */
 class AssimpLoader : public TypedReferenceCount {
 public:
   AssimpLoader();
   virtual ~AssimpLoader();
 
-  void get_extensions(string &ext) const;
+  void get_extensions(std::string &ext) const;
 
   bool read(const Filename &filename);
   void build_graph();
@@ -70,7 +66,7 @@ private:
   PT(Geom) *_geoms;
   unsigned int *_geom_matindices;
   BoneMap _bonemap;
-  CharacterMap _charmap;
+  PT(Character) *_characters;
 
   const aiNode *find_node(const aiNode &root, const aiString &name);
 
@@ -80,7 +76,7 @@ private:
   void create_joint(Character *character, CharacterJointBundle *bundle, PartGroup *parent, const aiNode &node);
   void create_anim_channel(const aiAnimation &anim, AnimBundle *bundle, AnimGroup *parent, const aiNode &node);
   void load_mesh(size_t index);
-  void load_node(const aiNode &node, PandaNode *parent);
+  bool load_node(const aiNode &node, PandaNode *parent, bool under_joint = false);
   void load_light(const aiLight &light);
 };
 

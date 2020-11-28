@@ -1,16 +1,15 @@
-// Filename: callbackNode.h
-// Created by:  drose (13Mar09)
-//
-////////////////////////////////////////////////////////////////////
-//
-// PANDA 3D SOFTWARE
-// Copyright (c) Carnegie Mellon University.  All rights reserved.
-//
-// All use of this software is subject to the terms of the revised BSD
-// license.  You should have received a copy of this license along
-// with this source code in a file named "LICENSE."
-//
-////////////////////////////////////////////////////////////////////
+/**
+ * PANDA 3D SOFTWARE
+ * Copyright (c) Carnegie Mellon University.  All rights reserved.
+ *
+ * All use of this software is subject to the terms of the revised BSD
+ * license.  You should have received a copy of this license along
+ * with this source code in a file named "LICENSE."
+ *
+ * @file callbackNode.h
+ * @author drose
+ * @date 2009-03-13
+ */
 
 #ifndef CALLBACKNODE_H
 #define CALLBACKNODE_H
@@ -20,14 +19,13 @@
 #include "callbackObject.h"
 #include "pointerTo.h"
 
-////////////////////////////////////////////////////////////////////
-//       Class : CallbackNode
-// Description : A special node that can issue arbitrary callbacks to
-//               user code, either during the cull or draw traversals.
-////////////////////////////////////////////////////////////////////
+/**
+ * A special node that can issue arbitrary callbacks to user code, either
+ * during the cull or draw traversals.
+ */
 class EXPCL_PANDA_PGRAPHNODES CallbackNode : public PandaNode {
 PUBLISHED:
-  CallbackNode(const string &name);
+  explicit CallbackNode(const std::string &name);
 
   INLINE void set_cull_callback(CallbackObject *object);
   INLINE void clear_cull_callback();
@@ -49,7 +47,7 @@ public:
   virtual bool is_renderable() const;
   virtual void add_for_draw(CullTraverser *trav, CullTraverserData &data);
 
-  virtual void output(ostream &out) const;
+  virtual void output(std::ostream &out) const;
 
 private:
   class EXPCL_PANDA_PGRAPHNODES CData : public CycleData {

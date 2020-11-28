@@ -1,16 +1,15 @@
-// Filename: material.cxx
-// Created by:  mike (09Jan97)
-//
-////////////////////////////////////////////////////////////////////
-//
-// PANDA 3D SOFTWARE
-// Copyright (c) Carnegie Mellon University.  All rights reserved.
-//
-// All use of this software is subject to the terms of the revised BSD
-// license.  You should have received a copy of this license along
-// with this source code in a file named "LICENSE."
-//
-////////////////////////////////////////////////////////////////////
+/**
+ * PANDA 3D SOFTWARE
+ * Copyright (c) Carnegie Mellon University.  All rights reserved.
+ *
+ * All use of this software is subject to the terms of the revised BSD
+ * license.  You should have received a copy of this license along
+ * with this source code in a file named "LICENSE."
+ *
+ * @file material.cxx
+ * @author mike
+ * @date 1997-01-09
+ */
 
 #include "pandabase.h"
 #include "material.h"
@@ -23,14 +22,17 @@
 TypeHandle Material::_type_handle;
 PT(Material) Material::_default;
 
-////////////////////////////////////////////////////////////////////
-//     Function: Material::Copy Assignment Operator
-//       Access: Published
-//  Description:
-////////////////////////////////////////////////////////////////////
+/**
+ *
+ */
 void Material::
 operator = (const Material &copy) {
   Namable::operator = (copy);
+
+  if (is_used_by_auto_shader()) {
+    GraphicsStateGuardianBase::mark_rehash_generated_shaders();
+  }
+
   _base_color = copy._base_color;
   _ambient = copy._ambient;
   _diffuse = copy._diffuse;
@@ -40,30 +42,24 @@ operator = (const Material &copy) {
   _roughness = copy._roughness;
   _metallic = copy._metallic;
   _refractive_index = copy._refractive_index;
-  _flags = copy._flags & (~F_attrib_lock);
+  _flags = (copy._flags & ~(F_attrib_lock | F_used_by_auto_shader)) | (_flags & (F_attrib_lock | F_used_by_auto_shader));
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: Material::set_base_color
-//       Access: Published
-//  Description: Specifies the base color of the material.  In
-//               conjunction with set_metallic, this is an alternate
-//               way to specify the color of a material.  For
-//               dielectrics, this will determine the value of the
-//               diffuse color, and for metals, this will determine
-//               the value of the specular color.
-//
-//               Setting this will clear an explicit specular,
-//               diffuse or ambient color assignment.
-//
-//               If this is not set, the object color will be used.
-////////////////////////////////////////////////////////////////////
+/**
+ * Specifies the base color of the material.  In conjunction with
+ * set_metallic, this is an alternate way to specify the color of a material.
+ * For dielectrics, this will determine the value of the diffuse color, and
+ * for metals, this will determine the value of the specular color.
+ *
+ * Setting this will clear an explicit specular, diffuse or ambient color
+ * assignment.
+ *
+ * If this is not set, the object color will be used.
+ */
 void Material::
 set_base_color(const LColor &color) {
-  if (enforce_attrib_lock) {
-    if ((_flags & F_base_color) == 0) {
-      nassertv(!is_attrib_locked());
-    }
+  if (!has_base_color() && is_used_by_auto_shader()) {
+    GraphicsStateGuardianBase::mark_rehash_generated_shaders();
   }
   _base_color = color;
   _flags |= F_base_color | F_metallic;
@@ -83,15 +79,13 @@ set_base_color(const LColor &color) {
   _specular += _base_color * _metallic;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: Material::clear_base_color
-//       Access: Published
-//  Description: Removes the explicit base_color color from the material.
-////////////////////////////////////////////////////////////////////
+/**
+ * Removes the explicit base_color color from the material.
+ */
 void Material::
 clear_base_color() {
-  if (enforce_attrib_lock) {
-    nassertv(!is_attrib_locked());
+  if (has_base_color() && is_used_by_auto_shader()) {
+    GraphicsStateGuardianBase::mark_rehash_generated_shaders();
   }
   _flags &= ~F_base_color;
   _base_color.set(0.0f, 0.0f, 0.0f, 0.0f);
@@ -113,89 +107,72 @@ clear_base_color() {
   }
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: Material::set_ambient
-//       Access: Published
-//  Description: Specifies the ambient color setting of the material.
-//               This will be the multiplied by any ambient lights in
-//               effect on the material to set its base color.
-//
-//               This is the color of the object as it appears in the
-//               absence of direct light.
-//
-//               If this is not set, the object color will be used.
-////////////////////////////////////////////////////////////////////
+/**
+ * Specifies the ambient color setting of the material.  This will be the
+ * multiplied by any ambient lights in effect on the material to set its base
+ * color.
+ *
+ * This is the color of the object as it appears in the absence of direct
+ * light.
+ *
+ * If this is not set, the object color will be used.
+ */
 void Material::
 set_ambient(const LColor &color) {
-  if (enforce_attrib_lock) {
-    if ((_flags & F_ambient)==0) {
-      nassertv(!is_attrib_locked());
-    }
+  if (!has_ambient() && is_used_by_auto_shader()) {
+    GraphicsStateGuardianBase::mark_rehash_generated_shaders();
   }
   _ambient = color;
   _flags |= F_ambient;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: Material::set_diffuse
-//       Access: Published
-//  Description: Specifies the diffuse color setting of the material.
-//               This will be multiplied by any lights in effect on
-//               the material to get the color in the parts of the
-//               object illuminated by the lights.
-//
-//               This is the primary color of an object; the color of
-//               the object as it appears in direct light, in the
-//               absence of highlights.
-//
-//               If this is not set, the object color will be used.
-////////////////////////////////////////////////////////////////////
+/**
+ * Specifies the diffuse color setting of the material.  This will be
+ * multiplied by any lights in effect on the material to get the color in the
+ * parts of the object illuminated by the lights.
+ *
+ * This is the primary color of an object; the color of the object as it
+ * appears in direct light, in the absence of highlights.
+ *
+ * If this is not set, the object color will be used.
+ */
 void Material::
 set_diffuse(const LColor &color) {
-  if (enforce_attrib_lock) {
-    if ((_flags & F_diffuse)==0) {
-      nassertv(!is_attrib_locked());
-    }
+  if (!has_diffuse() && is_used_by_auto_shader()) {
+    GraphicsStateGuardianBase::mark_rehash_generated_shaders();
   }
   _diffuse = color;
   _flags |= F_diffuse;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: Material::set_specular
-//       Access: Published
-//  Description: Specifies the specular color setting of the material.
-//               This will be multiplied by any lights in effect on
-//               the material to compute the color of specular
-//               highlights on the object.
-//
-//               This is the highlight color of an object: the color
-//               of small highlight reflections.
-//
-//               If this is not set, the specular color is taken from
-//               the index of refraction, which is 1 by default
-//               (meaning no specular reflections are generated).
-////////////////////////////////////////////////////////////////////
+/**
+ * Specifies the specular color setting of the material.  This will be
+ * multiplied by any lights in effect on the material to compute the color of
+ * specular highlights on the object.
+ *
+ * This is the highlight color of an object: the color of small highlight
+ * reflections.
+ *
+ * If this is not set, the specular color is taken from the index of
+ * refraction, which is 1 by default (meaning no specular reflections are
+ * generated).
+ */
 void Material::
 set_specular(const LColor &color) {
-  if (enforce_attrib_lock) {
-    if ((_flags & F_specular)==0) {
-      nassertv(!is_attrib_locked());
-    }
+  if (!has_specular() && is_used_by_auto_shader()) {
+    GraphicsStateGuardianBase::mark_rehash_generated_shaders();
   }
   _specular = color;
   _flags |= F_specular;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: Material::clear_specular
-//       Access: Published
-//  Description: Removes the explicit specular color from the material.
-////////////////////////////////////////////////////////////////////
+/**
+ * Removes the explicit specular color from the material.
+ */
 void Material::
 clear_specular() {
-  if (enforce_attrib_lock) {
-    nassertv(!is_attrib_locked());
+  if (has_specular() && is_used_by_auto_shader()) {
+    GraphicsStateGuardianBase::mark_rehash_generated_shaders();
   }
   _flags &= ~F_specular;
 
@@ -210,59 +187,44 @@ clear_specular() {
   _specular += _base_color * _metallic;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: Material::set_emission
-//       Access: Published
-//  Description: Specifies the emission color setting of the material.
-//               This is the color of the object as it appears in the
-//               absence of any light whatsover, including ambient
-//               light.  It is as if the object is glowing by this
-//               color (although of course it will not illuminate
-//               neighboring objects).
-//
-//               If this is not set, the object will not glow by its
-//               own light and will only appear visible in the
-//               presence of one or more lights.
-////////////////////////////////////////////////////////////////////
+/**
+ * Specifies the emission color setting of the material.  This is the color of
+ * the object as it appears in the absence of any light whatsover, including
+ * ambient light.  It is as if the object is glowing by this color (although
+ * of course it will not illuminate neighboring objects).
+ *
+ * If this is not set, the object will not glow by its own light and will only
+ * appear visible in the presence of one or more lights.
+ */
 void Material::
 set_emission(const LColor &color) {
-  if (enforce_attrib_lock) {
-    if ((_flags & F_emission)==0) {
-      nassertv(!is_attrib_locked());
-    }
+  if (!has_emission() && is_used_by_auto_shader()) {
+    GraphicsStateGuardianBase::mark_rehash_generated_shaders();
   }
   _emission = color;
   _flags |= F_emission;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: Material::set_shininess
-//       Access: Published
-//  Description: Sets the shininess exponent of the material.  This
-//               controls the size of the specular highlight spot.  In
-//               general, larger number produce a smaller specular
-//               highlight, which makes the object appear shinier.
-//               Smaller numbers produce a larger highlight, which
-//               makes the object appear less shiny.
-//
-//               This is usually in the range 0..128.
-//
-//               Setting a shininess value removes any previous
-//               roughness assignment.
-////////////////////////////////////////////////////////////////////
+/**
+ * Sets the shininess exponent of the material.  This controls the size of the
+ * specular highlight spot.  In general, larger number produce a smaller
+ * specular highlight, which makes the object appear shinier.  Smaller numbers
+ * produce a larger highlight, which makes the object appear less shiny.
+ *
+ * This is usually in the range 0..128.
+ *
+ * Setting a shininess value removes any previous roughness assignment.
+ */
 void Material::
 set_shininess(PN_stdfloat shininess) {
   _shininess = shininess;
   _flags &= ~F_roughness;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: Material::get_roughness
-//       Access: Published
-//  Description: Returns the roughness previously specified by
-//               set_roughness.  If none was previously set, this
-//               value is computed from the shininess value.
-////////////////////////////////////////////////////////////////////
+/**
+ * Returns the roughness previously specified by set_roughness.  If none was
+ * previously set, this value is computed from the shininess value.
+ */
 PN_stdfloat Material::
 get_roughness() const {
   if ((_flags & F_roughness) == 0) {
@@ -273,27 +235,24 @@ get_roughness() const {
   }
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: Material::set_roughness
-//       Access: Published
-//  Description: Sets the roughness exponent of the material, where
-//               0 is completely shiny (infinite shininess), and
-//               1 is a completely dull object (0 shininess).  This
-//               is a different, more perceptually intuitive way of
-//               controlling the size of the specular spot, and more
-//               commonly used in physically-based rendering.
-//
-//               Setting a roughness recalculates the shininess value.
-////////////////////////////////////////////////////////////////////
+/**
+ * Sets the roughness exponent of the material, where 0 is completely shiny
+ * (infinite shininess), and 1 is a completely dull object (0 shininess).
+ * This is a different, more perceptually intuitive way of controlling the
+ * size of the specular spot, and more commonly used in physically-based
+ * rendering.
+ *
+ * Setting a roughness recalculates the shininess value.
+ */
 void Material::
 set_roughness(PN_stdfloat roughness) {
   _roughness = roughness;
   _flags |= F_roughness;
 
-  // Calculate the specular exponent from the roughness as it is used
-  // in Blinn-Phong shading model.  We use the popular Disney method
-  // of squaring the roughness to get a more perceptually linear scale.
-  // From: http://graphicrants.blogspot.de/2013/08/specular-brdf-reference.html
+  // Calculate the specular exponent from the roughness as it is used in
+  // Blinn-Phong shading model.  We use the popular Disney method of squaring
+  // the roughness to get a more perceptually linear scale.  From:
+  // http://graphicrants.blogspot.de/2013/08/specular-brdf-reference.html
   if (roughness <= 0 || IS_NEARLY_ZERO(roughness)) {
     _shininess = make_inf((PN_stdfloat)0);
   } else {
@@ -302,24 +261,15 @@ set_roughness(PN_stdfloat roughness) {
   }
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: Material::set_metallic
-//       Access: Published
-//  Description: Sets the metallic setting of the material, which is
-//               is used for physically-based rendering models.
-//               This is usually 0 for dielectric materials and 1
-//               for metals.  It really does not make sense to set
-//               this to a value other than 0 or 1, but it is
-//               nonetheless a float for compatibility with tools
-//               that allow setting this to values other than 0 or 1.
-////////////////////////////////////////////////////////////////////
+/**
+ * Sets the metallic setting of the material, which is is used for physically-
+ * based rendering models.  This is usually 0 for dielectric materials and 1
+ * for metals.  It really does not make sense to set this to a value other
+ * than 0 or 1, but it is nonetheless a float for compatibility with tools
+ * that allow setting this to values other than 0 or 1.
+ */
 void Material::
 set_metallic(PN_stdfloat metallic) {
-  if (enforce_attrib_lock) {
-    if ((_flags & F_metallic) == 0) {
-      nassertv(!is_attrib_locked());
-    }
-  }
   _metallic = metallic;
   _flags |= F_metallic;
 
@@ -340,16 +290,11 @@ set_metallic(PN_stdfloat metallic) {
   }
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: Material::clear_metallic
-//       Access: Published
-//  Description: Removes the explicit metallic setting from the material.
-////////////////////////////////////////////////////////////////////
+/**
+ * Removes the explicit metallic setting from the material.
+ */
 void Material::
 clear_metallic() {
-  if (enforce_attrib_lock) {
-    nassertv(!is_attrib_locked());
-  }
   _flags &= ~F_metallic;
   _metallic = 0;
 
@@ -370,18 +315,14 @@ clear_metallic() {
   }
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: Material::set_refractive_index
-//       Access: Published
-//  Description: Sets the index of refraction of the material, which
-//               is used to determine the specular color in absence
-//               of an explicit specular color assignment.
-//               This is usually 1.5 for dielectric materials.  It
-//               is not very useful for metals, since they cannot
-//               be described as easily with a single number.
-//
-//               Should be 1 or higher.  The default is 1.
-////////////////////////////////////////////////////////////////////
+/**
+ * Sets the index of refraction of the material, which is used to determine
+ * the specular color in absence of an explicit specular color assignment.
+ * This is usually 1.5 for dielectric materials.  It is not very useful for
+ * metals, since they cannot be described as easily with a single number.
+ *
+ * Should be 1 or higher.  The default is 1.
+ */
 void Material::
 set_refractive_index(PN_stdfloat refractive_index) {
   _refractive_index = refractive_index;
@@ -398,15 +339,12 @@ set_refractive_index(PN_stdfloat refractive_index) {
   }
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: Material::compare_to
-//       Access: Published
-//  Description: Returns a number less than zero if this material
-//               sorts before the other one, greater than zero if it
-//               sorts after, or zero if they are equivalent.  The
-//               sorting order is arbitrary and largely meaningless,
-//               except to differentiate different materials.
-////////////////////////////////////////////////////////////////////
+/**
+ * Returns a number less than zero if this material sorts before the other
+ * one, greater than zero if it sorts after, or zero if they are equivalent.
+ * The sorting order is arbitrary and largely meaningless, except to
+ * differentiate different materials.
+ */
 int Material::
 compare_to(const Material &other) const {
   if (_flags != other._flags) {
@@ -440,13 +378,11 @@ compare_to(const Material &other) const {
   return strcmp(get_name().c_str(), other.get_name().c_str());
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: Material::output
-//       Access: Published
-//  Description:
-////////////////////////////////////////////////////////////////////
+/**
+ *
+ */
 void Material::
-output(ostream &out) const {
+output(std::ostream &out) const {
   out << "Material " << get_name();
   if (has_base_color()) {
     out << " c(" << get_base_color() << ")";
@@ -479,16 +415,14 @@ output(ostream &out) const {
       << " t" << get_twoside();
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: Material::write
-//       Access: Published
-//  Description:
-////////////////////////////////////////////////////////////////////
+/**
+ *
+ */
 void Material::
-write(ostream &out, int indent_level) const {
+write(std::ostream &out, int indent_level) const {
   indent(out, indent_level) << "Material " << get_name() << "\n";
   if (has_base_color()) {
-    indent(out, indent_level + 2) << "base_color = " << get_ambient() << "\n";
+    indent(out, indent_level + 2) << "base_color = " << get_base_color() << "\n";
   }
   if (has_ambient()) {
     indent(out, indent_level + 2) << "ambient = " << get_ambient() << "\n";
@@ -518,53 +452,56 @@ write(ostream &out, int indent_level) const {
 
 
 
-////////////////////////////////////////////////////////////////////
-//     Function: Material::register_with_read_factory
-//       Access: Public, Static
-//  Description: Factory method to generate a Material object
-////////////////////////////////////////////////////////////////////
+/**
+ * Factory method to generate a Material object
+ */
 void Material::
 register_with_read_factory() {
   BamReader::get_factory()->register_factory(get_class_type(), make_Material);
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: Material::write_datagram
-//       Access: Public
-//  Description: Function to write the important information in
-//               the particular object to a Datagram
-////////////////////////////////////////////////////////////////////
+/**
+ * Function to write the important information in the particular object to a
+ * Datagram
+ */
 void Material::
 write_datagram(BamWriter *manager, Datagram &me) {
   me.add_string(get_name());
 
-  me.add_int32(_flags);
+  if (manager->get_file_minor_ver() >= 39) {
+    me.add_int32(_flags & ~F_used_by_auto_shader);
 
-  if (_flags & F_metallic) {
-    // Metalness workflow.
-    _base_color.write_datagram(me);
-    me.add_stdfloat(_metallic);
+    if (_flags & F_metallic) {
+      // Metalness workflow.
+      _base_color.write_datagram(me);
+      me.add_stdfloat(_metallic);
+    } else {
+      _ambient.write_datagram(me);
+      _diffuse.write_datagram(me);
+      _specular.write_datagram(me);
+    }
+    _emission.write_datagram(me);
+
+    if (_flags & F_roughness) {
+      me.add_stdfloat(_roughness);
+    } else {
+      me.add_stdfloat(_shininess);
+    }
+
+    me.add_stdfloat(_refractive_index);
   } else {
     _ambient.write_datagram(me);
     _diffuse.write_datagram(me);
     _specular.write_datagram(me);
-  }
-  _emission.write_datagram(me);
-
-  if (_flags & F_roughness) {
-    me.add_stdfloat(_roughness);
-  } else {
+    _emission.write_datagram(me);
     me.add_stdfloat(_shininess);
+    me.add_int32(_flags & 0x7f);
   }
-
-  me.add_stdfloat(_refractive_index);
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: Material::make_Material
-//       Access: Protected
-//  Description: Factory method to generate a Material object
-////////////////////////////////////////////////////////////////////
+/**
+ * Factory method to generate a Material object
+ */
 TypedWritable *Material::
 make_Material(const FactoryParams &params) {
   Material *me = new Material;
@@ -576,14 +513,11 @@ make_Material(const FactoryParams &params) {
   return me;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: Material::fillin
-//       Access: Protected
-//  Description: Function that reads out of the datagram (or asks
-//               manager to read) all of the data that is needed to
-//               re-create this object and stores it in the appropiate
-//               place
-////////////////////////////////////////////////////////////////////
+/**
+ * Function that reads out of the datagram (or asks manager to read) all of
+ * the data that is needed to re-create this object and stores it in the
+ * appropiate place
+ */
 void Material::
 fillin(DatagramIterator &scan, BamReader *manager) {
   set_name(scan.get_string());
@@ -610,6 +544,11 @@ fillin(DatagramIterator &scan, BamReader *manager) {
     }
     _refractive_index = scan.get_stdfloat();
 
+    if ((_flags & (F_base_color | F_metallic)) == (F_base_color | F_metallic)) {
+      // Compute the ambient, diffuse and specular settings.
+      set_base_color(_base_color);
+    }
+
   } else {
     _ambient.read_datagram(scan);
     _diffuse.read_datagram(scan);
@@ -622,5 +561,9 @@ fillin(DatagramIterator &scan, BamReader *manager) {
       // The shininess we read is actually a roughness value.
       set_roughness(_shininess);
     }
+  }
+
+  if (is_used_by_auto_shader()) {
+    GraphicsStateGuardianBase::mark_rehash_generated_shaders();
   }
 }

@@ -1,63 +1,54 @@
-// Filename: baseIntegrator.cxx
-// Created by:  charles (11Aug00)
-//
-////////////////////////////////////////////////////////////////////
-//
-// PANDA 3D SOFTWARE
-// Copyright (c) Carnegie Mellon University.  All rights reserved.
-//
-// All use of this software is subject to the terms of the revised BSD
-// license.  You should have received a copy of this license along
-// with this source code in a file named "LICENSE."
-//
-////////////////////////////////////////////////////////////////////
+/**
+ * PANDA 3D SOFTWARE
+ * Copyright (c) Carnegie Mellon University.  All rights reserved.
+ *
+ * All use of this software is subject to the terms of the revised BSD
+ * license.  You should have received a copy of this license along
+ * with this source code in a file named "LICENSE."
+ *
+ * @file baseIntegrator.cxx
+ * @author charles
+ * @date 2000-08-11
+ */
 
 #include "baseIntegrator.h"
 #include "physicalNode.h"
 #include "forceNode.h"
 #include "nodePath.h"
 
-////////////////////////////////////////////////////////////////////
-//    Function : BaseIntegrator
-//      Access : protected
-// Description : constructor
-////////////////////////////////////////////////////////////////////
+using std::ostream;
+
+/**
+ * constructor
+ */
 BaseIntegrator::
 BaseIntegrator() {
 }
 
-////////////////////////////////////////////////////////////////////
-//    Function : ~BaseIntegrator
-//      Access : public, virtual
-// Description : destructor
-////////////////////////////////////////////////////////////////////
+/**
+ * destructor
+ */
 BaseIntegrator::
 ~BaseIntegrator() {
 }
 
-////////////////////////////////////////////////////////////////////
-//    Function : precompute_linear_matrices
-//      Access : protected
-// Description : effectively caches the xform matrices between
-//               the physical's node and every force acting on it
-//               so that each PhysicsObject in the set held by the
-//               Physical doesn't have to wrt.
-////////////////////////////////////////////////////////////////////
+/**
+ * effectively caches the xform matrices between the physical's node and every
+ * force acting on it so that each PhysicsObject in the set held by the
+ * Physical doesn't have to wrt.
+ */
 void BaseIntegrator::
 precompute_linear_matrices(Physical *physical,
                            const LinearForceVector &forces) {
   nassertv(physical);
   // make sure the physical's in the scene graph, somewhere.
-  PhysicalNode *physical_node = physical->get_physical_node();
-  nassertv(physical_node);
+  nassertv(physical->get_physical_node() != nullptr);
 
   // by global forces, we mean forces not contained in the physical
-  int global_force_vec_size = forces.size();
+  size_t global_force_vec_size = forces.size();
 
   // by local forces, we mean members of the physical's force set.
-  int local_force_vec_size = physical->get_linear_forces().size();
-
-  ForceNode *force_node;
+  size_t local_force_vec_size = physical->get_linear_forces().size();
 
   // prepare the vector
   _precomputed_linear_matrices.clear();
@@ -70,9 +61,8 @@ precompute_linear_matrices(Physical *physical,
   // tally the global xforms
   LinearForceVector::const_iterator fi;
   for (fi = forces.begin(); fi != forces.end(); ++fi) {
-    //LinearForce *cur_force = *fi;
-    force_node = (*fi)->get_force_node();
-    nassertv(force_node != (ForceNode *) NULL);
+    // LinearForce *cur_force = *fi;
+    nassertv((*fi)->get_force_node() != nullptr);
 
     NodePath force_np = (*fi)->get_force_node_path();
     _precomputed_linear_matrices.push_back(
@@ -82,8 +72,7 @@ precompute_linear_matrices(Physical *physical,
   // tally the local xforms
   const LinearForceVector &force_vector = physical->get_linear_forces();
   for (fi = force_vector.begin(); fi != force_vector.end(); ++fi) {
-    force_node = (*fi)->get_force_node();
-    nassertv(force_node != (ForceNode *) NULL);
+    nassertv((*fi)->get_force_node() != nullptr);
 
     NodePath force_np = (*fi)->get_force_node_path();
     _precomputed_linear_matrices.push_back(
@@ -91,29 +80,23 @@ precompute_linear_matrices(Physical *physical,
   }
 }
 
-////////////////////////////////////////////////////////////////////
-//    Function : precompute_angular_matrices
-//      Access : protected
-// Description : effectively caches the xform matrices between
-//               the physical's node and every force acting on it
-//               so that each PhysicsObject in the set held by the
-//               Physical doesn't have to wrt.
-////////////////////////////////////////////////////////////////////
+/**
+ * effectively caches the xform matrices between the physical's node and every
+ * force acting on it so that each PhysicsObject in the set held by the
+ * Physical doesn't have to wrt.
+ */
 void BaseIntegrator::
 precompute_angular_matrices(Physical *physical,
                             const AngularForceVector &forces) {
   nassertv(physical);
   // make sure the physical's in the scene graph, somewhere.
-  PhysicalNode *physical_node = physical->get_physical_node();
-  nassertv(physical_node != NULL);
+  nassertv(physical->get_physical_node() != nullptr);
 
   // by global forces, we mean forces not contained in the physical
-  int global_force_vec_size = forces.size();
+  size_t global_force_vec_size = forces.size();
 
   // by local forces, we mean members of the physical's force set.
-  int local_force_vec_size = physical->get_angular_forces().size();
-
-  ForceNode *force_node;
+  size_t local_force_vec_size = physical->get_angular_forces().size();
 
   // prepare the vector
   _precomputed_angular_matrices.clear();
@@ -126,8 +109,7 @@ precompute_angular_matrices(Physical *physical,
   // tally the global xforms
   AngularForceVector::const_iterator fi;
   for (fi = forces.begin(); fi != forces.end(); ++fi) {
-    force_node = (*fi)->get_force_node();
-    nassertv(force_node != (ForceNode *) NULL);
+    nassertv((*fi)->get_force_node() != nullptr);
 
     NodePath force_np = (*fi)->get_force_node_path();
     _precomputed_angular_matrices.push_back(
@@ -137,8 +119,7 @@ precompute_angular_matrices(Physical *physical,
   // tally the local xforms
   const AngularForceVector &force_vector = physical->get_angular_forces();
   for (fi = force_vector.begin(); fi != force_vector.end(); ++fi) {
-    force_node = (*fi)->get_force_node();
-    nassertv(force_node != (ForceNode *) NULL);
+    nassertv((*fi)->get_force_node() != nullptr);
 
     NodePath force_np = (*fi)->get_force_node_path();
     _precomputed_angular_matrices.push_back(
@@ -146,12 +127,9 @@ precompute_angular_matrices(Physical *physical,
   }
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function : output
-//       Access : Public
-//  Description : Write a string representation of this instance to
-//                <out>.
-////////////////////////////////////////////////////////////////////
+/**
+ * Write a string representation of this instance to <out>.
+ */
 void BaseIntegrator::
 output(ostream &out) const {
   #ifndef NDEBUG //[
@@ -159,14 +137,11 @@ output(ostream &out) const {
   #endif //] NDEBUG
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function : write_precomputed_linear_matrices
-//       Access : Public
-//  Description : Write a string representation of this instance to
-//                <out>.
-////////////////////////////////////////////////////////////////////
+/**
+ * Write a string representation of this instance to <out>.
+ */
 void BaseIntegrator::
-write_precomputed_linear_matrices(ostream &out, unsigned int indent) const {
+write_precomputed_linear_matrices(ostream &out, int indent) const {
   #ifndef NDEBUG //[
   out.width(indent);
   out<<""<<"_precomputed_linear_matrices\n";
@@ -178,14 +153,11 @@ write_precomputed_linear_matrices(ostream &out, unsigned int indent) const {
   #endif //] NDEBUG
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function : write_precomputed_angular_matrices
-//       Access : Public
-//  Description : Write a string representation of this instance to
-//                <out>.
-////////////////////////////////////////////////////////////////////
+/**
+ * Write a string representation of this instance to <out>.
+ */
 void BaseIntegrator::
-write_precomputed_angular_matrices(ostream &out, unsigned int indent) const {
+write_precomputed_angular_matrices(ostream &out, int indent) const {
   #ifndef NDEBUG //[
   out.width(indent);
   out<<""<<"_precomputed_angular_matrices\n";
@@ -197,14 +169,11 @@ write_precomputed_angular_matrices(ostream &out, unsigned int indent) const {
   #endif //] NDEBUG
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function : write
-//       Access : Public
-//  Description : Write a string representation of this instance to
-//                <out>.
-////////////////////////////////////////////////////////////////////
+/**
+ * Write a string representation of this instance to <out>.
+ */
 void BaseIntegrator::
-write(ostream &out, unsigned int indent) const {
+write(ostream &out, int indent) const {
   #ifndef NDEBUG //[
   out.width(indent); out<<""; out<<"BaseIntegrator:\n";
   write_precomputed_linear_matrices(out, indent+2);

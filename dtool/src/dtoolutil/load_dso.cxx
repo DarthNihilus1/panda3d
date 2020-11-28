@@ -1,26 +1,26 @@
-// Filename: load_dso.cxx
-// Created by:  drose (12May00)
-//
-////////////////////////////////////////////////////////////////////
-//
-// PANDA 3D SOFTWARE
-// Copyright (c) Carnegie Mellon University.  All rights reserved.
-//
-// All use of this software is subject to the terms of the revised BSD
-// license.  You should have received a copy of this license along
-// with this source code in a file named "LICENSE."
-//
-////////////////////////////////////////////////////////////////////
+/**
+ * PANDA 3D SOFTWARE
+ * Copyright (c) Carnegie Mellon University.  All rights reserved.
+ *
+ * All use of this software is subject to the terms of the revised BSD
+ * license.  You should have received a copy of this license along
+ * with this source code in a file named "LICENSE."
+ *
+ * @file load_dso.cxx
+ * @author drose
+ * @date 2000-05-12
+ */
 
 #include "load_dso.h"
 #include "executionEnvironment.h"
 
+using std::string;
+
 static Filename resolve_dso(const DSearchPath &path, const Filename &filename) {
   if (filename.is_local()) {
     if ((path.get_num_directories()==1)&&(path.get_directory(0)=="<auto>")) {
-      // This is a special case, meaning to search in the same
-      // directory in which libp3dtool.dll, or the exe, was started
-      // from.
+      // This is a special case, meaning to search in the same directory in
+      // which libp3dtool.dll, or the exe, was started from.
       Filename dtoolpath = ExecutionEnvironment::get_dtool_name();
       DSearchPath spath(dtoolpath.get_dirname());
       return spath.find_file(filename);
@@ -32,38 +32,25 @@ static Filename resolve_dso(const DSearchPath &path, const Filename &filename) {
   }
 }
 
-#if defined(WIN32)
+#if defined(_WIN32)
 /* begin Win32-specific code */
 
 #define WINDOWS_LEAN_AND_MEAN
 #include <windows.h>
 #undef WINDOWS_LEAN_AND_MEAN
 
-// Loads in a dynamic library like an .so or .dll.  Returns NULL if
-// failure, otherwise on success.  If the filename is not absolute,
-// searches the path.  If the path is empty, searches the dtool
-// directory.
+// Loads in a dynamic library like an .so or .dll.  Returns NULL if failure,
+// otherwise on success.  If the filename is not absolute, searches the path.
+// If the path is empty, searches the dtool directory.
 
 void *
 load_dso(const DSearchPath &path, const Filename &filename) {
   Filename abspath = resolve_dso(path, filename);
   if (!abspath.is_regular_file()) {
-    return NULL;
+    return nullptr;
   }
-  string os_specific = abspath.to_os_specific();
-  
-  // Try using LoadLibraryEx, if possible.
-  typedef HMODULE (WINAPI *tLoadLibraryEx)(LPCTSTR, HANDLE, DWORD);
-  tLoadLibraryEx pLoadLibraryEx;
-  HINSTANCE hLib = LoadLibrary("kernel32.dll");
-  if (hLib) {
-    pLoadLibraryEx = (tLoadLibraryEx)GetProcAddress(hLib, "LoadLibraryExA");
-    if (pLoadLibraryEx) {
-      return pLoadLibraryEx(os_specific.c_str(), NULL, LOAD_WITH_ALTERED_SEARCH_PATH);
-    }
-  }
-  
-  return LoadLibrary(os_specific.c_str());
+  std::wstring os_specific_w = abspath.to_os_specific_w();
+  return LoadLibraryExW(os_specific_w.c_str(), nullptr, LOAD_WITH_ALTERED_SEARCH_PATH);
 }
 
 bool
@@ -107,7 +94,7 @@ load_dso_error() {
   }
 
   // Some unknown error code.
-  ostringstream errmsg;
+  std::ostringstream errmsg;
   errmsg << "Unknown error " << last_error;
   return errmsg.str();
 }
@@ -133,7 +120,10 @@ void *
 load_dso(const DSearchPath &path, const Filename &filename) {
   Filename abspath = resolve_dso(path, filename);
   if (!abspath.is_regular_file()) {
-    return NULL;
+    // Make sure the error flag is cleared, to prevent a subsequent call to
+    // load_dso_error() from returning a previously stored error.
+    dlerror();
+    return nullptr;
   }
   string os_specific = abspath.to_os_specific();
   return dlopen(os_specific.c_str(), RTLD_NOW | RTLD_GLOBAL);
@@ -147,7 +137,7 @@ unload_dso(void *dso_handle) {
 string
 load_dso_error() {
    const char *message = dlerror();
-   if (message != (const char *)NULL) {
+   if (message != nullptr) {
     return std::string(message);
   }
   return "No error.";

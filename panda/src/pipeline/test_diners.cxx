@@ -1,16 +1,15 @@
-// Filename: test_diners.cxx
-// Created by:  cary (16Sep98)
-//
-////////////////////////////////////////////////////////////////////
-//
-// PANDA 3D SOFTWARE
-// Copyright (c) Carnegie Mellon University.  All rights reserved.
-//
-// All use of this software is subject to the terms of the revised BSD
-// license.  You should have received a copy of this license along
-// with this source code in a file named "LICENSE."
-//
-////////////////////////////////////////////////////////////////////
+/**
+ * PANDA 3D SOFTWARE
+ * Copyright (c) Carnegie Mellon University.  All rights reserved.
+ *
+ * All use of this software is subject to the terms of the revised BSD
+ * license.  You should have received a copy of this license along
+ * with this source code in a file named "LICENSE."
+ *
+ * @file test_diners.cxx
+ * @author cary
+ * @date 1998-09-16
+ */
 
 // A solution to the famous dining philosophers, implemented using the
 // threading abstraction.  This program exercises thread creation and
@@ -25,10 +24,11 @@
 #include "trueClock.h"
 #include "pstrtod.h"
 
-#ifdef WIN32_VC
-// Under Windows, the rand() function seems to return a sequence
-// per-thread, so we use this trick to set each thread to a different
-// seed.
+using std::cerr;
+
+#ifdef _WIN32
+// Under Windows, the rand() function seems to return a sequence per-thread,
+// so we use this trick to set each thread to a different seed.
 static int last_rand = 0;
 #endif /* __WIN32__ */
 
@@ -38,13 +38,13 @@ static double random_f(double max)
 {
   MutexHolder l(rand_mutex);
   int i = rand();
-#ifdef WIN32_VC
+#ifdef _WIN32
   last_rand = i;
 #endif /* __WIN32__ */
   return max * (double)i / (double)RAND_MAX;
 }
 
-#define PRINTMSG(x) { MutexHolder l(Mutex::_notify_mutex); x << flush; }
+#define PRINTMSG(x) { MutexHolder l(Mutex::_notify_mutex); x << std::flush; }
 
 // n philosophers sharing n chopsticks.  Philosophers are poor folk and can't
 // afford luxuries like 2 chopsticks per person.
@@ -52,7 +52,7 @@ static double random_f(double max)
 
 class ChopstickMutex : public Mutex {
 public:
-  void output(ostream &out) const {
+  void output(std::ostream &out) const {
     out << "chopstick " << _n;
   }
   int _n;
@@ -61,9 +61,8 @@ public:
 
 ChopstickMutex chopsticks[N_DINERS];
 
-// At most n philosophers are allowed into the room, others would have to
-// wait at the door.  This restriction demonstrates the use of condition
-// variables.
+// At most n philosophers are allowed into the room, others would have to wait
+// at the door.  This restriction demonstrates the use of condition variables.
 
 Mutex room_mutex;
 
@@ -77,7 +76,7 @@ class philosopher : public Thread {
 private:
   int _id;
   void thread_main() {
-#ifdef WIN32_VC
+#ifdef _WIN32
     rand_mutex.acquire();
     srand(last_rand);
     rand_mutex.release();
@@ -124,7 +123,7 @@ public:
     _id = id;
   }
 
-  virtual void output(ostream &out) const {
+  virtual void output(std::ostream &out) const {
     out << "philosopher " << _id;
   }
 };
@@ -184,7 +183,7 @@ main(int argc, char *argv[]) {
 
   while (room_occupancy != 0) {
     room_condition.wait();
-  }  
+  }
 
   room_mutex.release();
 

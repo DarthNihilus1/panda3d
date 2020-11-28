@@ -1,16 +1,15 @@
-// Filename: test_bamWrite.cxx
-// Created by:  jason (09Jun00)
-//
-////////////////////////////////////////////////////////////////////
-//
-// PANDA 3D SOFTWARE
-// Copyright (c) Carnegie Mellon University.  All rights reserved.
-//
-// All use of this software is subject to the terms of the revised BSD
-// license.  You should have received a copy of this license along
-// with this source code in a file named "LICENSE."
-//
-////////////////////////////////////////////////////////////////////
+/**
+ * PANDA 3D SOFTWARE
+ * Copyright (c) Carnegie Mellon University.  All rights reserved.
+ *
+ * All use of this software is subject to the terms of the revised BSD
+ * license.  You should have received a copy of this license along
+ * with this source code in a file named "LICENSE."
+ *
+ * @file test_bamWrite.cxx
+ * @author jason
+ * @date 2000-06-09
+ */
 
 #include "pandabase.h"
 #include "pnotify.h"
@@ -20,7 +19,7 @@
 
 int main(int argc, char* argv[])
 {
-   string test_file("bamTest.out");
+   std::string test_file("bamTest.out");
    DatagramOutputFile stream;
    bool success = stream.open(test_file);
    nassertr(success, 1);
@@ -32,7 +31,7 @@ int main(int argc, char* argv[])
    PointerTo<Child> bro = new Child("Bob", Person::MALE);
    PointerTo<Child> sis = new Child("Mary Poppins", Person::FEMALE);
 
-   //Set up relationships
+   // Set up relationships
    dad->setSon(bro.p());
    dad->setDaughter(sis.p());
 
@@ -57,4 +56,3 @@ int main(int argc, char* argv[])
    stream.close();
    return 0;
 }
-

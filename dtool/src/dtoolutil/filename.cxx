@@ -1,16 +1,15 @@
-// Filename: filename.cxx
-// Created by:  drose (18Jan99)
-//
-////////////////////////////////////////////////////////////////////
-//
-// PANDA 3D SOFTWARE
-// Copyright (c) Carnegie Mellon University.  All rights reserved.
-//
-// All use of this software is subject to the terms of the revised BSD
-// license.  You should have received a copy of this license along
-// with this source code in a file named "LICENSE."
-//
-////////////////////////////////////////////////////////////////////
+/**
+ * PANDA 3D SOFTWARE
+ * Copyright (c) Carnegie Mellon University.  All rights reserved.
+ *
+ * All use of this software is subject to the terms of the revised BSD
+ * license.  You should have received a copy of this license along
+ * with this source code in a file named "LICENSE."
+ *
+ * @file filename.cxx
+ * @author drose
+ * @date 1999-01-18
+ */
 
 #include "filename.h"
 #include "filename_assist.h"
@@ -43,11 +42,21 @@
 #include <dirent.h>
 #endif
 
-// It's true that dtoolbase.h includes this already, but we include
-// this again in case we are building this file within ppremake.
+// It's true that dtoolbase.h includes this already, but we include this again
+// in case we are building this file within ppremake.
 #ifdef PHAVE_UNISTD_H
 #include <unistd.h>
 #endif
+
+#if defined(__ANDROID__) && !defined(PHAVE_LOCKF)
+// Needed for flock.
+#include <sys/file.h>
+#endif
+
+using std::cerr;
+using std::ios;
+using std::string;
+using std::wstring;
 
 TextEncoder::Encoding Filename::_filesystem_encoding = TextEncoder::E_utf8;
 
@@ -61,15 +70,13 @@ TypeHandle Filename::_type_handle;
 string Filename::_internal_data_dir;
 #endif
 
-#ifdef WIN32
+#ifdef _WIN32
 /* begin Win32-specific code */
 
-#ifdef WIN32_VC
 #include <direct.h>
 #include <windows.h>
 #include <shlobj.h>
 #include <io.h>
-#endif
 
 // The MSVC 6.0 Win32 SDK lacks the following definitions, so we define them
 // here for compatibility.
@@ -77,39 +84,39 @@ string Filename::_internal_data_dir;
 #define FILE_ATTRIBUTE_DEVICE 0x00000040
 #endif
 
-// We might have been linked with the Cygwin dll.  This is ideal if it
-// is available, because it allows Panda to access all the Cygwin
-// mount definitions if they are in use.  If the Cygwin dll is not
-// available, we fall back to our own convention for converting
-// pathnames.
+// We might have been linked with the Cygwin dll.  This is ideal if it is
+// available, because it allows Panda to access all the Cygwin mount
+// definitions if they are in use.  If the Cygwin dll is not available, we
+// fall back to our own convention for converting pathnames.
 #ifdef HAVE_CYGWIN
 extern "C" void cygwin_conv_to_win32_path(const char *path, char *win32);
 extern "C" void cygwin_conv_to_posix_path(const char *path, char *posix);
 #endif
 
-// Windows uses the convention \\hostname\path\to\file to represent a
-// pathname to a file on another share.  This redefines a pathname to
-// be something more complicated than a sequence of directory names
-// separated by slashes.  The Unix convention to represent the same
-// thing is, like everything else, to graft the reference to the
-// remote hostname into the one global filesystem, with something like
-// /hosts/hostname/path/to/file.  We observe the Unix convention for
-// internal names used in Panda; this makes operations like
-// Filename::get_dirname() simpler and more internally consistent.
+/*
+ * Windows uses the convention \\hostname\path\to\file to represent a pathname
+ * to a file on another share.  This redefines a pathname to be something more
+ * complicated than a sequence of directory names separated by slashes.  The
+ * Unix convention to represent the same thing is, like everything else, to
+ * graft the reference to the remote hostname into the one global filesystem,
+ * with something like hostshostnamepathtofile.  We observe the Unix
+ * convention for internal names used in Panda; this makes operations like
+ * Filename::get_dirname() simpler and more internally consistent.
+ */
 
-// This string hard-defines the prefix that we use internally to
-// indicate that the next directory component name should be treated
-// as a hostname.  It might be nice to use a ConfigVariable for this,
-// except that we haven't defined ConfigVariable by this point (and
-// indeed we can't, since we need to have a Filename class already
-// created in order to read the first config file).  Windows purists
-// might be tempted to define this to a double slash so that internal
-// Panda filenames more closely resemble their Windows counterparts.
-// That might actually work, but it will cause problems with
-// Filename::standardize().
+/*
+ * This string hard-defines the prefix that we use internally to indicate that
+ * the next directory component name should be treated as a hostname.  It
+ * might be nice to use a ConfigVariable for this, except that we haven't
+ * defined ConfigVariable by this point (and indeed we can't, since we need to
+ * have a Filename class already created in order to read the first config
+ * file).  Windows purists might be tempted to define this to a double slash
+ * so that internal Panda filenames more closely resemble their Windows
+ * counterparts.  That might actually work, but it will cause problems with
+ * Filename::standardize().
+ */
 
-// We use const char * instead of string to avoid static-init ordering
-// issues.
+// We use const char * instead of string to avoid static-init ordering issues.
 static const char *hosts_prefix = "/hosts/";
 static size_t hosts_prefix_length = 7;
 
@@ -141,19 +148,19 @@ back_to_front_slash(const string &str) {
 
 static const string &
 get_panda_root() {
-  static string *panda_root = NULL;
+  static string *panda_root = nullptr;
 
-  if (panda_root == NULL) {
+  if (panda_root == nullptr) {
     panda_root = new string;
     const char *envvar = getenv("PANDA_ROOT");
-    if (envvar != (const char *)NULL) {
+    if (envvar != nullptr) {
       (*panda_root) = front_to_back_slash(envvar);
     }
 
-    // Ensure the string ends in a backslash.  If PANDA_ROOT is empty
-    // or undefined, this function must return a single backslash--not
-    // an empty string--since this prefix is used to replace a leading
-    // slash in Filename::to_os_specific().
+    // Ensure the string ends in a backslash.  If PANDA_ROOT is empty or
+    // undefined, this function must return a single backslash--not an empty
+    // string--since this prefix is used to replace a leading slash in
+    // Filename::to_os_specific().
     if ((*panda_root).empty() || (*panda_root)[(*panda_root).length() - 1] != '\\') {
       (*panda_root) += '\\';
     }
@@ -168,54 +175,51 @@ convert_pathname(const string &unix_style_pathname) {
     return string();
   }
 
-  // To convert from a Unix-style pathname to a Windows-style
-  // pathname, we need to change all forward slashes to backslashes.
-  // We might need to add a prefix as well, since Windows pathnames
-  // typically begin with a drive letter.
+  // To convert from a Unix-style pathname to a Windows-style pathname, we
+  // need to change all forward slashes to backslashes.  We might need to add
+  // a prefix as well, since Windows pathnames typically begin with a drive
+  // letter.
 
-  // By convention, if the top directory name consists of just one
-  // letter, we treat that as a drive letter and map the rest of the
-  // filename accordingly.  On the other hand, if the top directory
-  // name consists of more than one letter, we assume this is a file
-  // within some predefined tree whose root is given by the
-  // environment variable "PANDA_ROOT", or if that is not defined,
-  // "CYGWIN_ROOT" (for backward compatibility).
+  // By convention, if the top directory name consists of just one letter, we
+  // treat that as a drive letter and map the rest of the filename
+  // accordingly.  On the other hand, if the top directory name consists of
+  // more than one letter, we assume this is a file within some predefined
+  // tree whose root is given by the environment variable "PANDA_ROOT", or if
+  // that is not defined, "CYGWIN_ROOT" (for backward compatibility).
   string windows_pathname;
 
   if (unix_style_pathname[0] != '/') {
-    // It doesn't even start from the root, so we don't have to do
-    // anything fancy--relative pathnames are the same in Windows as
-    // in Unix, except for the direction of the slashes.
+    // It doesn't even start from the root, so we don't have to do anything
+    // fancy--relative pathnames are the same in Windows as in Unix, except
+    // for the direction of the slashes.
     windows_pathname = front_to_back_slash(unix_style_pathname);
 
   } else if (unix_style_pathname.length() >= 2 &&
              isalpha(unix_style_pathname[1]) &&
              (unix_style_pathname.length() == 2 || unix_style_pathname[2] == '/')) {
-    // This pathname begins with a slash and a single letter.  That
-    // must be the drive letter.
+    // This pathname begins with a slash and a single letter.  That must be
+    // the drive letter.
 
     string remainder = unix_style_pathname.substr(2);
     if (remainder.empty()) {
-      // There's a difference between "C:" and "C:/".
+      // There's a difference between "C:" and "C:".
       remainder = "/";
     }
     remainder = front_to_back_slash(remainder);
 
     // We have to cast the result of toupper() to (char) to help some
-    // compilers (e.g. Cygwin's gcc 2.95.3) happy; so that they do not
-    // confuse this string constructor with one that takes two
-    // iterators.
+    // compilers (e.g.  Cygwin's gcc 2.95.3) happy; so that they do not
+    // confuse this string constructor with one that takes two iterators.
     windows_pathname =
       string(1, (char)toupper(unix_style_pathname[1])) + ":" + remainder;
 
   } else if (unix_style_pathname.length() > hosts_prefix_length &&
              unix_style_pathname.substr(0, hosts_prefix_length) == hosts_prefix) {
-    // A filename like /hosts/fooby gets turned into \\fooby.
+    // A filename like hostsfooby gets turned into \\fooby.
     windows_pathname = "\\\\" + front_to_back_slash(unix_style_pathname.substr(hosts_prefix_length));
-    
+
   } else {
-    // It starts with a slash, but the first part is not a single
-    // letter.
+    // It starts with a slash, but the first part is not a single letter.
 
 #ifdef HAVE_CYGWIN
     // Use Cygwin to convert it if possible.
@@ -251,16 +255,15 @@ convert_dso_pathname(const string &unix_style_pathname) {
   string dll_basename = unix_style_pathname.substr(0, dot);
 
 #ifdef _DEBUG
-  // If we're building a debug version, all the dso files we link in
-  // must be named file_d.dll.  This does prohibit us from linking in
-  // external dso files, generated outside of the Panda build system,
-  // that don't follow this _d convention.  Maybe we need a separate
+  // If we're building a debug version, all the dso files we link in must be
+  // named file_d.dll.  This does prohibit us from linking in external dso
+  // files, generated outside of the Panda build system, that don't follow
+  // this _d convention.  Maybe we need a separate
   // convert_system_dso_pathname() function.
 
-  // We can't simply check to see if the file exists, because this
-  // might not be a full path to the dso filename--it might be
-  // somewhere on the LD_LIBRARY_PATH, or on PATH, or any of a number
-  // of nutty places.
+  // We can't simply check to see if the file exists, because this might not
+  // be a full path to the dso filename--it might be somewhere on the
+  // LD_LIBRARY_PATH, or on PATH, or any of a number of nutty places.
 
   return convert_pathname(dll_basename + "_d.dll");
 #else
@@ -284,15 +287,12 @@ convert_executable_pathname(const string &unix_style_pathname) {
 
   return convert_pathname(unix_style_pathname);
 }
-#endif //WIN32
+#endif // _WIN32
 
-////////////////////////////////////////////////////////////////////
-//     Function: Filename::Constructor
-//       Access: Published
-//  Description: This constructor composes the filename out of a
-//               directory part and a basename part.  It will insert
-//               an intervening '/' if necessary.
-////////////////////////////////////////////////////////////////////
+/**
+ * This constructor composes the filename out of a directory part and a
+ * basename part.  It will insert an intervening '/' if necessary.
+ */
 Filename::
 Filename(const Filename &dirname, const Filename &basename) {
   if (dirname.empty()) {
@@ -308,34 +308,28 @@ Filename(const Filename &dirname, const Filename &basename) {
   }
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: Filename::from_os_specific
-//       Access: Published, Static
-//  Description: This named constructor returns a Panda-style filename
-//               (that is, using forward slashes, and no drive letter)
-//               based on the supplied filename string that describes
-//               a filename in the local system conventions (for
-//               instance, on Windows, it may use backslashes or begin
-//               with a drive letter and a colon).
-//
-//               Use this function to create a Filename from an
-//               externally-given filename string.  Use
-//               to_os_specific() again later to reconvert it back to
-//               the local operating system's conventions.
-//
-//               This function will do the right thing even if the
-//               filename is partially local conventions and partially
-//               Panda conventions; e.g. some backslashes and some
-//               forward slashes.
-////////////////////////////////////////////////////////////////////
+/**
+ * This named constructor returns a Panda-style filename (that is, using
+ * forward slashes, and no drive letter) based on the supplied filename string
+ * that describes a filename in the local system conventions (for instance, on
+ * Windows, it may use backslashes or begin with a drive letter and a colon).
+ *
+ * Use this function to create a Filename from an externally-given filename
+ * string.  Use to_os_specific() again later to reconvert it back to the local
+ * operating system's conventions.
+ *
+ * This function will do the right thing even if the filename is partially
+ * local conventions and partially Panda conventions; e.g.  some backslashes
+ * and some forward slashes.
+ */
 Filename Filename::
 from_os_specific(const string &os_specific, Filename::Type type) {
-#ifdef WIN32
+#ifdef _WIN32
   string result = back_to_front_slash(os_specific);
   const string &panda_root = get_panda_root();
 
   // If the initial prefix is the same as panda_root, remove it.
-  if (!panda_root.empty() && panda_root != string("\\") && 
+  if (!panda_root.empty() && panda_root != string("\\") &&
       panda_root.length() < result.length()) {
     bool matches = true;
     size_t p;
@@ -348,8 +342,8 @@ from_os_specific(const string &os_specific, Filename::Type type) {
     }
 
     if (matches) {
-      // The initial prefix matches!  Replace the initial bit with a
-      // leading slash.
+      // The initial prefix matches!  Replace the initial bit with a leading
+      // slash.
       result = result.substr(panda_root.length());
       assert(!result.empty());
       if (result[0] != '/') {
@@ -361,42 +355,39 @@ from_os_specific(const string &os_specific, Filename::Type type) {
     }
   }
 
-  // All right, the initial prefix was not under panda_root.  But
-  // maybe it begins with a drive letter.
+  // All right, the initial prefix was not under panda_root.  But maybe it
+  // begins with a drive letter.
   if (result.size() >= 3 && isalpha(result[0]) &&
       result[1] == ':' && result[2] == '/') {
     result[1] = tolower(result[0]);
     result[0] = '/';
 
-    // If there's *just* a slash following the drive letter, go ahead
-    // and trim it.
+    // If there's *just* a slash following the drive letter, go ahead and trim
+    // it.
     if (result.size() == 3) {
       result = result.substr(0, 2);
     }
 
   } else if (result.substr(0, 2) == "//") {
-    // If the initial prefix is a double slash, convert it to /hosts/.
+    // If the initial prefix is a double slash, convert it to hosts.
     result = hosts_prefix + result.substr(2);
   }
 
   Filename filename(result);
   filename.set_type(type);
   return filename;
-#else  // WIN32
+#else  // _WIN32
   // Generic Unix-style filenames--no conversion necessary.
   Filename filename(os_specific);
   filename.set_type(type);
   return filename;
-#endif  // WIN32
+#endif  // _WIN32
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: Filename::from_os_specific_w
-//       Access: Published, Static
-//  Description: The wide-string variant of from_os_specific().
-//               Returns a new Filename, converted from an os-specific
-//               wide-character string.
-////////////////////////////////////////////////////////////////////
+/**
+ * The wide-string variant of from_os_specific(). Returns a new Filename,
+ * converted from an os-specific wide-character string.
+ */
 Filename Filename::
 from_os_specific_w(const wstring &os_specific, Filename::Type type) {
   TextEncoder encoder;
@@ -405,15 +396,11 @@ from_os_specific_w(const wstring &os_specific, Filename::Type type) {
   return from_os_specific(encoder.get_text(), type);
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: Filename::expand_from
-//       Access: Published, Static
-//  Description: Returns the same thing as from_os_specific(), but
-//               embedded environment variable references
-//               (e.g. "$DMODELS/foo.txt") are expanded out.  It also
-//               automatically elevates the file to its true case if
-//               needed.
-////////////////////////////////////////////////////////////////////
+/**
+ * Returns the same thing as from_os_specific(), but embedded environment
+ * variable references (e.g.  "$DMODELS/foo.txt") are expanded out.  It also
+ * automatically elevates the file to its true case if needed.
+ */
 Filename Filename::
 expand_from(const string &os_specific, Filename::Type type) {
   Filename file = from_os_specific(ExecutionEnvironment::expand_string(os_specific),
@@ -422,53 +409,57 @@ expand_from(const string &os_specific, Filename::Type type) {
   return file;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: Filename::temporary
-//       Access: Published, Static
-//  Description: Generates a temporary filename within the indicated
-//               directory, using the indicated prefix.  If the
-//               directory is empty, a system-defined directory is
-//               chosen instead.
-//
-//               The generated filename did not exist when the
-//               Filename checked, but since it does not specifically
-//               create the file, it is possible that another process
-//               could simultaneously create a file by the same name.
-////////////////////////////////////////////////////////////////////
+/**
+ * Generates a temporary filename within the indicated directory, using the
+ * indicated prefix.  If the directory is empty, a system-defined directory is
+ * chosen instead.
+ *
+ * The generated filename did not exist when the Filename checked, but since
+ * it does not specifically create the file, it is possible that another
+ * process could simultaneously create a file by the same name.
+ */
 Filename Filename::
 temporary(const string &dirname, const string &prefix, const string &suffix,
           Type type) {
   Filename fdirname = dirname;
 #if defined(_WIN32) || defined(ANDROID)
-  // The Windows tempnam() function doesn't do a good job of choosing
-  // a temporary directory.  Choose one ourselves.
+  // The Windows tempnam() function doesn't do a good job of choosing a
+  // temporary directory.  Choose one ourselves.
   if (fdirname.empty()) {
     fdirname = Filename::get_temp_directory();
   }
 #endif
 
   if (fdirname.empty()) {
-    // If we are not given a dirname, use the system tempnam()
-    // function to create a system-defined temporary filename.
-    char *name = tempnam(NULL, prefix.c_str());
+    // If we are not given a dirname, use the system tempnam() function to
+    // create a system-defined temporary filename.
+#ifdef _MSC_VER
+    char *name = _tempnam(nullptr, prefix.c_str());
+#else
+    char *name = tempnam(nullptr, prefix.c_str());
+#endif
     Filename result = Filename::from_os_specific(name);
     free(name);
     result.set_type(type);
     return result;
   }
 
-  // If we *are* given a dirname, then use our own algorithm to make
-  // up a filename within that dirname.  We do that because the system
-  // tempnam() (for instance, under Windows) may ignore the dirname.
+  // If we *are* given a dirname, then use our own algorithm to make up a
+  // filename within that dirname.  We do that because the system tempnam()
+  // (for instance, under Windows) may ignore the dirname.
 
   Filename result;
   do {
-    // We take the time of day and multiply it by the process time.
-    // This will give us a very large number, of which we take the
-    // bottom 24 bits and generate a 6-character hex code.
-    int hash = (clock() * time(NULL)) & 0xffffff;
+    // We take the time of day and multiply it by the process time.  This will
+    // give us a very large number, of which we take the bottom 24 bits and
+    // generate a 6-character hex code.
+    int hash = (clock() * time(nullptr)) & 0xffffff;
     char hex_code[10];
-    sprintf(hex_code, "%06x", hash);
+#ifdef _WIN32
+    sprintf_s(hex_code, 10, "%06x", hash);
+#else
+    snprintf(hex_code, 10, "%06x", hash);
+#endif
     result = Filename(fdirname, Filename(prefix + hex_code + suffix));
     result.set_type(type);
   } while (result.exists());
@@ -476,22 +467,19 @@ temporary(const string &dirname, const string &prefix, const string &suffix,
   return result;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: Filename::get_home_directory
-//       Access: Published
-//  Description: Returns a path to the user's home directory, if such
-//               a thing makes sense in the current OS, or to the
-//               nearest equivalent.  This may or may not be directly
-//               writable by the application.
-////////////////////////////////////////////////////////////////////
+/**
+ * Returns a path to the user's home directory, if such a thing makes sense in
+ * the current OS, or to the nearest equivalent.  This may or may not be
+ * directly writable by the application.
+ */
 const Filename &Filename::
 get_home_directory() {
-  if (AtomicAdjust::get_ptr(_home_directory) == NULL) {
+  if (AtomicAdjust::get_ptr(_home_directory) == nullptr) {
     Filename home_directory;
 
     // In all environments, check $HOME first.
     char *home = getenv("HOME");
-    if (home != (char *)NULL) {
+    if (home != nullptr) {
       Filename dirname = from_os_specific(home);
       if (dirname.is_directory()) {
         if (dirname.make_canonical()) {
@@ -501,11 +489,11 @@ get_home_directory() {
     }
 
     if (home_directory.empty()) {
-#ifdef WIN32
+#ifdef _WIN32
       wchar_t buffer[MAX_PATH];
 
       // On Windows, fall back to the "My Documents" folder.
-      if (SHGetSpecialFolderPathW(NULL, buffer, CSIDL_PERSONAL, true)) {
+      if (SHGetSpecialFolderPathW(nullptr, buffer, CSIDL_PERSONAL, true)) {
         Filename dirname = from_os_specific_w(buffer);
         if (dirname.is_directory()) {
           if (dirname.make_canonical()) {
@@ -525,9 +513,9 @@ get_home_directory() {
       home_directory = _internal_data_dir;
 
 #else
-      // Posix case: check /etc/passwd?
+      // Posix case: check etcpasswd?
 
-#endif  // WIN32
+#endif  // _WIN32
     }
 
     if (home_directory.empty()) {
@@ -536,9 +524,9 @@ get_home_directory() {
     }
 
     Filename *newdir = new Filename(home_directory);
-    if (AtomicAdjust::compare_and_exchange_ptr(_home_directory, NULL, newdir) != NULL) {
+    if (AtomicAdjust::compare_and_exchange_ptr(_home_directory, nullptr, newdir) != nullptr) {
       // Didn't store it.  Must have been stored by someone else.
-      assert(_home_directory != NULL);
+      assert(_home_directory != nullptr);
       delete newdir;
     }
   }
@@ -546,18 +534,15 @@ get_home_directory() {
   return (*(Filename *)_home_directory);
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: Filename::get_temp_directory
-//       Access: Published
-//  Description: Returns a path to a system-defined temporary
-//               directory.
-////////////////////////////////////////////////////////////////////
+/**
+ * Returns a path to a system-defined temporary directory.
+ */
 const Filename &Filename::
 get_temp_directory() {
-  if (AtomicAdjust::get_ptr(_temp_directory) == NULL) {
+  if (AtomicAdjust::get_ptr(_temp_directory) == nullptr) {
     Filename temp_directory;
 
-#ifdef WIN32
+#ifdef _WIN32
     static const size_t buffer_size = 4096;
     wchar_t buffer[buffer_size];
     if (GetTempPathW(buffer_size, buffer) != 0) {
@@ -579,7 +564,7 @@ get_temp_directory() {
 #else
     // Posix case.
     temp_directory = "/tmp";
-#endif  // WIN32
+#endif  // _WIN32
 
     if (temp_directory.empty()) {
       // Fallback case.
@@ -587,9 +572,9 @@ get_temp_directory() {
     }
 
     Filename *newdir = new Filename(temp_directory);
-    if (AtomicAdjust::compare_and_exchange_ptr(_temp_directory, NULL, newdir) != NULL) {
+    if (AtomicAdjust::compare_and_exchange_ptr(_temp_directory, nullptr, newdir) != nullptr) {
       // Didn't store it.  Must have been stored by someone else.
-      assert(_temp_directory != NULL);
+      assert(_temp_directory != nullptr);
       delete newdir;
     }
   }
@@ -597,23 +582,20 @@ get_temp_directory() {
   return (*(Filename *)_temp_directory);
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: Filename::get_user_appdata_directory
-//       Access: Published
-//  Description: Returns a path to a system-defined directory
-//               appropriate for creating a subdirectory for storing
-//               application-specific data, specific to the current
-//               user.
-////////////////////////////////////////////////////////////////////
+/**
+ * Returns a path to a system-defined directory appropriate for creating a
+ * subdirectory for storing application-specific data, specific to the current
+ * user.
+ */
 const Filename &Filename::
 get_user_appdata_directory() {
-  if (AtomicAdjust::get_ptr(_user_appdata_directory) == NULL) {
+  if (AtomicAdjust::get_ptr(_user_appdata_directory) == nullptr) {
     Filename user_appdata_directory;
 
-#ifdef WIN32
+#ifdef _WIN32
     wchar_t buffer[MAX_PATH];
 
-    if (SHGetSpecialFolderPathW(NULL, buffer, CSIDL_LOCAL_APPDATA, true)) {
+    if (SHGetSpecialFolderPathW(nullptr, buffer, CSIDL_LOCAL_APPDATA, true)) {
       Filename dirname = from_os_specific_w(buffer);
       if (dirname.is_directory()) {
         if (dirname.make_canonical()) {
@@ -630,10 +612,16 @@ get_user_appdata_directory() {
     user_appdata_directory.set_basename("files");
 
 #else
-    // Posix case.
-    user_appdata_directory = get_home_directory();
+    // Posix case.  We follow the XDG base directory spec.
+    struct stat st;
+    const char *datadir = getenv("XDG_DATA_HOME");
+    if (datadir != nullptr && stat(datadir, &st) == 0 && S_ISDIR(st.st_mode)) {
+      user_appdata_directory = datadir;
+    } else {
+      user_appdata_directory = Filename(get_home_directory(), ".local/share");
+    }
 
-#endif  // WIN32
+#endif  // _WIN32
 
     if (user_appdata_directory.empty()) {
       // Fallback case.
@@ -641,9 +629,9 @@ get_user_appdata_directory() {
     }
 
     Filename *newdir = new Filename(user_appdata_directory);
-    if (AtomicAdjust::compare_and_exchange_ptr(_user_appdata_directory, NULL, newdir) != NULL) {
+    if (AtomicAdjust::compare_and_exchange_ptr(_user_appdata_directory, nullptr, newdir) != nullptr) {
       // Didn't store it.  Must have been stored by someone else.
-      assert(_user_appdata_directory != NULL);
+      assert(_user_appdata_directory != nullptr);
       delete newdir;
     }
   }
@@ -651,22 +639,19 @@ get_user_appdata_directory() {
   return (*(Filename *)_user_appdata_directory);
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: Filename::get_common_appdata_directory
-//       Access: Published
-//  Description: Returns a path to a system-defined directory
-//               appropriate for creating a subdirectory for storing
-//               application-specific data, common to all users.
-////////////////////////////////////////////////////////////////////
+/**
+ * Returns a path to a system-defined directory appropriate for creating a
+ * subdirectory for storing application-specific data, common to all users.
+ */
 const Filename &Filename::
 get_common_appdata_directory() {
-  if (AtomicAdjust::get_ptr(_common_appdata_directory) == NULL) {
+  if (AtomicAdjust::get_ptr(_common_appdata_directory) == nullptr) {
     Filename common_appdata_directory;
 
-#ifdef WIN32
+#ifdef _WIN32
     wchar_t buffer[MAX_PATH];
 
-    if (SHGetSpecialFolderPathW(NULL, buffer, CSIDL_COMMON_APPDATA, true)) {
+    if (SHGetSpecialFolderPathW(nullptr, buffer, CSIDL_COMMON_APPDATA, true)) {
       Filename dirname = from_os_specific_w(buffer);
       if (dirname.is_directory()) {
         if (dirname.make_canonical()) {
@@ -682,10 +667,11 @@ get_common_appdata_directory() {
     common_appdata_directory.set_dirname(_internal_data_dir);
     common_appdata_directory.set_basename("files");
 
+#elif defined(__FreeBSD__)
+    common_appdata_directory = "/usr/local/share";
 #else
-    // Posix case.
-    common_appdata_directory = "/var";
-#endif  // WIN32
+    common_appdata_directory = "/usr/share";
+#endif  // _WIN32
 
     if (common_appdata_directory.empty()) {
       // Fallback case.
@@ -693,9 +679,9 @@ get_common_appdata_directory() {
     }
 
     Filename *newdir = new Filename(common_appdata_directory);
-    if (AtomicAdjust::compare_and_exchange_ptr(_common_appdata_directory, NULL, newdir) != NULL) {
+    if (AtomicAdjust::compare_and_exchange_ptr(_common_appdata_directory, nullptr, newdir) != nullptr) {
       // Didn't store it.  Must have been stored by someone else.
-      assert(_common_appdata_directory != NULL);
+      assert(_common_appdata_directory != nullptr);
       delete newdir;
     }
   }
@@ -703,25 +689,19 @@ get_common_appdata_directory() {
   return (*(Filename *)_common_appdata_directory);
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: Filename::set_fullpath
-//       Access: Published
-//  Description: Replaces the entire filename: directory, basename,
-//               extension.  This can also be achieved with the
-//               assignment operator.
-////////////////////////////////////////////////////////////////////
+/**
+ * Replaces the entire filename: directory, basename, extension.  This can
+ * also be achieved with the assignment operator.
+ */
 void Filename::
 set_fullpath(const string &s) {
   (*this) = s;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: Filename::set_dirname
-//       Access: Published
-//  Description: Replaces the directory part of the filename.  This is
-//               everything in the filename up to, but not including
-//               the rightmost slash.
-////////////////////////////////////////////////////////////////////
+/**
+ * Replaces the directory part of the filename.  This is everything in the
+ * filename up to, but not including the rightmost slash.
+ */
 void Filename::
 set_dirname(const string &s) {
   if (s.empty()) {
@@ -752,8 +732,8 @@ set_dirname(const string &s) {
 
     _dirname_end = ss.length() - 1;
 
-    // An exception: if the dirname string was the single slash, the
-    // dirname includes that slash.
+    // An exception: if the dirname string was the single slash, the dirname
+    // includes that slash.
     if (ss.length() == 1) {
       _dirname_end = 1;
     }
@@ -768,13 +748,10 @@ set_dirname(const string &s) {
   locate_hash();
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: Filename::set_basename
-//       Access: Published
-//  Description: Replaces the basename part of the filename.  This is
-//               everything in the filename after the rightmost slash,
-//               including any extensions.
-////////////////////////////////////////////////////////////////////
+/**
+ * Replaces the basename part of the filename.  This is everything in the
+ * filename after the rightmost slash, including any extensions.
+ */
 void Filename::
 set_basename(const string &s) {
   _filename.replace(_basename_start, string::npos, s);
@@ -783,12 +760,10 @@ set_basename(const string &s) {
 }
 
 
-////////////////////////////////////////////////////////////////////
-//     Function: Filename::set_fullpath_wo_extension
-//       Access: Published
-//  Description: Replaces the full filename--directory and basename
-//               parts--except for the extension.
-////////////////////////////////////////////////////////////////////
+/**
+ * Replaces the full filename--directory and basename parts--except for the
+ * extension.
+ */
 void Filename::
 set_fullpath_wo_extension(const string &s) {
   int length_change = (int)s.length() - (int)_basename_end;
@@ -803,12 +778,9 @@ set_fullpath_wo_extension(const string &s) {
 }
 
 
-////////////////////////////////////////////////////////////////////
-//     Function: Filename::set_basename_wo_extension
-//       Access: Published
-//  Description: Replaces the basename part of the filename, without
-//               the file extension.
-////////////////////////////////////////////////////////////////////
+/**
+ * Replaces the basename part of the filename, without the file extension.
+ */
 void Filename::
 set_basename_wo_extension(const string &s) {
   int length_change = (int)s.length() - (int)(_basename_end - _basename_start);
@@ -826,13 +798,10 @@ set_basename_wo_extension(const string &s) {
 }
 
 
-////////////////////////////////////////////////////////////////////
-//     Function: Filename::set_extension
-//       Access: Published
-//  Description: Replaces the file extension.  This is everything after
-//               the rightmost dot, if there is one, or the empty
-//               string if there is not.
-////////////////////////////////////////////////////////////////////
+/**
+ * Replaces the file extension.  This is everything after the rightmost dot,
+ * if there is one, or the empty string if there is not.
+ */
 void Filename::
 set_extension(const string &s) {
   if (s.empty()) {
@@ -856,27 +825,23 @@ set_extension(const string &s) {
   locate_hash();
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: Filename::get_filename_index
-//       Access: Published
-//  Description: If the pattern flag is set for this Filename and the
-//               filename string actually includes a sequence of hash
-//               marks, then this returns a new Filename with the
-//               sequence of hash marks replaced by the indicated
-//               index number.
-//
-//               If the pattern flag is not set for this Filename or
-//               it does not contain a sequence of hash marks, this
-//               quietly returns the original filename.
-////////////////////////////////////////////////////////////////////
+/**
+ * If the pattern flag is set for this Filename and the filename string
+ * actually includes a sequence of hash marks, then this returns a new
+ * Filename with the sequence of hash marks replaced by the indicated index
+ * number.
+ *
+ * If the pattern flag is not set for this Filename or it does not contain a
+ * sequence of hash marks, this quietly returns the original filename.
+ */
 Filename Filename::
 get_filename_index(int index) const {
   Filename file(*this);
 
   if (_hash_end != _hash_start) {
-    ostringstream strm;
+    std::ostringstream strm;
     strm << _filename.substr(0, _hash_start)
-         << setw((int)(_hash_end - _hash_start)) << setfill('0') << index
+         << std::setw((int)(_hash_end - _hash_start)) << std::setfill('0') << index
          << _filename.substr(_hash_end);
     file.set_fullpath(strm.str());
   }
@@ -885,12 +850,10 @@ get_filename_index(int index) const {
   return file;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: Filename::set_hash_to_end
-//       Access: Published
-//  Description: Replaces the part of the filename from the beginning
-//               of the hash sequence to the end of the filename.
-////////////////////////////////////////////////////////////////////
+/**
+ * Replaces the part of the filename from the beginning of the hash sequence
+ * to the end of the filename.
+ */
 void Filename::
 set_hash_to_end(const string &s) {
   _filename.replace(_hash_start, string::npos, s);
@@ -900,16 +863,13 @@ set_hash_to_end(const string &s) {
   locate_hash();
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: Filename::extract_components
-//       Access: Published
-//  Description: Extracts out the individual directory components of
-//               the path into a series of strings.  get_basename()
-//               will be the last component stored in the vector.
-//               Note that no distinction is made by this method
-//               between a leading slash and no leading slash, but you
-//               can call is_local() to differentiate the two cases.
-////////////////////////////////////////////////////////////////////
+/**
+ * Extracts out the individual directory components of the path into a series
+ * of strings.  get_basename() will be the last component stored in the
+ * vector.  Note that no distinction is made by this method between a leading
+ * slash and no leading slash, but you can call is_local() to differentiate
+ * the two cases.
+ */
 void Filename::
 extract_components(vector_string &components) const {
   components.clear();
@@ -933,14 +893,11 @@ extract_components(vector_string &components) const {
   components.push_back(string());
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: Filename::standardize
-//       Access: Published
-//  Description: Converts the filename to standard form by replacing
-//               consecutive slashes with a single slash, removing a
-//               trailing slash if present, and backing up over ../
-//               sequences within the filename where possible.
-////////////////////////////////////////////////////////////////////
+/**
+ * Converts the filename to standard form by replacing consecutive slashes
+ * with a single slash, removing a trailing slash if present, and backing up
+ * over .. sequences within the filename where possible.
+ */
 void Filename::
 standardize() {
   assert(!_filename.empty());
@@ -962,12 +919,11 @@ standardize() {
     size_t slash = _filename.find('/', p);
     string component = _filename.substr(p, slash - p);
     if (component == "." && p != 0) {
-      // Ignore /./.
+      // Ignore ..
     } else if (component == ".." && !components.empty() &&
                !(components.back() == "..")) {
       if (components.back() == ".") {
-        // To "back up" over a leading ./ means simply to remove the
-        // leading ./
+        // To "back up" over a leading . means simply to remove the leading .
         components.pop_back();
         components.push_back(component);
       } else {
@@ -999,22 +955,17 @@ standardize() {
   (*this) = result;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: Filename::make_absolute
-//       Access: Published
-//  Description: Converts the filename to a fully-qualified pathname
-//               from the root (if it is a relative pathname), and
-//               then standardizes it (see standardize()).
-//
-//               This is sometimes a little problematic, since it may
-//               convert the file to its 'true' absolute pathname,
-//               which could be an ugly NFS-named file, irrespective
-//               of symbolic links
-//               (e.g. /.automount/dimbo/root/usr2/fit/people/drose
-//               instead of /fit/people/drose); besides being ugly,
-//               filenames like this may not be consistent across
-//               multiple different platforms.
-////////////////////////////////////////////////////////////////////
+/**
+ * Converts the filename to a fully-qualified pathname from the root (if it is
+ * a relative pathname), and then standardizes it (see standardize()).
+ *
+ * This is sometimes a little problematic, since it may convert the file to
+ * its 'true' absolute pathname, which could be an ugly NFS-named file,
+ * irrespective of symbolic links (e.g.
+ * /.automount/dimbo/root/usr2/fit/people/drose instead of /fit/people/drose);
+ * besides being ugly, filenames like this may not be consistent across
+ * multiple different platforms.
+ */
 void Filename::
 make_absolute() {
   if (is_local()) {
@@ -1024,15 +975,12 @@ make_absolute() {
   }
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: Filename::make_absolute
-//       Access: Published
-//  Description: Converts the filename to a fully-qualified filename
-//               from the root (if it is a relative filename), and
-//               then standardizes it (see standardize()).  This
-//               flavor accepts a specific starting directory that the
-//               filename is known to be relative to.
-////////////////////////////////////////////////////////////////////
+/**
+ * Converts the filename to a fully-qualified filename from the root (if it is
+ * a relative filename), and then standardizes it (see standardize()).  This
+ * flavor accepts a specific starting directory that the filename is known to
+ * be relative to.
+ */
 void Filename::
 make_absolute(const Filename &start_directory) {
   if (is_local()) {
@@ -1044,35 +992,27 @@ make_absolute(const Filename &start_directory) {
   standardize();
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: Filename::make_canonical
-//       Access: Published
-//  Description: Converts this filename to a canonical name by
-//               replacing the directory part with the fully-qualified
-//               directory part.  This is done by changing to that
-//               directory and calling getcwd().
-//
-//               This has the effect of (a) converting relative paths
-//               to absolute paths (but see make_absolute() if this is
-//               the only effect you want), and (b) always resolving a
-//               given directory name to the same string, even if
-//               different symbolic links are traversed, and (c)
-//               changing nice symbolic-link paths like
-//               /fit/people/drose to ugly NFS automounter names like
-//               /hosts/dimbo/usr2/fit/people/drose.  This can be
-//               troubling, but sometimes this is exactly what you
-//               want, particularly if you're about to call
-//               make_relative_to() between two filenames.
-//
-//               The return value is true if successful, or false on
-//               failure (usually because the directory name does not
-//               exist or cannot be chdir'ed into).
-////////////////////////////////////////////////////////////////////
+/**
+ * Converts this filename to a canonical name by replacing the directory part
+ * with the fully-qualified directory part.  This is done by changing to that
+ * directory and calling getcwd().
+ *
+ * This has the effect of (a) converting relative paths to absolute paths (but
+ * see make_absolute() if this is the only effect you want), and (b) always
+ * resolving a given directory name to the same string, even if different
+ * symbolic links are traversed, and (c) changing nice symbolic-link paths
+ * like fit/people/drose to ugly NFS automounter names like
+ * hosts/dimbo/usr2/fit/people/drose.  This can be troubling, but sometimes
+ * this is exactly what you want, particularly if you're about to call
+ * make_relative_to() between two filenames.
+ *
+ * The return value is true if successful, or false on failure (usually
+ * because the directory name does not exist or cannot be chdir'ed into).
+ */
 bool Filename::
 make_canonical() {
   if (empty()) {
-    // An empty filename is a special case.  This doesn't name
-    // anything.
+    // An empty filename is a special case.  This doesn't name anything.
     return false;
   }
 
@@ -1080,11 +1020,11 @@ make_canonical() {
     // The root directory is a special case.
     return true;
   }
-  
-#ifndef WIN32
+
+#ifndef _WIN32
   // Use realpath in order to resolve symlinks properly
   char newpath [PATH_MAX + 1];
-  if (realpath(c_str(), newpath) != NULL) {
+  if (realpath(c_str(), newpath) != nullptr) {
     Filename newpath_fn(newpath);
     newpath_fn._flags = _flags;
     (*this) = newpath_fn;
@@ -1099,23 +1039,18 @@ make_canonical() {
   return make_true_case();
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: Filename::make_true_case
-//       Access: Published
-//  Description: On a case-insensitive operating system
-//               (e.g. Windows), this method looks up the file in the
-//               file system and resets the Filename to represent the
-//               actual case of the file as it exists on the disk.
-//               The return value is true if the file exists and the
-//               conversion can be made, or false if there is some
-//               error.
-//
-//               On a case-sensitive operating system, this method
-//               does nothing and always returns true.
-//
-//               An empty filename is considered to exist in this
-//               case.
-////////////////////////////////////////////////////////////////////
+/**
+ * On a case-insensitive operating system (e.g.  Windows), this method looks
+ * up the file in the file system and resets the Filename to represent the
+ * actual case of the file as it exists on the disk.  The return value is true
+ * if the file exists and the conversion can be made, or false if there is
+ * some error.
+ *
+ * On a case-sensitive operating system, this method does nothing and always
+ * returns true.
+ *
+ * An empty filename is considered to exist in this case.
+ */
 bool Filename::
 make_true_case() {
   assert(!get_pattern());
@@ -1124,38 +1059,38 @@ make_true_case() {
     return true;
   }
 
-#ifdef WIN32
+#ifdef _WIN32
   wstring os_specific = to_os_specific_w();
 
-  // First, we have to convert it to its short name, then back to its
-  // long name--that seems to be the trick to force Windows to throw
-  // away the case we give it and get the actual file case.
-  
+  // First, we have to convert it to its short name, then back to its long
+  // name--that seems to be the trick to force Windows to throw away the case
+  // we give it and get the actual file case.
+
   wchar_t short_name[MAX_PATH + 1];
   DWORD l = GetShortPathNameW(os_specific.c_str(), short_name, MAX_PATH + 1);
   if (l == 0) {
-    // Couldn't query the path name for some reason.  Probably the
-    // file didn't exist.
+    // Couldn't query the path name for some reason.  Probably the file didn't
+    // exist.
     return false;
   }
-  // According to the Windows docs, l will return a value greater than
-  // the specified length if the short_name length wasn't enough--but also
+  // According to the Windows docs, l will return a value greater than the
+  // specified length if the short_name length wasn't enough--but also
   // according to the Windows docs, MAX_PATH will always be enough.
   assert(l < MAX_PATH + 1);
-  
+
   wchar_t long_name[MAX_PATH + 1];
   l = GetLongPathNameW(short_name, long_name, MAX_PATH + 1);
   if (l == 0) {
-    // Couldn't query the path name for some reason.  Probably the
-    // file didn't exist.
+    // Couldn't query the path name for some reason.  Probably the file didn't
+    // exist.
     return false;
   }
   assert(l < MAX_PATH + 1);
 
   Filename true_case = Filename::from_os_specific_w(long_name);
 
-  // Now sanity-check the true-case filename.  If it's not the same as
-  // the source file, except for case, reject it.
+  // Now sanity-check the true-case filename.  If it's not the same as the
+  // source file, except for case, reject it.
   wstring orig_filename = get_fullpath_w();
   wstring new_filename = true_case.get_fullpath_w();
   bool match = (orig_filename.length() == new_filename.length());
@@ -1163,9 +1098,8 @@ make_true_case() {
     match = (TextEncoder::unicode_tolower(orig_filename[i]) == TextEncoder::unicode_tolower(new_filename[i]));
   }
   if (!match) {
-    // Something went wrong.  Keep the original filename, assume it
-    // was the correct case after all.  We return true because the
-    // filename is good.
+    // Something went wrong.  Keep the original filename, assume it was the
+    // correct case after all.  We return true because the filename is good.
     return true;
   }
 
@@ -1173,25 +1107,20 @@ make_true_case() {
   (*this) = true_case;
   return true;
 
-#else  // WIN32
+#else  // _WIN32
   return true;
-#endif  // WIN32
+#endif  // _WIN32
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: Filename::to_os_specific
-//       Access: Published
-//  Description: Converts the filename from our generic Unix-like
-//               convention (forward slashes starting with the root at
-//               '/') to the corresponding filename in the local
-//               operating system (slashes in the appropriate
-//               direction, starting with the root at C:\, for
-//               instance).  Returns the string representing the
-//               converted filename, but does not change the Filename
-//               itself.
-//
-//               See also from_os_specific().
-////////////////////////////////////////////////////////////////////
+/**
+ * Converts the filename from our generic Unix-like convention (forward
+ * slashes starting with the root at '/') to the corresponding filename in the
+ * local operating system (slashes in the appropriate direction, starting with
+ * the root at C:\, for instance).  Returns the string representing the
+ * converted filename, but does not change the Filename itself.
+ *
+ * See also from_os_specific().
+ */
 string Filename::
 to_os_specific() const {
   assert(!get_pattern());
@@ -1202,20 +1131,20 @@ to_os_specific() const {
   Filename standard(*this);
   standard.standardize();
 
-#ifdef IS_OSX 
+#ifdef IS_OSX
   if (get_type() == T_dso) {
     std::string workname = standard.get_fullpath();
     size_t dot = workname.rfind('.');
     if (dot != string::npos) {
       if (workname.substr(dot) == ".so") {
         string dyLibBase = workname.substr(0, dot)+".dylib";
-        return dyLibBase; 
+        return dyLibBase;
       }
     }
   }
 #endif
 
-#ifdef WIN32
+#ifdef _WIN32
   switch (get_type()) {
   case T_dso:
     return convert_dso_pathname(standard.get_fullpath());
@@ -1224,16 +1153,14 @@ to_os_specific() const {
   default:
     return convert_pathname(standard.get_fullpath());
   }
-#else // WIN32
+#else // _WIN32
   return standard.c_str();
-#endif // WIN32
+#endif // _WIN32
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: Filename::to_os_specific_w
-//       Access: Published
-//  Description: The wide-string variant on to_os_specific().
-////////////////////////////////////////////////////////////////////
+/**
+ * The wide-string variant on to_os_specific().
+ */
 wstring Filename::
 to_os_specific_w() const {
   TextEncoder encoder;
@@ -1242,61 +1169,53 @@ to_os_specific_w() const {
   return encoder.get_wtext();
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: Filename::to_os_generic
-//       Access: Published
-//  Description: This is similar to to_os_specific(), but it is
-//               designed to generate a filename that can be
-//               understood on as many platforms as possible.  Since
-//               Windows can usually understand a
-//               forward-slash-delimited filename, this means it does
-//               the same thing as to_os_specific(), but it uses
-//               forward slashes instead of backslashes.
-//
-//               This method has a pretty limited use; it should
-//               generally be used for writing file references to a
-//               file that might be read on any operating system.
-////////////////////////////////////////////////////////////////////
+/**
+ * This is similar to to_os_specific(), but it is designed to generate a
+ * filename that can be understood on as many platforms as possible.  Since
+ * Windows can usually understand a forward-slash-delimited filename, this
+ * means it does the same thing as to_os_specific(), but it uses forward
+ * slashes instead of backslashes.
+ *
+ * This method has a pretty limited use; it should generally be used for
+ * writing file references to a file that might be read on any operating
+ * system.
+ */
 string Filename::
 to_os_generic() const {
   assert(!get_pattern());
 
-#ifdef WIN32
+#ifdef _WIN32
   return back_to_front_slash(to_os_specific());
-#else // WIN32
+#else // _WIN32
   return to_os_specific();
-#endif // WIN32
+#endif // _WIN32
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: Filename::to_os_short_name
-//       Access: Published
-//  Description: This works like to_os_generic(), but it returns the
-//               "short name" version of the filename, if it exists,
-//               or the original filename otherwise.
-//
-//               On Windows platforms, this returns the 8.3 filename
-//               version of the given filename, if the file exists,
-//               and the same thing as to_os_specific() otherwise.  On
-//               non-Windows platforms, this always returns the same
-//               thing as to_os_specific().
-////////////////////////////////////////////////////////////////////
+/**
+ * This works like to_os_generic(), but it returns the "short name" version of
+ * the filename, if it exists, or the original filename otherwise.
+ *
+ * On Windows platforms, this returns the 8.3 filename version of the given
+ * filename, if the file exists, and the same thing as to_os_specific()
+ * otherwise.  On non-Windows platforms, this always returns the same thing as
+ * to_os_specific().
+ */
 string Filename::
 to_os_short_name() const {
   assert(!get_pattern());
 
-#ifdef WIN32
+#ifdef _WIN32
   wstring os_specific = to_os_specific_w();
-  
+
   wchar_t short_name[MAX_PATH + 1];
   DWORD l = GetShortPathNameW(os_specific.c_str(), short_name, MAX_PATH + 1);
   if (l == 0) {
-    // Couldn't query the path name for some reason.  Probably the
-    // file didn't exist.
+    // Couldn't query the path name for some reason.  Probably the file didn't
+    // exist.
     return to_os_specific();
   }
-  // According to the Windows docs, l will return a value greater than
-  // the specified length if the short_name length wasn't enough--but also
+  // According to the Windows docs, l will return a value greater than the
+  // specified length if the short_name length wasn't enough--but also
   // according to the Windows docs, MAX_PATH will always be enough.
   assert(l < MAX_PATH + 1);
 
@@ -1305,31 +1224,28 @@ to_os_short_name() const {
   encoder.set_wtext(short_name);
   return encoder.get_text();
 
-#else // WIN32
+#else // _WIN32
   return to_os_specific();
-#endif // WIN32
+#endif // _WIN32
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: Filename::to_os_long_name
-//       Access: Published
-//  Description: This is the opposite of to_os_short_name(): it
-//               returns the "long name" of the filename, if the
-//               filename exists.  On non-Windows platforms, this
-//               returns the same thing as to_os_specific().
-////////////////////////////////////////////////////////////////////
+/**
+ * This is the opposite of to_os_short_name(): it returns the "long name" of
+ * the filename, if the filename exists.  On non-Windows platforms, this
+ * returns the same thing as to_os_specific().
+ */
 string Filename::
 to_os_long_name() const {
   assert(!get_pattern());
 
-#ifdef WIN32
+#ifdef _WIN32
   wstring os_specific = to_os_specific_w();
-  
+
   wchar_t long_name[MAX_PATH + 1];
   DWORD l = GetLongPathNameW(os_specific.c_str(), long_name, MAX_PATH + 1);
   if (l == 0) {
-    // Couldn't query the path name for some reason.  Probably the
-    // file didn't exist.
+    // Couldn't query the path name for some reason.  Probably the file didn't
+    // exist.
     return to_os_specific();
   }
   assert(l < MAX_PATH + 1);
@@ -1339,22 +1255,19 @@ to_os_long_name() const {
   encoder.set_wtext(long_name);
   return encoder.get_text();
 
-#else // WIN32
+#else // _WIN32
   return to_os_specific();
-#endif // WIN32
+#endif // _WIN32
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: Filename::exists
-//       Access: Published
-//  Description: Returns true if the filename exists on the disk,
-//               false otherwise.  If the type is indicated to be
-//               executable, this also tests that the file has execute
-//               permission.
-////////////////////////////////////////////////////////////////////
+/**
+ * Returns true if the filename exists on the disk, false otherwise.  If the
+ * type is indicated to be executable, this also tests that the file has
+ * execute permission.
+ */
 bool Filename::
 exists() const {
-#ifdef WIN32_VC
+#ifdef _WIN32
   wstring os_specific = get_filename_index(0).to_os_specific_w();
 
   bool exists = false;
@@ -1364,7 +1277,7 @@ exists() const {
     exists = true;
   }
 
-#else  // WIN32_VC
+#else  // _WIN32
   string os_specific = get_filename_index(0).to_os_specific();
 
   struct stat this_buf;
@@ -1378,16 +1291,13 @@ exists() const {
   return exists;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: Filename::is_regular_file
-//       Access: Published
-//  Description: Returns true if the filename exists and is the
-//               name of a regular file (i.e. not a directory or
-//               device), false otherwise.
-////////////////////////////////////////////////////////////////////
+/**
+ * Returns true if the filename exists and is the name of a regular file (i.e.
+ * not a directory or device), false otherwise.
+ */
 bool Filename::
 is_regular_file() const {
-#ifdef WIN32_VC
+#ifdef _WIN32
   wstring os_specific = get_filename_index(0).to_os_specific_w();
 
   bool isreg = false;
@@ -1397,7 +1307,7 @@ is_regular_file() const {
     isreg = ((results & (FILE_ATTRIBUTE_DIRECTORY | FILE_ATTRIBUTE_DEVICE)) == 0);
   }
 
-#else  // WIN32_VC
+#else  // _WIN32
   string os_specific = get_filename_index(0).to_os_specific();
 
   struct stat this_buf;
@@ -1411,18 +1321,15 @@ is_regular_file() const {
   return isreg;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: Filename::is_writable
-//       Access: Published
-//  Description: Returns true if the filename exists and is either a
-//               directory or a regular file that can be written to,
-//               or false otherwise.
-////////////////////////////////////////////////////////////////////
+/**
+ * Returns true if the filename exists and is either a directory or a regular
+ * file that can be written to, or false otherwise.
+ */
 bool Filename::
 is_writable() const {
   bool writable = false;
 
-#ifdef WIN32_VC
+#ifdef _WIN32
   wstring os_specific = get_filename_index(0).to_os_specific_w();
 
   DWORD results = GetFileAttributesW(os_specific.c_str());
@@ -1435,7 +1342,7 @@ is_writable() const {
       writable = true;
     }
   }
-#else  // WIN32_VC
+#else  // _WIN32
   string os_specific = get_filename_index(0).to_os_specific();
 
   if (access(os_specific.c_str(), W_OK) == 0) {
@@ -1446,15 +1353,13 @@ is_writable() const {
   return writable;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: Filename::is_directory
-//       Access: Published
-//  Description: Returns true if the filename exists and is a
-//               directory name, false otherwise.
-////////////////////////////////////////////////////////////////////
+/**
+ * Returns true if the filename exists and is a directory name, false
+ * otherwise.
+ */
 bool Filename::
 is_directory() const {
-#ifdef WIN32_VC
+#ifdef _WIN32
   wstring os_specific = get_filename_index(0).to_os_specific_w();
 
   bool isdir = false;
@@ -1463,7 +1368,7 @@ is_directory() const {
   if (results != -1) {
     isdir = (results & FILE_ATTRIBUTE_DIRECTORY) != 0;
   }
-#else  // WIN32_VC
+#else  // _WIN32
   string os_specific = get_filename_index(0).to_os_specific();
 
   struct stat this_buf;
@@ -1477,51 +1382,44 @@ is_directory() const {
   return isdir;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: Filename::is_executable
-//       Access: Published
-//  Description: Returns true if the filename exists and is
-//               executable
-////////////////////////////////////////////////////////////////////
+/**
+ * Returns true if the filename exists and is executable
+ */
 bool Filename::
 is_executable() const {
-#ifdef WIN32_VC
-  // no access() in windows, but to our advantage executables can only
-  // end in .exe or .com
+#ifdef _WIN32
+  // no access() in windows, but to our advantage executables can only end in
+  // .exe or .com
   string extension = get_extension();
   if (extension == "exe" || extension == "com") {
     return exists();
   }
 
-#else /* WIN32_VC */
+#else // _WIN32
   string os_specific = get_filename_index(0).to_os_specific();
   if (access(os_specific.c_str(), X_OK) == 0) {
     return true;
   }
-#endif /* WIN32_VC */
+#endif // _WIN32
 
   return false;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: Filename::compare_timestamps
-//       Access: Published
-//  Description: Returns a number less than zero if the file named by
-//               this object is older than the given file, zero if
-//               they have the same timestamp, or greater than zero if
-//               this one is newer.
-//
-//               If this_missing_is_old is true, it indicates that a
-//               missing file will be treated as if it were older than
-//               any other file; otherwise, a missing file will be
-//               treated as if it were newer than any other file.
-//               Similarly for other_missing_is_old.
-////////////////////////////////////////////////////////////////////
+/**
+ * Returns a number less than zero if the file named by this object is older
+ * than the given file, zero if they have the same timestamp, or greater than
+ * zero if this one is newer.
+ *
+ * If this_missing_is_old is true, it indicates that a missing file will be
+ * treated as if it were older than any other file; otherwise, a missing file
+ * will be treated as if it were newer than any other file.  Similarly for
+ * other_missing_is_old.
+ */
 int Filename::
 compare_timestamps(const Filename &other,
                    bool this_missing_is_old,
                    bool other_missing_is_old) const {
-#ifdef WIN32_VC
+#ifdef _WIN32
   wstring os_specific = get_filename_index(0).to_os_specific_w();
   wstring other_os_specific = other.get_filename_index(0).to_os_specific_w();
 
@@ -1538,7 +1436,7 @@ compare_timestamps(const Filename &other,
   if (_wstat(other_os_specific.c_str(), &other_buf) == 0) {
     other_exists = true;
   }
-#else  // WIN32_VC
+#else  // _WIN32
   string os_specific = get_filename_index(0).to_os_specific();
   string other_os_specific = other.get_filename_index(0).to_os_specific();
 
@@ -1582,28 +1480,24 @@ compare_timestamps(const Filename &other,
   }
   // !other_exists
   assert(!other_exists);
-  
+
   // This file exists, the other one doesn't.
   return other_missing_is_old ? 1 : -1;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: Filename::get_timestamp
-//       Access: Published
-//  Description: Returns a time_t value that represents the time the
-//               file was last modified, to within whatever precision
-//               the operating system records this information (on a
-//               Windows95 system, for instance, this may only be
-//               accurate to within 2 seconds).
-//
-//               If the timestamp cannot be determined, either because
-//               it is not supported by the operating system or
-//               because there is some error (such as file not found),
-//               returns 0.
-////////////////////////////////////////////////////////////////////
+/**
+ * Returns a time_t value that represents the time the file was last modified,
+ * to within whatever precision the operating system records this information
+ * (on a Windows95 system, for instance, this may only be accurate to within 2
+ * seconds).
+ *
+ * If the timestamp cannot be determined, either because it is not supported
+ * by the operating system or because there is some error (such as file not
+ * found), returns 0.
+ */
 time_t Filename::
 get_timestamp() const {
-#ifdef WIN32_VC
+#ifdef _WIN32
   wstring os_specific = get_filename_index(0).to_os_specific_w();
 
   struct _stat this_buf;
@@ -1611,7 +1505,7 @@ get_timestamp() const {
   if (_wstat(os_specific.c_str(), &this_buf) == 0) {
     return this_buf.st_mtime;
   }
-#else  // WIN32_VC
+#else  // _WIN32
   string os_specific = get_filename_index(0).to_os_specific();
 
   struct stat this_buf;
@@ -1624,17 +1518,14 @@ get_timestamp() const {
   return 0;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: Filename::get_access_timestamp
-//       Access: Published
-//  Description: Returns a time_t value that represents the time the
-//               file was last accessed, if this information is
-//               available.  See also get_timestamp(), which returns
-//               the last modification time.
-////////////////////////////////////////////////////////////////////
+/**
+ * Returns a time_t value that represents the time the file was last accessed,
+ * if this information is available.  See also get_timestamp(), which returns
+ * the last modification time.
+ */
 time_t Filename::
 get_access_timestamp() const {
-#ifdef WIN32_VC
+#ifdef _WIN32
   wstring os_specific = get_filename_index(0).to_os_specific_w();
 
   struct _stat this_buf;
@@ -1642,7 +1533,7 @@ get_access_timestamp() const {
   if (_wstat(os_specific.c_str(), &this_buf) == 0) {
     return this_buf.st_atime;
   }
-#else  // WIN32_VC
+#else  // _WIN32
   string os_specific = get_filename_index(0).to_os_specific();
 
   struct stat this_buf;
@@ -1655,26 +1546,22 @@ get_access_timestamp() const {
   return 0;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: Filename::get_file_size
-//       Access: Published
-//  Description: Returns the size of the file in bytes, or 0 if there
-//               is an error.
-////////////////////////////////////////////////////////////////////
-streamsize Filename::
+/**
+ * Returns the size of the file in bytes, or 0 if there is an error.
+ */
+std::streamsize Filename::
 get_file_size() const {
-#ifdef WIN32_VC
+#ifdef _WIN32
   wstring os_specific = get_filename_index(0).to_os_specific_w();
 
   struct _stat64 this_buf;
 
-  // _wstat() only returns the lower 32 bits of the file size (!).  We
-  // have to call _wstati64() if we actually want the full 64-bit file
-  // size.
+  // _wstat() only returns the lower 32 bits of the file size (!).  We have to
+  // call _wstati64() if we actually want the full 64-bit file size.
   if (_wstati64(os_specific.c_str(), &this_buf) == 0) {
     return this_buf.st_size;
   }
-#else  // WIN32_VC
+#else  // _WIN32
   string os_specific = get_filename_index(0).to_os_specific();
 
   struct stat this_buf;
@@ -1687,14 +1574,11 @@ get_file_size() const {
   return 0;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: Filename::resolve_filename
-//       Access: Published
-//  Description: Searches the given search path for the filename.  If
-//               it is found, updates the filename to the full
-//               pathname found and returns true; otherwise, returns
-//               false.
-////////////////////////////////////////////////////////////////////
+/**
+ * Searches the given search path for the filename.  If it is found, updates
+ * the filename to the full pathname found and returns true; otherwise,
+ * returns false.
+ */
 bool Filename::
 resolve_filename(const DSearchPath &searchpath,
                  const string &default_extension) {
@@ -1704,8 +1588,8 @@ resolve_filename(const DSearchPath &searchpath,
     found = searchpath.find_file(*this);
 
     if (found.empty()) {
-      // We didn't find it with the given extension; can we try the
-      // default extension?
+      // We didn't find it with the given extension; can we try the default
+      // extension?
       if (get_extension().empty() && !default_extension.empty()) {
         Filename try_ext = *this;
         try_ext.set_extension(default_extension);
@@ -1717,8 +1601,8 @@ resolve_filename(const DSearchPath &searchpath,
       // The full pathname exists.  Return true.
       return true;
     } else {
-      // The full pathname doesn't exist with the given extension;
-      // does it exist with the default extension?
+      // The full pathname doesn't exist with the given extension; does it
+      // exist with the default extension?
       if (get_extension().empty() && !default_extension.empty()) {
         Filename try_ext = *this;
         try_ext.set_extension(default_extension);
@@ -1737,31 +1621,23 @@ resolve_filename(const DSearchPath &searchpath,
   return false;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: Filename::make_relative_to
-//       Access: Published
-//  Description: Adjusts this filename, which must be a
-//               fully-specified pathname beginning with a slash, to
-//               make it a relative filename, relative to the
-//               fully-specified directory indicated (which must also
-//               begin with, and may or may not end with, a slash--a
-//               terminating slash is ignored).
-//
-//               This only performs a string comparsion, so it may be
-//               wise to call make_canonical() on both filenames
-//               before calling make_relative_to().
-//
-//               If allow_backups is false, the filename will only be
-//               adjusted to be made relative if it is already
-//               somewhere within or below the indicated directory.
-//               If allow_backups is true, it will be adjusted in all
-//               cases, even if this requires putting a series of ../
-//               characters before the filename--unless it would have
-//               to back all the way up to the root.
-//
-//               Returns true if the file was adjusted, false if it
-//               was not.
-////////////////////////////////////////////////////////////////////
+/**
+ * Adjusts this filename, which must be a fully-specified pathname beginning
+ * with a slash, to make it a relative filename, relative to the fully-
+ * specified directory indicated (which must also begin with, and may or may
+ * not end with, a slash--a terminating slash is ignored).
+ *
+ * This only performs a string comparsion, so it may be wise to call
+ * make_canonical() on both filenames before calling make_relative_to().
+ *
+ * If allow_backups is false, the filename will only be adjusted to be made
+ * relative if it is already somewhere within or below the indicated
+ * directory.  If allow_backups is true, it will be adjusted in all cases,
+ * even if this requires putting a series of .. characters before the filename
+ * --unless it would have to back all the way up to the root.
+ *
+ * Returns true if the file was adjusted, false if it was not.
+ */
 bool Filename::
 make_relative_to(Filename directory, bool allow_backups) {
   if (_filename.empty() || directory.empty() ||
@@ -1801,21 +1677,16 @@ make_relative_to(Filename directory, bool allow_backups) {
   return true;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: Filename::find_on_searchpath
-//       Access: Published
-//  Description: Performs the reverse of the resolve_filename()
-//               operation: assuming that the current filename is
-//               fully-specified pathname (i.e. beginning with '/'),
-//               look on the indicated search path for a directory
-//               under which the file can be found.  When found,
-//               adjust the Filename to be relative to the indicated
-//               directory name.
-//
-//               Returns the index of the directory on the searchpath
-//               at which the file was found, or -1 if it was not
-//               found.
-////////////////////////////////////////////////////////////////////
+/**
+ * Performs the reverse of the resolve_filename() operation: assuming that the
+ * current filename is fully-specified pathname (i.e.  beginning with '/'),
+ * look on the indicated search path for a directory under which the file can
+ * be found.  When found, adjust the Filename to be relative to the indicated
+ * directory name.
+ *
+ * Returns the index of the directory on the searchpath at which the file was
+ * found, or -1 if it was not found.
+ */
 int Filename::
 find_on_searchpath(const DSearchPath &searchpath) {
   if (_filename.empty() || _filename[0] != '/') {
@@ -1834,29 +1705,24 @@ find_on_searchpath(const DSearchPath &searchpath) {
   return -1;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: Filename::scan_directory
-//       Access: Published
-//  Description: Attempts to open the named filename as if it were a
-//               directory and looks for the non-hidden files within
-//               the directory.  Fills the given vector up with the
-//               sorted list of filenames that are local to this
-//               directory.
-//
-//               It is the user's responsibility to ensure that the
-//               contents vector is empty before making this call;
-//               otherwise, the new files will be appended to it.
-//
-//               Returns true on success, false if the directory could
-//               not be read for some reason.
-////////////////////////////////////////////////////////////////////
+/**
+ * Attempts to open the named filename as if it were a directory and looks for
+ * the non-hidden files within the directory.  Fills the given vector up with
+ * the sorted list of filenames that are local to this directory.
+ *
+ * It is the user's responsibility to ensure that the contents vector is empty
+ * before making this call; otherwise, the new files will be appended to it.
+ *
+ * Returns true on success, false if the directory could not be read for some
+ * reason.
+ */
 bool Filename::
 scan_directory(vector_string &contents) const {
   assert(!get_pattern());
 
-#if defined(WIN32_VC)
-  // Use Windows' FindFirstFile() / FindNextFile() to walk through the
-  // list of files in a directory.
+#if defined(_WIN32)
+  // Use Windows' FindFirstFile()  FindNextFile() to walk through the list of
+  // files in a directory.
   size_t orig_size = contents.size();
 
   wstring match;
@@ -1894,8 +1760,8 @@ scan_directory(vector_string &contents) const {
   return scan_ok;
 
 #elif defined(PHAVE_DIRENT_H)
-  // Use Posix's opendir() / readdir() to walk through the list of
-  // files in a directory.
+  // Use Posix's opendir()  readdir() to walk through the list of files in a
+  // directory.
   size_t orig_size = contents.size();
 
   string dirname;
@@ -1905,7 +1771,7 @@ scan_directory(vector_string &contents) const {
     dirname = _filename;
   }
   DIR *root = opendir(dirname.c_str());
-  if (root == (DIR *)NULL) {
+  if (root == nullptr) {
     if (errno != ENOTDIR) {
       perror(dirname.c_str());
     }
@@ -1914,7 +1780,7 @@ scan_directory(vector_string &contents) const {
 
   struct dirent *d;
   d = readdir(root);
-  while (d != (struct dirent *)NULL) {
+  while (d != nullptr) {
     thread_consider_yield();
     if (d->d_name[0] != '.') {
       contents.push_back(d->d_name);
@@ -1922,10 +1788,10 @@ scan_directory(vector_string &contents) const {
     d = readdir(root);
   }
 
-  // It turns out to be a mistake to check the value of errno after
-  // calling readdir(), since it might have been set to non-zero
-  // during some internal operation of readdir(), even though there
-  // wasn't really a problem with scanning the directory itself.
+  // It turns out to be a mistake to check the value of errno after calling
+  // readdir(), since it might have been set to non-zero during some internal
+  // operation of readdir(), even though there wasn't really a problem with
+  // scanning the directory itself.
   /*
   if (errno != 0 && errno != ENOENT && errno != ENOTDIR) {
     cerr << "Error occurred while scanning directory " << dirname << "\n";
@@ -1940,10 +1806,10 @@ scan_directory(vector_string &contents) const {
   return true;
 
 #elif defined(PHAVE_GLOB_H)
-  // It's hard to imagine a system that provides glob.h but does not
-  // provide openddir() .. readdir(), but this code is leftover from a
-  // time when there was an undetected bug in the above readdir()
-  // loop, and it works, so we might as well keep it around for now.
+  // It's hard to imagine a system that provides glob.h but does not provide
+  // openddir() .. readdir(), but this code is leftover from a time when there
+  // was an undetected bug in the above readdir() loop, and it works, so we
+  // might as well keep it around for now.
   string dirname;
   if (empty()) {
     dirname = "*";
@@ -1955,12 +1821,12 @@ scan_directory(vector_string &contents) const {
 
   glob_t globbuf;
 
-  int r = glob(dirname.c_str(), GLOB_ERR, NULL, &globbuf);
+  int r = glob(dirname.c_str(), GLOB_ERR, nullptr, &globbuf);
 
   if (r != 0) {
-    // Some error processing the match string.  If our version of
-    // glob.h defines GLOB_NOMATCH, then we can differentiate an empty
-    // return result from some other kind of error.
+    // Some error processing the match string.  If our version of glob.h
+    // defines GLOB_NOMATCH, then we can differentiate an empty return result
+    // from some other kind of error.
 #ifdef GLOB_NOMATCH
     if (r != GLOB_NOMATCH) {
       perror(dirname.c_str());
@@ -1968,14 +1834,14 @@ scan_directory(vector_string &contents) const {
     }
 #endif
 
-    // Otherwise, all errors mean the same thing: no matches, but
-    // otherwise no problem.
+    // Otherwise, all errors mean the same thing: no matches, but otherwise no
+    // problem.
     return true;
   }
 
   size_t offset = dirname.size() - 1;
 
-  for (int i = 0; globbuf.gl_pathv[i] != NULL; i++) {
+  for (int i = 0; globbuf.gl_pathv[i] != nullptr; i++) {
     contents.push_back(globbuf.gl_pathv[i] + offset);
   }
   globfree(&globbuf);
@@ -1988,61 +1854,51 @@ scan_directory(vector_string &contents) const {
 #endif
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: Filename::open_read
-//       Access: Published
-//  Description: Opens the indicated ifstream for reading the file, if
-//               possible.  Returns true if successful, false
-//               otherwise.  This requires the setting of the
-//               set_text()/set_binary() flags to open the file
-//               appropriately as indicated; it is an error to call
-//               open_read() without first calling one of set_text()
-//               or set_binary().
-////////////////////////////////////////////////////////////////////
+/**
+ * Opens the indicated ifstream for reading the file, if possible.  Returns
+ * true if successful, false otherwise.  This requires the setting of the
+ * set_text()/set_binary() flags to open the file appropriately as indicated;
+ * it is an error to call open_read() without first calling one of set_text()
+ * or set_binary().
+ */
 bool Filename::
-open_read(ifstream &stream) const {
+open_read(std::ifstream &stream) const {
   assert(!get_pattern());
   assert(is_binary_or_text());
 
   ios_openmode open_mode = ios::in;
 
 #ifdef HAVE_IOS_BINARY
-  // For some reason, some systems (like Irix) don't define
-  // ios::binary.
+  // For some reason, some systems (like Irix) don't define ios::binary.
   if (!is_text()) {
     open_mode |= ios::binary;
   }
 #endif
 
   stream.clear();
-#ifdef WIN32_VC
+#ifdef _WIN32
   wstring os_specific = to_os_specific_w();
   stream.open(os_specific.c_str(), open_mode);
 #else
   string os_specific = to_os_specific();
   stream.open(os_specific.c_str(), open_mode);
-#endif  // WIN32_VC
+#endif  // _WIN32
 
   return (!stream.fail());
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: Filename::open_write
-//       Access: Published
-//  Description: Opens the indicated ifstream for writing the file, if
-//               possible.  Returns true if successful, false
-//               otherwise.  This requires the setting of the
-//               set_text()/set_binary() flags to open the file
-//               appropriately as indicated; it is an error to call
-//               open_read() without first calling one of set_text()
-//               or set_binary().
-//
-//               If truncate is true, the file is truncated to zero
-//               length upon opening it, if it already exists.
-//               Otherwise, the file is kept at its original length.
-////////////////////////////////////////////////////////////////////
+/**
+ * Opens the indicated ifstream for writing the file, if possible.  Returns
+ * true if successful, false otherwise.  This requires the setting of the
+ * set_text()/set_binary() flags to open the file appropriately as indicated;
+ * it is an error to call open_read() without first calling one of set_text()
+ * or set_binary().
+ *
+ * If truncate is true, the file is truncated to zero length upon opening it,
+ * if it already exists.  Otherwise, the file is kept at its original length.
+ */
 bool Filename::
-open_write(ofstream &stream, bool truncate) const {
+open_write(std::ofstream &stream, bool truncate) const {
   assert(!get_pattern());
   assert(is_binary_or_text());
 
@@ -2052,95 +1908,75 @@ open_write(ofstream &stream, bool truncate) const {
     open_mode |= ios::trunc;
 
   } else {
-    // Some systems insist on having ios::in set to prevent the file
-    // from being truncated when we open it.  Makes ios::trunc kind of
-    // pointless, doesn't it?  On the other hand, setting ios::in also
-    // seems to imply ios::nocreate (!), so we should only set this if
-    // the file already exists.
+    // Some systems insist on having ios::in set to prevent the file from
+    // being truncated when we open it.  Makes ios::trunc kind of pointless,
+    // doesn't it?  On the other hand, setting ios::in also seems to imply
+    // ios::nocreate (!), so we should only set this if the file already
+    // exists.
     if (exists()) {
       open_mode |= ios::in;
     }
   }
 
 #ifdef HAVE_IOS_BINARY
-  // For some reason, some systems (like Irix) don't define
-  // ios::binary.
+  // For some reason, some systems (like Irix) don't define ios::binary.
   if (!is_text()) {
     open_mode |= ios::binary;
   }
 #endif
 
   stream.clear();
-#ifdef WIN32_VC
+#ifdef _WIN32
   wstring os_specific = to_os_specific_w();
-  stream.open(os_specific.c_str(), open_mode);
 #else
   string os_specific = to_os_specific();
-#ifdef HAVE_OPEN_MASK
-  stream.open(os_specific.c_str(), open_mode, 0666);
-#else
+#endif  // _WIN32
   stream.open(os_specific.c_str(), open_mode);
-#endif
-#endif  // WIN32_VC
 
   return (!stream.fail());
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: Filename::open_append
-//       Access: Published
-//  Description: Opens the indicated ofstream for writing the file, if
-//               possible.  Returns true if successful, false
-//               otherwise.  This requires the setting of the
-//               set_text()/set_binary() flags to open the file
-//               appropriately as indicated; it is an error to call
-//               open_read() without first calling one of set_text()
-//               or set_binary().
-////////////////////////////////////////////////////////////////////
+/**
+ * Opens the indicated ofstream for writing the file, if possible.  Returns
+ * true if successful, false otherwise.  This requires the setting of the
+ * set_text()/set_binary() flags to open the file appropriately as indicated;
+ * it is an error to call open_read() without first calling one of set_text()
+ * or set_binary().
+ */
 bool Filename::
-open_append(ofstream &stream) const {
+open_append(std::ofstream &stream) const {
   assert(!get_pattern());
   assert(is_binary_or_text());
 
   ios_openmode open_mode = ios::app;
 
 #ifdef HAVE_IOS_BINARY
-  // For some reason, some systems (like Irix) don't define
-  // ios::binary.
+  // For some reason, some systems (like Irix) don't define ios::binary.
   if (!is_text()) {
     open_mode |= ios::binary;
   }
 #endif
 
   stream.clear();
-#ifdef WIN32_VC
+#ifdef _WIN32
   wstring os_specific = to_os_specific_w();
-  stream.open(os_specific.c_str(), open_mode);
 #else
   string os_specific = to_os_specific();
-#ifdef HAVE_OPEN_MASK
-  stream.open(os_specific.c_str(), open_mode, 0666);
-#else
+#endif  // _WIN32
   stream.open(os_specific.c_str(), open_mode);
-#endif
-#endif  // WIN32_VC
 
   return (!stream.fail());
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: Filename::open_read_write
-//       Access: Published
-//  Description: Opens the indicated fstream for read/write access to
-//               the file, if possible.  Returns true if successful,
-//               false otherwise.  This requires the setting of the
-//               set_text()/set_binary() flags to open the file
-//               appropriately as indicated; it is an error to call
-//               open_read_write() without first calling one of
-//               set_text() or set_binary().
-////////////////////////////////////////////////////////////////////
+/**
+ * Opens the indicated fstream for read/write access to the file, if possible.
+ * Returns true if successful, false otherwise.  This requires the setting of
+ * the set_text()/set_binary() flags to open the file appropriately as
+ * indicated; it is an error to call open_read_write() without first calling
+ * one of set_text() or set_binary().
+ */
 bool Filename::
-open_read_write(fstream &stream, bool truncate) const {
+open_read_write(std::fstream &stream, bool truncate) const {
   assert(!get_pattern());
   assert(is_binary_or_text());
 
@@ -2150,91 +1986,70 @@ open_read_write(fstream &stream, bool truncate) const {
     open_mode |= ios::trunc;
   }
 
-  // Since ios::in also seems to imply ios::nocreate (!), we must
-  // guarantee the file already exists before we try to open it.
+  // Since ios::in also seems to imply ios::nocreate (!), we must guarantee
+  // the file already exists before we try to open it.
   if (!exists()) {
     touch();
   }
 
 #ifdef HAVE_IOS_BINARY
-  // For some reason, some systems (like Irix) don't define
-  // ios::binary.
+  // For some reason, some systems (like Irix) don't define ios::binary.
   if (!is_text()) {
     open_mode |= ios::binary;
   }
 #endif
 
   stream.clear();
-#ifdef WIN32_VC
+#ifdef _WIN32
   wstring os_specific = to_os_specific_w();
-  stream.open(os_specific.c_str(), open_mode);
 #else
   string os_specific = to_os_specific();
-#ifdef HAVE_OPEN_MASK
-  stream.open(os_specific.c_str(), open_mode, 0666);
-#else
+#endif  // _WIN32
   stream.open(os_specific.c_str(), open_mode);
-#endif
-#endif  // WIN32_VC
 
   return (!stream.fail());
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: Filename::open_read_append
-//       Access: Published
-//  Description: Opens the indicated ifstream for reading and writing
-//               the file, if possible; writes are appended to the end
-//               of the file.  Returns true if successful, false
-//               otherwise.  This requires the setting of the
-//               set_text()/set_binary() flags to open the file
-//               appropriately as indicated; it is an error to call
-//               open_read() without first calling one of set_text()
-//               or set_binary().
-////////////////////////////////////////////////////////////////////
+/**
+ * Opens the indicated ifstream for reading and writing the file, if possible;
+ * writes are appended to the end of the file.  Returns true if successful,
+ * false otherwise.  This requires the setting of the set_text()/set_binary()
+ * flags to open the file appropriately as indicated; it is an error to call
+ * open_read() without first calling one of set_text() or set_binary().
+ */
 bool Filename::
-open_read_append(fstream &stream) const {
+open_read_append(std::fstream &stream) const {
   assert(!get_pattern());
   assert(is_binary_or_text());
 
   ios_openmode open_mode = ios::app | ios::in;
 
 #ifdef HAVE_IOS_BINARY
-  // For some reason, some systems (like Irix) don't define
-  // ios::binary.
+  // For some reason, some systems (like Irix) don't define ios::binary.
   if (!is_text()) {
     open_mode |= ios::binary;
   }
 #endif
 
   stream.clear();
-#ifdef WIN32_VC
+#ifdef _WIN32
   wstring os_specific = to_os_specific_w();
-  stream.open(os_specific.c_str(), open_mode);
 #else
   string os_specific = to_os_specific();
-#ifdef HAVE_OPEN_MASK
-  stream.open(os_specific.c_str(), open_mode, 0666);
-#else
+#endif  // _WIN32
   stream.open(os_specific.c_str(), open_mode);
-#endif
-#endif  // WIN32_VC
 
   return (!stream.fail());
 }
 
 #ifdef USE_PANDAFILESTREAM
-////////////////////////////////////////////////////////////////////
-//     Function: Filename::open_read
-//       Access: Published
-//  Description: Opens the indicated pifstream for reading the file, if
-//               possible.  Returns true if successful, false
-//               otherwise.  This requires the setting of the
-//               set_text()/set_binary() flags to open the file
-//               appropriately as indicated; it is an error to call
-//               open_read() without first calling one of set_text()
-//               or set_binary().
-////////////////////////////////////////////////////////////////////
+/**
+ * Opens the indicated pifstream for reading the file, if possible.  Returns
+ * true if successful, false otherwise.  This requires the setting of the
+ * set_text()/set_binary() flags to open the file appropriately as indicated;
+ * it is an error to call open_read() without first calling one of set_text()
+ * or set_binary().
+ */
 bool Filename::
 open_read(pifstream &stream) const {
   assert(!get_pattern());
@@ -2243,8 +2058,7 @@ open_read(pifstream &stream) const {
   ios_openmode open_mode = ios::in;
 
 #ifdef HAVE_IOS_BINARY
-  // For some reason, some systems (like Irix) don't define
-  // ios::binary.
+  // For some reason, some systems (like Irix) don't define ios::binary.
   if (!is_text()) {
     open_mode |= ios::binary;
   }
@@ -2258,21 +2072,16 @@ open_read(pifstream &stream) const {
 #endif  // USE_PANDAFILESTREAM
 
 #ifdef USE_PANDAFILESTREAM
-////////////////////////////////////////////////////////////////////
-//     Function: Filename::open_write
-//       Access: Published
-//  Description: Opens the indicated pifstream for writing the file, if
-//               possible.  Returns true if successful, false
-//               otherwise.  This requires the setting of the
-//               set_text()/set_binary() flags to open the file
-//               appropriately as indicated; it is an error to call
-//               open_read() without first calling one of set_text()
-//               or set_binary().
-//
-//               If truncate is true, the file is truncated to zero
-//               length upon opening it, if it already exists.
-//               Otherwise, the file is kept at its original length.
-////////////////////////////////////////////////////////////////////
+/**
+ * Opens the indicated pifstream for writing the file, if possible.  Returns
+ * true if successful, false otherwise.  This requires the setting of the
+ * set_text()/set_binary() flags to open the file appropriately as indicated;
+ * it is an error to call open_read() without first calling one of set_text()
+ * or set_binary().
+ *
+ * If truncate is true, the file is truncated to zero length upon opening it,
+ * if it already exists.  Otherwise, the file is kept at its original length.
+ */
 bool Filename::
 open_write(pofstream &stream, bool truncate) const {
   assert(!get_pattern());
@@ -2284,19 +2093,18 @@ open_write(pofstream &stream, bool truncate) const {
     open_mode |= ios::trunc;
 
   } else {
-    // Some systems insist on having ios::in set to prevent the file
-    // from being truncated when we open it.  Makes ios::trunc kind of
-    // pointless, doesn't it?  On the other hand, setting ios::in also
-    // seems to imply ios::nocreate (!), so we should only set this if
-    // the file already exists.
+    // Some systems insist on having ios::in set to prevent the file from
+    // being truncated when we open it.  Makes ios::trunc kind of pointless,
+    // doesn't it?  On the other hand, setting ios::in also seems to imply
+    // ios::nocreate (!), so we should only set this if the file already
+    // exists.
     if (exists()) {
       open_mode |= ios::in;
     }
   }
 
 #ifdef HAVE_IOS_BINARY
-  // For some reason, some systems (like Irix) don't define
-  // ios::binary.
+  // For some reason, some systems (like Irix) don't define ios::binary.
   if (!is_text()) {
     open_mode |= ios::binary;
   }
@@ -2304,28 +2112,20 @@ open_write(pofstream &stream, bool truncate) const {
 
   stream.clear();
   string os_specific = to_os_specific();
-#ifdef HAVE_OPEN_MASK
-  stream.open(os_specific.c_str(), open_mode, 0666);
-#else
   stream.open(os_specific.c_str(), open_mode);
-#endif
 
   return (!stream.fail());
 }
 #endif  // USE_PANDAFILESTREAM
 
 #ifdef USE_PANDAFILESTREAM
-////////////////////////////////////////////////////////////////////
-//     Function: Filename::open_append
-//       Access: Published
-//  Description: Opens the indicated pifstream for writing the file, if
-//               possible.  Returns true if successful, false
-//               otherwise.  This requires the setting of the
-//               set_text()/set_binary() flags to open the file
-//               appropriately as indicated; it is an error to call
-//               open_read() without first calling one of set_text()
-//               or set_binary().
-////////////////////////////////////////////////////////////////////
+/**
+ * Opens the indicated pifstream for writing the file, if possible.  Returns
+ * true if successful, false otherwise.  This requires the setting of the
+ * set_text()/set_binary() flags to open the file appropriately as indicated;
+ * it is an error to call open_read() without first calling one of set_text()
+ * or set_binary().
+ */
 bool Filename::
 open_append(pofstream &stream) const {
   assert(!get_pattern());
@@ -2334,8 +2134,7 @@ open_append(pofstream &stream) const {
   ios_openmode open_mode = ios::app;
 
 #ifdef HAVE_IOS_BINARY
-  // For some reason, some systems (like Irix) don't define
-  // ios::binary.
+  // For some reason, some systems (like Irix) don't define ios::binary.
   if (!is_text()) {
     open_mode |= ios::binary;
   }
@@ -2343,28 +2142,20 @@ open_append(pofstream &stream) const {
 
   stream.clear();
   string os_specific = to_os_specific();
-#ifdef HAVE_OPEN_MASK
-  stream.open(os_specific.c_str(), open_mode, 0666);
-#else
   stream.open(os_specific.c_str(), open_mode);
-#endif
 
   return (!stream.fail());
 }
 #endif  // USE_PANDAFILESTREAM
 
 #ifdef USE_PANDAFILESTREAM
-////////////////////////////////////////////////////////////////////
-//     Function: Filename::open_read_write
-//       Access: Published
-//  Description: Opens the indicated fstream for read/write access to
-//               the file, if possible.  Returns true if successful,
-//               false otherwise.  This requires the setting of the
-//               set_text()/set_binary() flags to open the file
-//               appropriately as indicated; it is an error to call
-//               open_read_write() without first calling one of
-//               set_text() or set_binary().
-////////////////////////////////////////////////////////////////////
+/**
+ * Opens the indicated fstream for read/write access to the file, if possible.
+ * Returns true if successful, false otherwise.  This requires the setting of
+ * the set_text()/set_binary() flags to open the file appropriately as
+ * indicated; it is an error to call open_read_write() without first calling
+ * one of set_text() or set_binary().
+ */
 bool Filename::
 open_read_write(pfstream &stream, bool truncate) const {
   assert(!get_pattern());
@@ -2376,15 +2167,14 @@ open_read_write(pfstream &stream, bool truncate) const {
     open_mode |= ios::trunc;
   }
 
-  // Since ios::in also seems to imply ios::nocreate (!), we must
-  // guarantee the file already exists before we try to open it.
+  // Since ios::in also seems to imply ios::nocreate (!), we must guarantee
+  // the file already exists before we try to open it.
   if (!exists()) {
     touch();
   }
 
 #ifdef HAVE_IOS_BINARY
-  // For some reason, some systems (like Irix) don't define
-  // ios::binary.
+  // For some reason, some systems (like Irix) don't define ios::binary.
   if (!is_text()) {
     open_mode |= ios::binary;
   }
@@ -2392,29 +2182,20 @@ open_read_write(pfstream &stream, bool truncate) const {
 
   stream.clear();
   string os_specific = to_os_specific();
-#ifdef HAVE_OPEN_MASK
-  stream.open(os_specific.c_str(), open_mode, 0666);
-#else
   stream.open(os_specific.c_str(), open_mode);
-#endif
 
   return (!stream.fail());
 }
 #endif  // USE_PANDAFILESTREAM
 
 #ifdef USE_PANDAFILESTREAM
-////////////////////////////////////////////////////////////////////
-//     Function: Filename::open_read_append
-//       Access: Published
-//  Description: Opens the indicated pfstream for reading and writing
-//               the file, if possible; writes are appended to the end
-//               of the file.  Returns true if successful, false
-//               otherwise.  This requires the setting of the
-//               set_text()/set_binary() flags to open the file
-//               appropriately as indicated; it is an error to call
-//               open_read() without first calling one of set_text()
-//               or set_binary().
-////////////////////////////////////////////////////////////////////
+/**
+ * Opens the indicated pfstream for reading and writing the file, if possible;
+ * writes are appended to the end of the file.  Returns true if successful,
+ * false otherwise.  This requires the setting of the set_text()/set_binary()
+ * flags to open the file appropriately as indicated; it is an error to call
+ * open_read() without first calling one of set_text() or set_binary().
+ */
 bool Filename::
 open_read_append(pfstream &stream) const {
   assert(!get_pattern());
@@ -2423,8 +2204,7 @@ open_read_append(pfstream &stream) const {
   ios_openmode open_mode = ios::app | ios::in;
 
 #ifdef HAVE_IOS_BINARY
-  // For some reason, some systems (like Irix) don't define
-  // ios::binary.
+  // For some reason, some systems (like Irix) don't define ios::binary.
   if (!is_text()) {
     open_mode |= ios::binary;
   }
@@ -2432,35 +2212,28 @@ open_read_append(pfstream &stream) const {
 
   stream.clear();
   string os_specific = to_os_specific();
-#ifdef HAVE_OPEN_MASK
-  stream.open(os_specific.c_str(), open_mode, 0666);
-#else
   stream.open(os_specific.c_str(), open_mode);
-#endif
 
   return (!stream.fail());
 }
 #endif  // USE_PANDAFILESTREAM
 
-////////////////////////////////////////////////////////////////////
-//     Function: Filename::touch
-//       Access: Published
-//  Description: Updates the modification time of the file to the
-//               current time.  If the file does not already exist, it
-//               will be created.  Returns true if successful, false
-//               if there is an error.
-////////////////////////////////////////////////////////////////////
+/**
+ * Updates the modification time of the file to the current time.  If the file
+ * does not already exist, it will be created.  Returns true if successful,
+ * false if there is an error.
+ */
 bool Filename::
 touch() const {
   assert(!get_pattern());
-#ifdef WIN32_VC
+#ifdef _WIN32
   // In Windows, we have to use the Windows API to do this reliably.
 
   // First, guarantee the file exists (and also get its handle).
   wstring os_specific = to_os_specific_w();
   HANDLE fhandle;
   fhandle = CreateFileW(os_specific.c_str(), GENERIC_WRITE, FILE_SHARE_WRITE,
-                        NULL, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+                        nullptr, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
   if (fhandle == INVALID_HANDLE_VALUE) {
     return false;
   }
@@ -2473,8 +2246,8 @@ touch() const {
     CloseHandle(fhandle);
     return false;
   }
-  
-  if (!SetFileTime(fhandle, NULL, NULL, &ftnow)) {
+
+  if (!SetFileTime(fhandle, nullptr, nullptr, &ftnow)) {
     CloseHandle(fhandle);
     return false;
   }
@@ -2487,19 +2260,18 @@ touch() const {
 
   string os_specific = to_os_specific();
 #ifdef HAVE_CYGWIN
-  // In the Cygwin case, it seems we need to be sure to use the
-  // Cygwin-style name; some broken utime() implementation.  That's
-  // almost the same thing as the original Panda-style name, but not
-  // exactly, so we first convert the Panda name to a Windows name,
-  // then convert it back to Cygwin, to ensure we get it exactly right
-  // by Cygwin rules.
+  // In the Cygwin case, it seems we need to be sure to use the Cygwin-style
+  // name; some broken utime() implementation.  That's almost the same thing
+  // as the original Panda-style name, but not exactly, so we first convert
+  // the Panda name to a Windows name, then convert it back to Cygwin, to
+  // ensure we get it exactly right by Cygwin rules.
   {
     char result[4096] = "";
     cygwin_conv_to_posix_path(os_specific.c_str(), result);
     os_specific = result;
   }
 #endif  // HAVE_CYGWIN
-  int result = utime(os_specific.c_str(), NULL);
+  int result = utime(os_specific.c_str(), nullptr);
   if (result < 0) {
     if (errno == ENOENT) {
       // So the file doesn't already exist; create it.
@@ -2515,45 +2287,40 @@ touch() const {
     return false;
   }
   return true;
-#else  // WIN32, PHAVE_UTIME_H
-  // Other systems may not have an explicit control over the
-  // modification time.  For these systems, we'll just temporarily
-  // open the file in append mode, then close it again (it gets closed
-  // when the pfstream goes out of scope).
+#else  // _WIN32, PHAVE_UTIME_H
+  // Other systems may not have an explicit control over the modification
+  // time.  For these systems, we'll just temporarily open the file in append
+  // mode, then close it again (it gets closed when the pfstream goes out of
+  // scope).
   pfstream file;
   return open_append(file);
-#endif  // WIN32, PHAVE_UTIME_H
+#endif  // _WIN32, PHAVE_UTIME_H
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: Filename::chdir
-//       Access: Published
-//  Description: Changes directory to the specified location.
-//               Returns true if successful, false if failure.
-////////////////////////////////////////////////////////////////////
+/**
+ * Changes directory to the specified location.  Returns true if successful,
+ * false if failure.
+ */
 bool Filename::
 chdir() const {
-#ifdef WIN32_VC
+#ifdef _WIN32
   wstring os_specific = to_os_specific_w();
   return (_wchdir(os_specific.c_str()) >= 0);
 #else
   string os_specific = to_os_specific();
   return (::chdir(os_specific.c_str()) >= 0);
-#endif  // WIN32_VC
+#endif  // _WIN32
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: Filename::unlink
-//       Access: Published
-//  Description: Permanently deletes the file associated with the
-//               filename, if possible.  Returns true if successful,
-//               false if failure (for instance, because the file did
-//               not exist, or because permissions were inadequate).
-////////////////////////////////////////////////////////////////////
+/**
+ * Permanently deletes the file associated with the filename, if possible.
+ * Returns true if successful, false if failure (for instance, because the
+ * file did not exist, or because permissions were inadequate).
+ */
 bool Filename::
 unlink() const {
   assert(!get_pattern());
-#ifdef WIN32_VC
+#ifdef _WIN32
   // Windows can't delete a file if it's read-only.  Weird.
   wstring os_specific = to_os_specific_w();
   _wchmod(os_specific.c_str(), 0644);
@@ -2561,18 +2328,15 @@ unlink() const {
 #else
   string os_specific = to_os_specific();
   return (::unlink(os_specific.c_str()) == 0);
-#endif  // WIN32_VC
+#endif  // _WIN32
 }
 
 
-////////////////////////////////////////////////////////////////////
-//     Function: Filename::rename_to
-//       Access: Published
-//  Description: Renames the file to the indicated new filename.  If
-//               the new filename is in a different directory, this
-//               will perform a move.  Returns true if successful,
-//               false on failure.
-////////////////////////////////////////////////////////////////////
+/**
+ * Renames the file to the indicated new filename.  If the new filename is in
+ * a different directory, this will perform a move.  Returns true if
+ * successful, false on failure.
+ */
 bool Filename::
 rename_to(const Filename &other) const {
   assert(!get_pattern());
@@ -2582,7 +2346,7 @@ rename_to(const Filename &other) const {
     return true;
   }
 
-#ifdef WIN32_VC
+#ifdef _WIN32
   wstring os_specific = to_os_specific_w();
   wstring other_os_specific = other.to_os_specific_w();
 
@@ -2592,9 +2356,9 @@ rename_to(const Filename &other) const {
     return true;
   }
 
-  // The above might fail if we have tried to move a file to a
-  // different filesystem.  In this case, copy the file into the same
-  // directory first, and then rename it.
+  // The above might fail if we have tried to move a file to a different
+  // filesystem.  In this case, copy the file into the same directory first,
+  // and then rename it.
   string dirname = other.get_dirname();
   if (dirname.empty()) {
     dirname = ".";
@@ -2621,7 +2385,7 @@ rename_to(const Filename &other) const {
     unlink();
     return true;
   }
-#else  // WIN32_VC
+#else  // _WIN32
   string os_specific = to_os_specific();
   string other_os_specific = other.to_os_specific();
 
@@ -2631,9 +2395,9 @@ rename_to(const Filename &other) const {
     return true;
   }
 
-  // The above might fail if we have tried to move a file to a
-  // different filesystem.  In this case, copy the file into the same
-  // directory first, and then rename it.
+  // The above might fail if we have tried to move a file to a different
+  // filesystem.  In this case, copy the file into the same directory first,
+  // and then rename it.
   string dirname = other.get_dirname();
   if (dirname.empty()) {
     dirname = ".";
@@ -2660,22 +2424,18 @@ rename_to(const Filename &other) const {
     unlink();
     return true;
   }
-#endif  // WIN32_VC
+#endif  // _WIN32
 
   // Failed.
   temp.unlink();
   return false;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: Filename::copy_to
-//       Access: Published
-//  Description: Copies the file to the indicated new filename, by
-//               reading the contents and writing it to the new file.
-//               Returns true if successful, false on failure.  The
-//               copy is always binary, regardless of the filename
-//               settings.
-////////////////////////////////////////////////////////////////////
+/**
+ * Copies the file to the indicated new filename, by reading the contents and
+ * writing it to the new file.  Returns true if successful, false on failure.
+ * The copy is always binary, regardless of the filename settings.
+ */
 bool Filename::
 copy_to(const Filename &other) const {
   Filename this_filename = Filename::binary_filename(*this);
@@ -2689,10 +2449,10 @@ copy_to(const Filename &other) const {
   if (!other_filename.open_write(out)) {
     return false;
   }
-        
+
   static const size_t buffer_size = 4096;
   char buffer[buffer_size];
-  
+
   in.read(buffer, buffer_size);
   size_t count = in.gcount();
   while (count != 0) {
@@ -2713,19 +2473,15 @@ copy_to(const Filename &other) const {
   return true;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: Filename::make_dir
-//       Access: Published
-//  Description: Creates all the directories in the path to the file
-//               specified in the filename, except for the basename
-//               itself.  This assumes that the Filename contains the
-//               name of a file, not a directory name; it ensures that
-//               the directory containing the file exists.
-//
-//               However, if the filename ends in a slash, it assumes
-//               the Filename represents the name of a directory, and
-//               creates all the paths.
-////////////////////////////////////////////////////////////////////
+/**
+ * Creates all the directories in the path to the file specified in the
+ * filename, except for the basename itself.  This assumes that the Filename
+ * contains the name of a file, not a directory name; it ensures that the
+ * directory containing the file exists.
+ *
+ * However, if the filename ends in a slash, it assumes the Filename
+ * represents the name of a directory, and creates all the paths.
+ */
 bool Filename::
 make_dir() const {
   assert(!get_pattern());
@@ -2747,90 +2503,83 @@ make_dir() const {
   }
   string dirname = path.get_fullpath();
 
-  // First, make sure everything up to the last path is known.  We
-  // don't care too much if any of these fail; maybe they failed
-  // because the directory was already there.
+  // First, make sure everything up to the last path is known.  We don't care
+  // too much if any of these fail; maybe they failed because the directory
+  // was already there.
   size_t slash = dirname.find('/');
   while (slash != string::npos) {
     Filename component(dirname.substr(0, slash));
-#ifdef WIN32_VC
+#ifdef _WIN32
     wstring os_specific = component.to_os_specific_w();
     _wmkdir(os_specific.c_str());
 #else
     string os_specific = component.to_os_specific();
     ::mkdir(os_specific.c_str(), 0777);
-#endif  // WIN32_VC
+#endif  // _WIN32
     slash = dirname.find('/', slash + 1);
   }
 
   // Now make the last one, and check the return value.
   Filename component(dirname);
-#ifdef WIN32_VC
+#ifdef _WIN32
   wstring os_specific = component.to_os_specific_w();
   int result = _wmkdir(os_specific.c_str());
 #else
   string os_specific = component.to_os_specific();
   int result = ::mkdir(os_specific.c_str(), 0777);
-#endif  // WIN32_VC
+#endif  // _WIN32
 
   return (result == 0);
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: Filename::mkdir
-//       Access: Published
-//  Description: Creates the directory named by this filename.  Unlike
-//               make_dir(), this assumes that the Filename contains
-//               the directory name itself.  Also, parent directories
-//               are not automatically created; this function fails if
-//               any parent directory is missing.
-////////////////////////////////////////////////////////////////////
+/**
+ * Creates the directory named by this filename.  Unlike make_dir(), this
+ * assumes that the Filename contains the directory name itself.  Also, parent
+ * directories are not automatically created; this function fails if any
+ * parent directory is missing.
+ */
 bool Filename::
 mkdir() const {
-#ifdef WIN32_VC
+#ifdef _WIN32
   wstring os_specific = to_os_specific_w();
   int result = _wmkdir(os_specific.c_str());
 #else
   string os_specific = to_os_specific();
   int result = ::mkdir(os_specific.c_str(), 0777);
-#endif  // WIN32_VC
+#endif  // _WIN32
 
   return (result == 0);
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: Filename::rmdir
-//       Access: Published
-//  Description: The inverse of mkdir(): this removes the directory
-//               named by this Filename, if it is in fact a directory.
-////////////////////////////////////////////////////////////////////
+/**
+ * The inverse of mkdir(): this removes the directory named by this Filename,
+ * if it is in fact a directory.
+ */
 bool Filename::
 rmdir() const {
-#ifdef WIN32_VC
+#ifdef _WIN32
   wstring os_specific = to_os_specific_w();
 
   int result = _wrmdir(os_specific.c_str());
   if (result != 0) {
-    // Windows may require the directory to be writable before we can
-    // remove it.
+    // Windows may require the directory to be writable before we can remove
+    // it.
     _wchmod(os_specific.c_str(), 0777);
     result = _wrmdir(os_specific.c_str());
   }
 
-#else  // WIN32_VC
+#else  // _WIN32
   string os_specific = to_os_specific();
   int result = ::rmdir(os_specific.c_str());
-#endif  // WIN32_VC
+#endif  // _WIN32
 
   return (result == 0);
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: Filename::get_hash
-//       Access: Published
-//  Description: Returns a hash code that attempts to be mostly unique
-//               for different Filenames.
-////////////////////////////////////////////////////////////////////
+/**
+ * Returns a hash code that attempts to be mostly unique for different
+ * Filenames.
+ */
 int Filename::
 get_hash() const {
   static const int primes[] = {
@@ -2863,71 +2612,60 @@ get_hash() const {
 }
 
 
-////////////////////////////////////////////////////////////////////
-//     Function: Filename::atomic_compare_and_exchange_contents
-//       Access: Public
-//  Description: Uses native file-locking mechanisms to atomically
-//               replace the contents of a (small) file with the
-//               specified contents, assuming it hasn't changed since
-//               the last time the file was read.
-//
-//               This is designed to be similar to
-//               AtomicAdjust::compare_and_exchange().  The method
-//               writes new_contents to the file, completely replacing
-//               the original contents; but only if the original
-//               contents exactly matched old_contents.  If the file
-//               was modified, returns true.  If, however, the
-//               original contents of the file did not exactly match
-//               old_contents, then the file is not modified, and
-//               false is returned.  In either case, orig_contents is
-//               filled with the original contents of the file.
-//
-//               If the file does not exist, it is implicitly created,
-//               and its original contents are empty.
-//
-//               If an I/O error occurs on write, some of the file may
-//               or may not have been written, and false is returned.
-//
-//               Expressed in pseudo-code, the logic is:
-//
-//                 orig_contents = file.read();
-//                 if (orig_contents == old_contents) {
-//                   file.write(new_contents);
-//                   return true;
-//                 }
-//                 return false;
-//
-//               The operation is guaranteed to be atomic only if the
-//               only operations that read and write to this file are
-//               atomic_compare_and_exchange_contents() and
-//               atomic_read_contents().
-////////////////////////////////////////////////////////////////////
+/**
+ * Uses native file-locking mechanisms to atomically replace the contents of a
+ * (small) file with the specified contents, assuming it hasn't changed since
+ * the last time the file was read.
+ *
+ * This is designed to be similar to AtomicAdjust::compare_and_exchange().
+ * The method writes new_contents to the file, completely replacing the
+ * original contents; but only if the original contents exactly matched
+ * old_contents.  If the file was modified, returns true.  If, however, the
+ * original contents of the file did not exactly match old_contents, then the
+ * file is not modified, and false is returned.  In either case, orig_contents
+ * is filled with the original contents of the file.
+ *
+ * If the file does not exist, it is implicitly created, and its original
+ * contents are empty.
+ *
+ * If an I/O error occurs on write, some of the file may or may not have been
+ * written, and false is returned.
+ *
+ * Expressed in pseudo-code, the logic is:
+ *
+ * orig_contents = file.read(); if (orig_contents == old_contents) {
+ * file.write(new_contents); return true; } return false;
+ *
+ * The operation is guaranteed to be atomic only if the only operations that
+ * read and write to this file are atomic_compare_and_exchange_contents() and
+ * atomic_read_contents().
+ */
 bool Filename::
-atomic_compare_and_exchange_contents(string &orig_contents, 
-                                     const string &old_contents, 
+atomic_compare_and_exchange_contents(string &orig_contents,
+                                     const string &old_contents,
                                      const string &new_contents) const {
-#ifdef WIN32_VC
+#ifdef _WIN32
   wstring os_specific = to_os_specific_w();
-  HANDLE hfile = CreateFileW(os_specific.c_str(), GENERIC_READ | GENERIC_WRITE, 
-                             0, NULL, OPEN_ALWAYS,
-                             FILE_ATTRIBUTE_NORMAL, NULL);
+  HANDLE hfile = CreateFileW(os_specific.c_str(), GENERIC_READ | GENERIC_WRITE,
+                             0, nullptr, OPEN_ALWAYS,
+                             FILE_ATTRIBUTE_NORMAL, nullptr);
   while (hfile == INVALID_HANDLE_VALUE) {
     DWORD error = GetLastError();
     if (error == ERROR_SHARING_VIOLATION) {
       // If the file is locked by another process, yield and try again.
       Sleep(0);
-      hfile = CreateFileW(os_specific.c_str(), GENERIC_READ | GENERIC_WRITE, 
-                          0, NULL, OPEN_ALWAYS,
-                          FILE_ATTRIBUTE_NORMAL, NULL);
+      hfile = CreateFileW(os_specific.c_str(), GENERIC_READ | GENERIC_WRITE,
+                          0, nullptr, OPEN_ALWAYS,
+                          FILE_ATTRIBUTE_NORMAL, nullptr);
     } else {
-      cerr << "Couldn't open file: " << os_specific 
+      cerr << "Couldn't open file: " << os_specific
            << ", error " << error << "\n";
       return false;
     }
   }
 
   if (hfile == INVALID_HANDLE_VALUE) {
-    cerr << "Couldn't open file: " << os_specific 
+    cerr << "Couldn't open file: " << os_specific
          << ", error " << GetLastError() << "\n";
     return false;
   }
@@ -2938,8 +2676,8 @@ atomic_compare_and_exchange_contents(string &orig_contents,
   orig_contents = string();
 
   DWORD bytes_read;
-  if (!ReadFile(hfile, buf, buf_size, &bytes_read, NULL)) {
-    cerr << "Error reading file: " << os_specific 
+  if (!ReadFile(hfile, buf, buf_size, &bytes_read, nullptr)) {
+    cerr << "Error reading file: " << os_specific
          << ", error " << GetLastError() << "\n";
     CloseHandle(hfile);
     return false;
@@ -2947,8 +2685,8 @@ atomic_compare_and_exchange_contents(string &orig_contents,
   while (bytes_read > 0) {
     orig_contents += string(buf, bytes_read);
 
-    if (!ReadFile(hfile, buf, buf_size, &bytes_read, NULL)) {
-      cerr << "Error reading file: " << os_specific 
+    if (!ReadFile(hfile, buf, buf_size, &bytes_read, nullptr)) {
+      cerr << "Error reading file: " << os_specific
            << ", error " << GetLastError() << "\n";
       CloseHandle(hfile);
       return false;
@@ -2961,8 +2699,8 @@ atomic_compare_and_exchange_contents(string &orig_contents,
     SetFilePointer(hfile, 0, 0, FILE_BEGIN);
     DWORD bytes_written;
     if (!WriteFile(hfile, new_contents.data(), new_contents.size(),
-                   &bytes_written, NULL)) {
-      cerr << "Error writing file: " << os_specific 
+                   &bytes_written, nullptr)) {
+      cerr << "Error writing file: " << os_specific
            << ", error " << GetLastError() << "\n";
       CloseHandle(hfile);
       return false;
@@ -2972,7 +2710,7 @@ atomic_compare_and_exchange_contents(string &orig_contents,
   CloseHandle(hfile);
   return match;
 
-#else  // WIN32_VC
+#else  // _WIN32
   string os_specific = to_os_specific();
   int fd = open(os_specific.c_str(), O_RDWR | O_CREAT, 0666);
   if (fd < 0) {
@@ -2985,7 +2723,7 @@ atomic_compare_and_exchange_contents(string &orig_contents,
 
   orig_contents = string();
 
-#ifdef HAVE_LOCKF
+#ifdef PHAVE_LOCKF
   if (lockf(fd, F_LOCK, 0) != 0) {
 #else
   if (flock(fd, LOCK_EX) != 0) {
@@ -2994,7 +2732,7 @@ atomic_compare_and_exchange_contents(string &orig_contents,
     close(fd);
     return false;
   }
-    
+
   ssize_t bytes_read = read(fd, buf, buf_size);
   while (bytes_read > 0) {
     orig_contents += string(buf, bytes_read);
@@ -3023,45 +2761,40 @@ atomic_compare_and_exchange_contents(string &orig_contents,
     perror(os_specific.c_str());
     return false;
   }
-  
+
   return match;
-#endif  // WIN32_VC
+#endif  // _WIN32
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: Filename::atomic_read_contents
-//       Access: Public
-//  Description: Uses native file-locking mechanisms to atomically
-//               read the contents of a (small) file.  This is the
-//               only way to read a file protected by
-//               atomic_compare_and_exchange_contents(), and be
-//               confident that the read operation is actually atomic
-//               with respect to that method.
-//
-//               If the file does not exist, it is implicitly created,
-//               and its contents are empty.
-//
-//               If the file is read successfully, fills its contents
-//               in the indicated string, and returns true.  If the
-//               file cannot be read, returns false.
-////////////////////////////////////////////////////////////////////
+/**
+ * Uses native file-locking mechanisms to atomically read the contents of a
+ * (small) file.  This is the only way to read a file protected by
+ * atomic_compare_and_exchange_contents(), and be confident that the read
+ * operation is actually atomic with respect to that method.
+ *
+ * If the file does not exist, it is implicitly created, and its contents are
+ * empty.
+ *
+ * If the file is read successfully, fills its contents in the indicated
+ * string, and returns true.  If the file cannot be read, returns false.
+ */
 bool Filename::
 atomic_read_contents(string &contents) const {
-#ifdef WIN32_VC
+#ifdef _WIN32
   wstring os_specific = to_os_specific_w();
-  HANDLE hfile = CreateFileW(os_specific.c_str(), GENERIC_READ, 
-                             FILE_SHARE_READ, NULL, OPEN_ALWAYS,
-                             FILE_ATTRIBUTE_NORMAL, NULL);
+  HANDLE hfile = CreateFileW(os_specific.c_str(), GENERIC_READ,
+                             FILE_SHARE_READ, nullptr, OPEN_ALWAYS,
+                             FILE_ATTRIBUTE_NORMAL, nullptr);
   while (hfile == INVALID_HANDLE_VALUE) {
     DWORD error = GetLastError();
     if (error == ERROR_SHARING_VIOLATION) {
       // If the file is locked by another process, yield and try again.
       Sleep(0);
-      hfile = CreateFileW(os_specific.c_str(), GENERIC_READ, 
-                          FILE_SHARE_READ, NULL, OPEN_ALWAYS,
-                          FILE_ATTRIBUTE_NORMAL, NULL);      
+      hfile = CreateFileW(os_specific.c_str(), GENERIC_READ,
+                          FILE_SHARE_READ, nullptr, OPEN_ALWAYS,
+                          FILE_ATTRIBUTE_NORMAL, nullptr);
     } else {
-      cerr << "Couldn't open file: " << os_specific 
+      cerr << "Couldn't open file: " << os_specific
            << ", error " << error << "\n";
       return false;
     }
@@ -3073,8 +2806,8 @@ atomic_read_contents(string &contents) const {
   contents = string();
 
   DWORD bytes_read;
-  if (!ReadFile(hfile, buf, buf_size, &bytes_read, NULL)) {
-    cerr << "Error reading file: " << os_specific 
+  if (!ReadFile(hfile, buf, buf_size, &bytes_read, nullptr)) {
+    cerr << "Error reading file: " << os_specific
          << ", error " << GetLastError() << "\n";
     CloseHandle(hfile);
     return false;
@@ -3082,8 +2815,8 @@ atomic_read_contents(string &contents) const {
   while (bytes_read > 0) {
     contents += string(buf, bytes_read);
 
-    if (!ReadFile(hfile, buf, buf_size, &bytes_read, NULL)) {
-      cerr << "Error reading file: " << os_specific 
+    if (!ReadFile(hfile, buf, buf_size, &bytes_read, nullptr)) {
+      cerr << "Error reading file: " << os_specific
            << ", error " << GetLastError() << "\n";
       CloseHandle(hfile);
       return false;
@@ -3093,7 +2826,7 @@ atomic_read_contents(string &contents) const {
   CloseHandle(hfile);
   return true;
 
-#else  // WIN32_VC
+#else  // _WIN32
   string os_specific = to_os_specific();
   int fd = open(os_specific.c_str(), O_RDWR | O_CREAT, 0666);
   if (fd < 0) {
@@ -3106,7 +2839,7 @@ atomic_read_contents(string &contents) const {
 
   contents = string();
 
-#ifdef HAVE_LOCKF
+#ifdef PHAVE_LOCKF
   if (lockf(fd, F_LOCK, 0) != 0) {
 #else
   if (flock(fd, LOCK_EX) != 0) {
@@ -3115,7 +2848,7 @@ atomic_read_contents(string &contents) const {
     close(fd);
     return false;
   }
-    
+
   ssize_t bytes_read = read(fd, buf, buf_size);
   while (bytes_read > 0) {
     contents += string(buf, bytes_read);
@@ -3130,20 +2863,17 @@ atomic_read_contents(string &contents) const {
 
   close(fd);
   return true;
-#endif  // WIN32_VC
+#endif  // _WIN32
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: Filename::locate_basename
-//       Access: Protected
-//  Description: After the string has been reassigned, search for the
-//               slash marking the beginning of the basename, and set
-//               _dirname_end and _basename_start correctly.
-////////////////////////////////////////////////////////////////////
+/**
+ * After the string has been reassigned, search for the slash marking the
+ * beginning of the basename, and set _dirname_end and _basename_start
+ * correctly.
+ */
 void Filename::
 locate_basename() {
-  // Scan for the last slash, which marks the end of the directory
-  // part.
+  // Scan for the last slash, which marks the end of the directory part.
   if (_filename.empty()) {
     _dirname_end = 0;
     _basename_start = 0;
@@ -3155,16 +2885,16 @@ locate_basename() {
       _basename_start = slash + 1;
       _dirname_end = _basename_start;
 
-      // One exception: in case there are multiple slashes in a row,
-      // we want to treat them as a single slash.  The directory
-      // therefore actually ends at the first of these; back up a bit.
+      // One exception: in case there are multiple slashes in a row, we want
+      // to treat them as a single slash.  The directory therefore actually
+      // ends at the first of these; back up a bit.
       while (_dirname_end > 0 && _filename[_dirname_end-1] == '/') {
         _dirname_end--;
       }
 
-      // Another exception: if the dirname was nothing but slashes, it
-      // was the root directory, or / itself.  In this case the dirname
-      // does include the terminal slash (of course).
+      // Another exception: if the dirname was nothing but slashes, it was the
+      // root directory, or  itself.  In this case the dirname does include
+      // the terminal slash (of course).
       if (_dirname_end == 0) {
         _dirname_end = 1;
       }
@@ -3177,23 +2907,19 @@ locate_basename() {
 
   // Now:
 
-  // _dirname_end is the last slash character, or 0 if there are no
-  // slash characters.
+  // _dirname_end is the last slash character, or 0 if there are no slash
+  // characters.
 
-  // _basename_start is the character after the last slash character,
-  // or 0 if there are no slash characters.
+  // _basename_start is the character after the last slash character, or 0 if
+  // there are no slash characters.
 }
 
 
-////////////////////////////////////////////////////////////////////
-//     Function: Filename::locate_extension
-//       Access: Protected
-//  Description: Once the end of the directory prefix has been found,
-//               and _dirname_end and _basename_start are set
-//               correctly, search for the dot marking the beginning
-//               of the extension, and set _basename_end and
-//               _extension_start correctly.
-////////////////////////////////////////////////////////////////////
+/**
+ * Once the end of the directory prefix has been found, and _dirname_end and
+ * _basename_start are set correctly, search for the dot marking the beginning
+ * of the extension, and set _basename_end and _extension_start correctly.
+ */
 void Filename::
 locate_extension() {
   // Now scan for the last dot after that slash.
@@ -3221,33 +2947,30 @@ locate_extension() {
 
   // _basename_end is the last dot, or npos if there is no dot.
 
-  // _extension_start is the character after the last dot, or npos if
-  // there is no dot.
+  // _extension_start is the character after the last dot, or npos if there is
+  // no dot.
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: Filename::locate_hash
-//       Access: Protected
-//  Description: Identifies the part of the filename that contains the
-//               sequence of hash marks, if any.
-////////////////////////////////////////////////////////////////////
+/**
+ * Identifies the part of the filename that contains the sequence of hash
+ * marks, if any.
+ */
 void Filename::
 locate_hash() {
   if (!get_pattern()) {
-    // If it's not a pattern-type filename, these are always set to
-    // the end of the string.
+    // If it's not a pattern-type filename, these are always set to the end of
+    // the string.
     _hash_end = string::npos;
     _hash_start = string::npos;
 
   } else {
-    // If it is a pattern-type filename, we must search for the hash
-    // marks, which could be anywhere (but are usually toward the
-    // end).
+    // If it is a pattern-type filename, we must search for the hash marks,
+    // which could be anywhere (but are usually toward the end).
     _hash_end = _filename.rfind('#');
     if (_hash_end == string::npos) {
       _hash_end = string::npos;
       _hash_start = string::npos;
-      
+
     } else {
       _hash_start = _hash_end;
       ++_hash_end;
@@ -3259,14 +2982,11 @@ locate_hash() {
 }
 
 
-////////////////////////////////////////////////////////////////////
-//     Function: Filename::get_common_prefix
-//       Access: Protected
-//  Description: Returns the length of the longest common initial
-//               substring of this string and the other one that ends
-//               in a slash.  This is the lowest directory common to
-//               both filenames.
-////////////////////////////////////////////////////////////////////
+/**
+ * Returns the length of the longest common initial substring of this string
+ * and the other one that ends in a slash.  This is the lowest directory
+ * common to both filenames.
+ */
 size_t Filename::
 get_common_prefix(const string &other) const {
   size_t len = 0;
@@ -3285,12 +3005,10 @@ get_common_prefix(const string &other) const {
   return len;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: Filename::count_slashes
-//       Access: Protected, Static
-//  Description: Returns the number of non-consecutive slashes in the
-//               indicated string, not counting a terminal slash.
-////////////////////////////////////////////////////////////////////
+/**
+ * Returns the number of non-consecutive slashes in the indicated string, not
+ * counting a terminal slash.
+ */
 int Filename::
 count_slashes(const string &str) {
   int count = 0;
@@ -3320,20 +3038,17 @@ count_slashes(const string &str) {
 }
 
 
-////////////////////////////////////////////////////////////////////
-//     Function: Filename::r_make_canonical
-//       Access: Protected
-//  Description: The recursive implementation of make_canonical().
-////////////////////////////////////////////////////////////////////
+/**
+ * The recursive implementation of make_canonical().
+ */
 bool Filename::
 r_make_canonical(const Filename &cwd) {
   if (get_fullpath() == "/") {
-    // If we reached the root, the whole path doesn't exist.  Report
-    // failure.
+    // If we reached the root, the whole path doesn't exist.  Report failure.
     return false;
   }
 
-#ifdef WIN32_VC
+#ifdef _WIN32
   // First, try to cd to the filename directly.
   wstring os_specific = to_os_specific_w();
   if (_wchdir(os_specific.c_str()) >= 0) {
@@ -3347,7 +3062,7 @@ r_make_canonical(const Filename &cwd) {
     }
     return true;
   }
-#else  // WIN32_VC
+#else  // _WIN32
   // First, try to cd to the filename directly.
   string os_specific = to_os_specific();
   if (::chdir(os_specific.c_str()) >= 0) {
@@ -3361,23 +3076,22 @@ r_make_canonical(const Filename &cwd) {
     }
     return true;
   }
-#endif  // WIN32_VC
+#endif  // _WIN32
 
-  // That didn't work; maybe it's not a directory.  Recursively go to
-  // the directory above.
+  // That didn't work; maybe it's not a directory.  Recursively go to the
+  // directory above.
 
   Filename dir(get_dirname());
-  
+
   if (dir.empty()) {
     // No dirname means the file is in this directory.
     set_dirname(cwd);
     return true;
   }
-  
+
   if (!dir.r_make_canonical(cwd)) {
     return false;
   }
   set_dirname(dir);
   return true;
 }
-

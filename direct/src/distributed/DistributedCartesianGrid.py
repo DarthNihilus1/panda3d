@@ -1,5 +1,6 @@
 
-from pandac.PandaModules import *
+from panda3d.core import *
+from panda3d.direct import *
 from direct.interval.IntervalGlobal import *
 from direct.directnotify.DirectNotifyGlobal import directNotify
 
@@ -15,7 +16,7 @@ if __debug__:
     from direct.directtools.DirectGeometry import *
     from direct.showbase.PythonUtil import randFloat
 
-from CartesianGridBase import CartesianGridBase
+from .CartesianGridBase import CartesianGridBase
 
 # increase this number if you want to visualize the grid lines
 # above water level

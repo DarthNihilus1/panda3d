@@ -1,21 +1,20 @@
-// Filename: pStatProperties.cxx
-// Created by:  drose (17May01)
-//
-////////////////////////////////////////////////////////////////////
-//
-// PANDA 3D SOFTWARE
-// Copyright (c) Carnegie Mellon University.  All rights reserved.
-//
-// All use of this software is subject to the terms of the revised BSD
-// license.  You should have received a copy of this license along
-// with this source code in a file named "LICENSE."
-//
-////////////////////////////////////////////////////////////////////
+/**
+ * PANDA 3D SOFTWARE
+ * Copyright (c) Carnegie Mellon University.  All rights reserved.
+ *
+ * All use of this software is subject to the terms of the revised BSD
+ * license.  You should have received a copy of this license along
+ * with this source code in a file named "LICENSE."
+ *
+ * @file pStatProperties.cxx
+ * @author drose
+ * @date 2001-05-17
+ */
 
 #include "pStatProperties.h"
 #include "pStatCollectorDef.h"
 #include "pStatClient.h"
-#include "config_pstats.h"
+#include "config_pstatclient.h"
 #include "configVariableBool.h"
 #include "configVariableColor.h"
 #include "configVariableDouble.h"
@@ -24,37 +23,35 @@
 
 #include <ctype.h>
 
+using std::string;
+
 static const int current_pstat_major_version = 3;
 static const int current_pstat_minor_version = 0;
-// Initialized at 2.0 on 5/18/01, when version numbers were first added.
-// Incremented to 2.1 on 5/21/01 to add support for TCP frame data.
-// Incremented to 3.0 on 4/28/05 to bump TCP headers to 32 bits.
+// Initialized at 2.0 on 51801, when version numbers were first added.
+// Incremented to 2.1 on 52101 to add support for TCP frame data.  Incremented
+// to 3.0 on 42805 to bump TCP headers to 32 bits.
 
-////////////////////////////////////////////////////////////////////
-//     Function: get_current_pstat_major_version
-//  Description: Returns the current major version number of the
-//               PStats protocol.  This is the version number that
-//               will be reported by clients running this code, and
-//               that will be expected by servers running this code.
-//
-//               The major version numbers must match exactly in order
-//               for a communication to be successful.
-////////////////////////////////////////////////////////////////////
+/**
+ * Returns the current major version number of the PStats protocol.  This is
+ * the version number that will be reported by clients running this code, and
+ * that will be expected by servers running this code.
+ *
+ * The major version numbers must match exactly in order for a communication
+ * to be successful.
+ */
 int
 get_current_pstat_major_version() {
   return current_pstat_major_version;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: get_current_pstat_minor_version
-//  Description: Returns the current minor version number of the
-//               PStats protocol.  This is the version number that
-//               will be reported by clients running this code, and
-//               that will be expected by servers running this code.
-//
-//               The minor version numbers need not match exactly, but
-//               the server must be >= the client.
-////////////////////////////////////////////////////////////////////
+/**
+ * Returns the current minor version number of the PStats protocol.  This is
+ * the version number that will be reported by clients running this code, and
+ * that will be expected by servers running this code.
+ *
+ * The minor version numbers need not match exactly, but the server must be >=
+ * the client.
+ */
 int
 get_current_pstat_minor_version() {
   return current_pstat_minor_version;
@@ -63,27 +60,20 @@ get_current_pstat_minor_version() {
 
 #ifdef DO_PSTATS
 
-////////////////////////////////////////////////////////////////////
-//
-// The rest of this file defines the predefined properties (color,
-// sort, etc.) for the various PStatCollectors that may be defined
-// within Panda or even elsewhere.
-//
-// It is a little strange to defined these properties here instead of
-// where the collectors are actually declared, but it's handy to have
-// them all in one place, so we can easily see which colors are
-// available, etc.  It also makes the declarations a lot simpler,
-// since there are quite a few esoteric parameters to specify.
-//
-// We could define these in some external data file that is read in at
-// runtime, so that you could extend this list without having to
-// relink panda, but then there are the usual problems with ensuring
-// that the file is available to you at runtime.  The heck with it.
-//
-// At least, no other file depends on this file, so it may be modified
-// without forcing anything else to be recompiled.
-//
-////////////////////////////////////////////////////////////////////
+/*
+ * The rest of this file defines the predefined properties (color, sort, etc.)
+ * for the various PStatCollectors that may be defined within Panda or even
+ * elsewhere.  It is a little strange to defined these properties here instead
+ * of where the collectors are actually declared, but it's handy to have them
+ * all in one place, so we can easily see which colors are available, etc.  It
+ * also makes the declarations a lot simpler, since there are quite a few
+ * esoteric parameters to specify.  We could define these in some external
+ * data file that is read in at runtime, so that you could extend this list
+ * without having to relink panda, but then there are the usual problems with
+ * ensuring that the file is available to you at runtime.  The heck with it.
+ * At least, no other file depends on this file, so it may be modified without
+ * forcing anything else to be recompiled.
+ */
 
 typedef PStatCollectorDef::ColorDef ColorDef;
 
@@ -131,7 +121,7 @@ static TimeCollectorProperties time_properties[] = {
   { 1, "Cull:Sort",                        { 0.3, 0.3, 0.6 } },
   { 1, "*",                                { 0.1, 0.1, 0.5 } },
   { 1, "*:Show fps",                       { 0.5, 0.8, 1.0 } },
-  { 0, "*:Munge",                          { 0.3, 0.3, 0.9 } },
+  { 1, "*:Munge",                          { 0.3, 0.3, 0.9 } },
   { 1, "*:Munge:Geom",                     { 0.4, 0.2, 0.8 } },
   { 1, "*:Munge:Sprites",                  { 0.2, 0.8, 0.4 } },
   { 0, "*:Munge:Data",                     { 0.7, 0.5, 0.2 } },
@@ -158,14 +148,14 @@ static TimeCollectorProperties time_properties[] = {
   { 1, "Draw:Set State",                   { 0.2, 0.6, 0.8 } },
   { 1, "Draw:Wait occlusion",              { 1.0, 0.5, 0.0 } },
   { 1, "Draw:Bind FBO",                    { 0.0, 0.8, 0.8 } },
-  { 0, NULL }
+  { 0, nullptr }
 };
 
 static LevelCollectorProperties level_properties[] = {
   { 1, "Graphics memory",                  { 0.0, 0.0, 1.0 },  "MB", 64, 1048576 },
-  { 1, "Vertex buffer switch",             { 0.0, 0.6, 0.8 },  "", 500 },
-  { 1, "Vertex buffer switch:Vertex",      { 0.8, 0.0, 0.6 } },
-  { 1, "Vertex buffer switch:Index",       { 0.8, 0.6, 0.3 } },
+  { 1, "Buffer switch",                    { 0.0, 0.6, 0.8 },  "", 500 },
+  { 1, "Buffer switch:Vertex",             { 0.8, 0.0, 0.6 } },
+  { 1, "Buffer switch:Index",              { 0.8, 0.6, 0.3 } },
   { 1, "Geom cache size",                  { 0.6, 0.8, 0.6 },  "", 500 },
   { 1, "Geom cache size:Active",           { 0.9, 1.0, 0.3 },  "", 500 },
   { 1, "Geom cache operations",            { 1.0, 0.6, 0.6 },  "", 500 },
@@ -230,22 +220,20 @@ static LevelCollectorProperties level_properties[] = {
   { 1, "Collision Volumes",                { 1.0, 0.8, 0.5 },  "", 500 },
   { 1, "Collision Tests",                  { 0.5, 0.8, 1.0 },  "", 100 },
   { 1, "Command latency",                  { 0.8, 0.2, 0.0 },  "ms", 10, 1.0 / 1000.0 },
-  { 0, NULL }
+  { 0, nullptr }
 };
 
 
-////////////////////////////////////////////////////////////////////
-//     Function: initialize_collector_def_from_table
-//  Description: Looks up the collector in the compiled-in table
-//               defined above, and sets its properties appropriately
-//               if it is found.
-////////////////////////////////////////////////////////////////////
+/**
+ * Looks up the collector in the compiled-in table defined above, and sets its
+ * properties appropriately if it is found.
+ */
 static void
 initialize_collector_def_from_table(const string &fullname, PStatCollectorDef *def) {
   int i;
 
   for (i = 0;
-       time_properties[i].name != (const char *)NULL;
+       time_properties[i].name != nullptr;
        i++) {
     const TimeCollectorProperties &tp = time_properties[i];
     if (fullname == tp.name) {
@@ -262,7 +250,7 @@ initialize_collector_def_from_table(const string &fullname, PStatCollectorDef *d
   }
 
   for (i = 0;
-       level_properties[i].name != (const char *)NULL;
+       level_properties[i].name != nullptr;
        i++) {
     const LevelCollectorProperties &lp = level_properties[i];
     if (fullname == lp.name) {
@@ -274,7 +262,7 @@ initialize_collector_def_from_table(const string &fullname, PStatCollectorDef *d
       if (lp.suggested_scale != 0.0) {
         def->_suggested_scale = lp.suggested_scale;
       }
-      if (lp.units != (const char *)NULL) {
+      if (lp.units != nullptr) {
         def->_level_units = lp.units;
       }
       if (lp.inv_factor != 0.0) {
@@ -286,14 +274,12 @@ initialize_collector_def_from_table(const string &fullname, PStatCollectorDef *d
 }
 
 
-////////////////////////////////////////////////////////////////////
-//     Function: initialize_collector_def
-//  Description: This is the only accessor function into this table.
-//               The PStatCollectorDef constructor calls it when a new
-//               PStatCollectorDef is created.  It should look up in
-//               the table and find a matching definition for this def
-//               by name; if one is found, the properties are applied.
-////////////////////////////////////////////////////////////////////
+/**
+ * This is the only accessor function into this table.  The PStatCollectorDef
+ * constructor calls it when a new PStatCollectorDef is created.  It should
+ * look up in the table and find a matching definition for this def by name;
+ * if one is found, the properties are applied.
+ */
 void
 initialize_collector_def(const PStatClient *client, PStatCollectorDef *def) {
   string fullname;
@@ -307,10 +293,10 @@ initialize_collector_def(const PStatClient *client, PStatCollectorDef *def) {
   // First, check the compiled-in defaults.
   initialize_collector_def_from_table(fullname, def);
 
-  // Then, look to Config for more advice.  To do this, we first
-  // change the name to something more like a Config variable name.
-  // We replace colons and spaces with hyphens, eliminate other
-  // punctuation, and make all letters lowercase.
+  // Then, look to Config for more advice.  To do this, we first change the
+  // name to something more like a Config variable name.  We replace colons
+  // and spaces with hyphens, eliminate other punctuation, and make all
+  // letters lowercase.
 
   string config_name;
   string::const_iterator ni;

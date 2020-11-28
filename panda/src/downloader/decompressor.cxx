@@ -1,16 +1,15 @@
-// Filename: decompressor.cxx
-// Created by:  mike (09Jan97)
-//
-////////////////////////////////////////////////////////////////////
-//
-// PANDA 3D SOFTWARE
-// Copyright (c) Carnegie Mellon University.  All rights reserved.
-//
-// All use of this software is subject to the terms of the revised BSD
-// license.  You should have received a copy of this license along
-// with this source code in a file named "LICENSE."
-//
-////////////////////////////////////////////////////////////////////
+/**
+ * PANDA 3D SOFTWARE
+ * Copyright (c) Carnegie Mellon University.  All rights reserved.
+ *
+ * All use of this software is subject to the terms of the revised BSD
+ * license.  You should have received a copy of this license along
+ * with this source code in a file named "LICENSE."
+ *
+ * @file decompressor.cxx
+ * @author mike
+ * @date 1997-01-09
+ */
 
 #include "pandabase.h"
 
@@ -30,40 +29,33 @@
 #include <stdio.h>
 #include <errno.h>
 
-////////////////////////////////////////////////////////////////////
-//     Function: Decompressor::Constructor
-//       Access: Public
-//  Description:
-////////////////////////////////////////////////////////////////////
+/**
+ *
+ */
 Decompressor::
 Decompressor() {
-  _source = NULL;
-  _decompress = NULL;
-  _dest = NULL;
+  _source = nullptr;
+  _decompress = nullptr;
+  _dest = nullptr;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: Decompressor::Destructor
-//       Access: Public
-//  Description:
-////////////////////////////////////////////////////////////////////
+/**
+ *
+ */
 Decompressor::
 ~Decompressor() {
   cleanup();
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: Decompressor::initiate
-//       Access: Public
-//  Description: Begins a background decompression of the named file
-//               (whose filename must end in ".pz") to a new file
-//               without the .pz extension.  The source file is
-//               removed after successful completion.
-////////////////////////////////////////////////////////////////////
+/**
+ * Begins a background decompression of the named file (whose filename must
+ * end in ".pz") to a new file without the .pz extension.  The source file is
+ * removed after successful completion.
+ */
 int Decompressor::
 initiate(const Filename &source_file) {
-  string extension = source_file.get_extension();
-  if (extension == "pz") {
+  std::string extension = source_file.get_extension();
+  if (extension == "pz" || extension == "gz") {
     Filename dest_file = source_file;
     dest_file = source_file.get_fullpath_wo_extension();
     return initiate(source_file, dest_file);
@@ -72,18 +64,15 @@ initiate(const Filename &source_file) {
   if (downloader_cat.is_debug()) {
     downloader_cat.debug()
       << "Unknown file extension for decompressor: ."
-      << extension << endl;
+      << extension << std::endl;
   }
   return EU_error_abort;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: Decompressor::initiate
-//       Access: Public
-//  Description: Begins a background decompression from the named
-//               source file to the named destination file.  The
-//               source file is removed after successful completion.
-////////////////////////////////////////////////////////////////////
+/**
+ * Begins a background decompression from the named source file to the named
+ * destination file.  The source file is removed after successful completion.
+ */
 int Decompressor::
 initiate(const Filename &source_file, const Filename &dest_file) {
   cleanup();
@@ -101,14 +90,14 @@ initiate(const Filename &source_file, const Filename &dest_file) {
   }
 
   // Determine source file length
-  source_pfstream->seekg(0, ios::end);
+  source_pfstream->seekg(0, std::ios::end);
   _source_length = source_pfstream->tellg();
   if (_source_length == 0) {
     downloader_cat.warning()
       << "Zero length file: " << source_file << "\n";
     return EU_error_file_empty;
   }
-  source_pfstream->seekg(0, ios::beg);
+  source_pfstream->seekg(0, std::ios::beg);
 
   // Open destination file
   Filename dest_filename(dest_file);
@@ -141,18 +130,14 @@ initiate(const Filename &source_file, const Filename &dest_file) {
   return EU_success;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: Decompressor::run
-//       Access: Public
-//  Description: Called each frame to do the next bit of work in the
-//               background task.  Returns EU_ok if a chunk is
-//               completed but there is more to go, or EU_success when
-//               we're all done.  Any other return value indicates an
-//               error.
-////////////////////////////////////////////////////////////////////
+/**
+ * Called each frame to do the next bit of work in the background task.
+ * Returns EU_ok if a chunk is completed but there is more to go, or
+ * EU_success when we're all done.  Any other return value indicates an error.
+ */
 int Decompressor::
 run() {
-  if (_decompress == (istream *)NULL) {
+  if (_decompress == nullptr) {
     // Hmm, we were already done.
     return EU_success;
   }
@@ -187,13 +172,10 @@ run() {
   return EU_success;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: Decompressor::decompress
-//       Access: Public
-//  Description: Performs a foreground decompression of the named
-//               file; does not return until the decompression is
-//               complete.
-////////////////////////////////////////////////////////////////////
+/**
+ * Performs a foreground decompression of the named file; does not return
+ * until the decompression is complete.
+ */
 bool Decompressor::
 decompress(const Filename &source_file) {
   int ret = initiate(source_file);
@@ -201,7 +183,7 @@ decompress(const Filename &source_file) {
     return false;
 
   int ch = _decompress->get();
-  while (!_decompress->eof() && !_decompress->fail()) {
+  while (ch != EOF && !_decompress->fail()) {
     _dest->put(ch);
     ch = _decompress->get();
   }
@@ -213,22 +195,19 @@ decompress(const Filename &source_file) {
   return true;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: Decompressor::decompress
-//       Access: Public
-//  Description: Does an in-memory decompression of the indicated
-//               Ramfile.  The decompressed contents are written back
-//               into the same Ramfile on completion.
-////////////////////////////////////////////////////////////////////
+/**
+ * Does an in-memory decompression of the indicated Ramfile.  The decompressed
+ * contents are written back into the same Ramfile on completion.
+ */
 bool Decompressor::
 decompress(Ramfile &source_and_dest_file) {
-  istringstream source(source_and_dest_file._data);
-  ostringstream dest;
+  std::istringstream source(source_and_dest_file._data);
+  std::ostringstream dest;
 
   IDecompressStream decompress(&source, false);
 
   int ch = decompress.get();
-  while (!decompress.eof() && !decompress.fail()) {
+  while (ch != EOF && !decompress.fail()) {
     dest.put(ch);
     ch = decompress.get();
   }
@@ -238,15 +217,12 @@ decompress(Ramfile &source_and_dest_file) {
   return true;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: Decompressor::get_progress
-//       Access: Public
-//  Description: Returns the ratio through the decompression step
-//               in the background.
-////////////////////////////////////////////////////////////////////
+/**
+ * Returns the ratio through the decompression step in the background.
+ */
 PN_stdfloat Decompressor::
 get_progress() const {
-  if (_decompress == (istream *)NULL) {
+  if (_decompress == nullptr) {
     // Hmm, we were already done.
     return 1.0f;
   }
@@ -254,30 +230,27 @@ get_progress() const {
   nassertr(_source_length > 0, 0.0);
   size_t source_pos = _source->tellg();
 
-  // We stop the scale at 0.99 because there may be a little bit more
-  // to do even after the decompressor has read all of the source.
+  // We stop the scale at 0.99 because there may be a little bit more to do
+  // even after the decompressor has read all of the source.
   return (0.99f * (PN_stdfloat)source_pos / (PN_stdfloat)_source_length);
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: Decompressor::cleanup
-//       Access: Private
-//  Description: Called to reset a previous decompressor state and
-//               clean up properly.
-////////////////////////////////////////////////////////////////////
+/**
+ * Called to reset a previous decompressor state and clean up properly.
+ */
 void Decompressor::
 cleanup() {
-  if (_source != (istream *)NULL) {
+  if (_source != nullptr) {
     delete _source;
-    _source = NULL;
+    _source = nullptr;
   }
-  if (_dest != (ostream *)NULL) {
+  if (_dest != nullptr) {
     delete _dest;
-    _dest = NULL;
+    _dest = nullptr;
   }
-  if (_decompress != (istream *)NULL) {
+  if (_decompress != nullptr) {
     delete _decompress;
-    _decompress = NULL;
+    _decompress = nullptr;
   }
 }
 

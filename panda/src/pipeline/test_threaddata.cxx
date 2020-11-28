@@ -1,16 +1,15 @@
-// Filename: test_threaddata.cxx
-// Created by:  cary (16Sep98)
-//
-////////////////////////////////////////////////////////////////////
-//
-// PANDA 3D SOFTWARE
-// Copyright (c) Carnegie Mellon University.  All rights reserved.
-//
-// All use of this software is subject to the terms of the revised BSD
-// license.  You should have received a copy of this license along
-// with this source code in a file named "LICENSE."
-//
-////////////////////////////////////////////////////////////////////
+/**
+ * PANDA 3D SOFTWARE
+ * Copyright (c) Carnegie Mellon University.  All rights reserved.
+ *
+ * All use of this software is subject to the terms of the revised BSD
+ * license.  You should have received a copy of this license along
+ * with this source code in a file named "LICENSE."
+ *
+ * @file test_threaddata.cxx
+ * @author cary
+ * @date 1998-09-16
+ */
 
 #include "pandabase.h"
 #include "thread.h"
@@ -18,12 +17,14 @@
 #include "mutexHolder.h"
 #include "pointerTo.h"
 
-Mutex *cout_mutex = (Mutex *)NULL;
+using std::cout;
+
+Mutex *cout_mutex = nullptr;
 
 // Test forking a thread with some private data.
 class ThreadWithData : public Thread {
 public:
-  ThreadWithData(const string &name, int parameter);
+  ThreadWithData(const std::string &name, int parameter);
 
   virtual void thread_main();
 
@@ -33,7 +34,7 @@ private:
 
 
 ThreadWithData::
-ThreadWithData(const string &name, int parameter) : 
+ThreadWithData(const std::string &name, int parameter) :
   Thread(name, name),
   _parameter(parameter)
 {
@@ -49,7 +50,7 @@ thread_main() {
       MutexHolder holder(cout_mutex);
       cout << "Running thread " << get_name()
            << " with parameter " << _parameter
-           << ", i = " << i << "\n" << flush;
+           << ", i = " << i << "\n" << std::flush;
       Thread *thread = get_current_thread();
       nassertv(thread == this);
     }
@@ -61,14 +62,14 @@ int
 main() {
   cout << "main beginning.\n";
   for (int i = 0; i < 10; i++) {
-    string name = string("thread_") + (char)(i + 'a');
+    std::string name = std::string("thread_") + (char)(i + 'a');
     PT(Thread) thread = new ThreadWithData(name, i);
     if (!thread->start(TP_low, true)) {
       MutexHolder holder(cout_mutex);
       cout << "Unable to start " << name << ".\n";
     } else {
       MutexHolder holder(cout_mutex);
-      cout << "Started " << name << ", count = " 
+      cout << "Started " << name << ", count = "
            << thread->get_ref_count() << "\n";
     }
   }

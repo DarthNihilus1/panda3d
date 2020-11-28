@@ -1,33 +1,34 @@
-// Filename: bulletHelper.cxx
-// Created by:  enn0x (19Jan11)
-//
-////////////////////////////////////////////////////////////////////
-//
-// PANDA 3D SOFTWARE
-// Copyright (c) Carnegie Mellon University.  All rights reserved.
-//
-// All use of this software is subject to the terms of the revised BSD
-// license.  You should have received a copy of this license along
-// with this source code in a file named "LICENSE."
-//
-////////////////////////////////////////////////////////////////////
+/**
+ * PANDA 3D SOFTWARE
+ * Copyright (c) Carnegie Mellon University.  All rights reserved.
+ *
+ * All use of this software is subject to the terms of the revised BSD
+ * license.  You should have received a copy of this license along
+ * with this source code in a file named "LICENSE."
+ *
+ * @file bulletHelper.cxx
+ * @author enn0x
+ * @date 2011-01-19
+ */
 
 #include "bulletHelper.h"
+
 #include "bulletRigidBodyNode.h"
+#include "bulletSoftBodyNode.h"
 #include "bulletGhostNode.h"
 
 #include "geomLines.h"
 #include "geomTriangles.h"
 #include "geomVertexRewriter.h"
 
+#include "bullet_utils.h"
+
 PT(InternalName) BulletHelper::_sb_index;
 PT(InternalName) BulletHelper::_sb_flip;
 
-////////////////////////////////////////////////////////////////////
-//     Function: BulletHelper::from_collision_solids
-//       Access: Published
-//  Description:
-////////////////////////////////////////////////////////////////////
+/**
+ *
+ */
 NodePathCollection BulletHelper::
 from_collision_solids(NodePath &np, bool clear) {
 
@@ -40,7 +41,7 @@ from_collision_solids(NodePath &np, bool clear) {
     NodePath cnp = npc.get_path(i);
     CollisionNode *cnode = DCAST(CollisionNode, cnp.node());
 
-    PT(PandaNode) bnode = NULL;
+    PT(PandaNode) bnode = nullptr;
 
     // Create a either a new rigid body or a new ghost for each CollisionNode,
     // and add one shape per CollisionSolid contained in the CollisionNode
@@ -79,17 +80,14 @@ from_collision_solids(NodePath &np, bool clear) {
   return result;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: BulletHelper::is_tangible
-//       Access: Private
-//  Description: Returns TRUE if at least one CollisionSolid of
-//               the given CollisionNode is tangible. Returns FALSE
-//               if all CollisionSolids are intangible.
-////////////////////////////////////////////////////////////////////
+/**
+ * Returns TRUE if at least one CollisionSolid of the given CollisionNode is
+ * tangible.  Returns FALSE if all CollisionSolids are intangible.
+ */
 bool BulletHelper::
 is_tangible(CollisionNode *cnode) {
 
-  for (int j=0; j<cnode->get_num_solids(); j++) {
+  for (size_t j = 0; j < cnode->get_num_solids(); ++j) {
     CPT(CollisionSolid) solid = cnode->get_solid(j);
     if (solid->is_tangible()) {
         return true;
@@ -99,11 +97,9 @@ is_tangible(CollisionNode *cnode) {
   return false;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: BulletHelper::add_sb_index_column
-//       Access: Private
-//  Description: 
-////////////////////////////////////////////////////////////////////
+/**
+ *
+ */
 CPT(GeomVertexFormat) BulletHelper::
 add_sb_index_column(const GeomVertexFormat *format) {
 
@@ -126,11 +122,9 @@ add_sb_index_column(const GeomVertexFormat *format) {
   return registered_format;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: BulletHelper::add_sb_flip_column
-//       Access: Private
-//  Description: 
-////////////////////////////////////////////////////////////////////
+/**
+ *
+ */
 CPT(GeomVertexFormat) BulletHelper::
 add_sb_flip_column(const GeomVertexFormat *format) {
 
@@ -153,33 +147,27 @@ add_sb_flip_column(const GeomVertexFormat *format) {
   return registered_format;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: BulletHelper::make_geom_from_faces
-//       Access: Published
-//  Description:
-////////////////////////////////////////////////////////////////////
+/**
+ *
+ */
 PT(Geom) BulletHelper::
 make_geom_from_faces(BulletSoftBodyNode *node, const GeomVertexFormat *format, bool two_sided) {
 
   return make_geom(node, format, two_sided, true);
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: BulletHelper::make_geom_from_links
-//       Access: Published
-//  Description:
-////////////////////////////////////////////////////////////////////
+/**
+ *
+ */
 PT(Geom) BulletHelper::
 make_geom_from_links(BulletSoftBodyNode *node, const GeomVertexFormat *format) {
 
   return make_geom(node, format, false, false);
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: BulletHelper::make_geom
-//       Access: Private
-//  Description:
-////////////////////////////////////////////////////////////////////
+/**
+ *
+ */
 PT(Geom) BulletHelper::
 make_geom(BulletSoftBodyNode *node, const GeomVertexFormat *format, bool two_sided, bool use_faces) {
 
@@ -195,8 +183,8 @@ make_geom(BulletSoftBodyNode *node, const GeomVertexFormat *format, bool two_sid
   CPT(GeomVertexFormat) fmt = (format) ? format : GeomVertexFormat::get_v3n3t2();
   fmt = BulletHelper::add_sb_flip_column(fmt);
 
-  nassertr(fmt->has_column(InternalName::get_vertex()), NULL);
-  nassertr(fmt->has_column(InternalName::get_normal()), NULL);
+  nassertr(fmt->has_column(InternalName::get_vertex()), nullptr);
+  nassertr(fmt->has_column(InternalName::get_normal()), nullptr);
 
   btSoftBody::tNodeArray &nodes(body->m_nodes);
 
@@ -282,11 +270,9 @@ make_geom(BulletSoftBodyNode *node, const GeomVertexFormat *format, bool two_sid
   return geom;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: BulletHelper::make_texcoords_for_patch
-//       Access: Published
-//  Description:
-////////////////////////////////////////////////////////////////////
+/**
+ *
+ */
 void BulletHelper::
 make_texcoords_for_patch(Geom *geom, int resx, int resy) {
 
@@ -316,4 +302,3 @@ make_texcoords_for_patch(Geom *geom, int resx, int resy) {
     i++;
   }
 }
-

@@ -1,36 +1,34 @@
-// Filename: tinyWinGraphicsWindow.h
-// Created by:  drose (06May08)
-//
-////////////////////////////////////////////////////////////////////
-//
-// PANDA 3D SOFTWARE
-// Copyright (c) Carnegie Mellon University.  All rights reserved.
-//
-// All use of this software is subject to the terms of the revised BSD
-// license.  You should have received a copy of this license along
-// with this source code in a file named "LICENSE."
-//
-////////////////////////////////////////////////////////////////////
+/**
+ * PANDA 3D SOFTWARE
+ * Copyright (c) Carnegie Mellon University.  All rights reserved.
+ *
+ * All use of this software is subject to the terms of the revised BSD
+ * license.  You should have received a copy of this license along
+ * with this source code in a file named "LICENSE."
+ *
+ * @file tinyWinGraphicsWindow.h
+ * @author drose
+ * @date 2008-05-06
+ */
 
 #ifndef TINYWINGRAPHICSWINDOW_H
 #define TINYWINGRAPHICSWINDOW_H
 
 #include "pandabase.h"
 
-#ifdef WIN32
+#ifdef _WIN32
 
 #include "winGraphicsWindow.h"
 #include "tinyWinGraphicsPipe.h"
 
-////////////////////////////////////////////////////////////////////
-//       Class : TinyWinGraphicsWindow
-// Description : Opens a window on Microsoft Windows to display the
-//               TinyPanda software rendering.
-////////////////////////////////////////////////////////////////////
+/**
+ * Opens a window on Microsoft Windows to display the TinyPanda software
+ * rendering.
+ */
 class EXPCL_TINYDISPLAY TinyWinGraphicsWindow : public WinGraphicsWindow {
 public:
-  TinyWinGraphicsWindow(GraphicsEngine *engine, GraphicsPipe *pipe, 
-                        const string &name,
+  TinyWinGraphicsWindow(GraphicsEngine *engine, GraphicsPipe *pipe,
+                        const std::string &name,
                         const FrameBufferProperties &fb_prop,
                         const WindowProperties &win_prop,
                         int flags,

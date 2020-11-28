@@ -1,33 +1,28 @@
-// Filename: webcamVideoDS.cxx
-// Created by: jyelon (01Nov2007)
-//
-////////////////////////////////////////////////////////////////////
-//
-// PANDA 3D SOFTWARE
-// Copyright (c) Carnegie Mellon University.  All rights reserved.
-//
-// All use of this software is subject to the terms of the revised BSD
-// license.  You should have received a copy of this license along
-// with this source code in a file named "LICENSE."
-//
-////////////////////////////////////////////////////////////////////
-//
-// It goes against Panda3D coding style conventions to hide an
-// entire class in a C++ file and not expose it through header
-// files at all.  However, in this case, these classes are so full
-// of OS-specific junk that I feel it is better to hide them
-// entirely.  - Josh
-//
-////////////////////////////////////////////////////////////////////
-//
-// This code was created by studying and adapting the VDOGRAB
-// library by Shu-Kai Yang and the videoInput library by Theodore
-// Watson.  We owe both of them a great deal of thanks for
-// figuring all this out.  Both of their libraries have
-// informal licenses (the "do whatever you want and don't blame
-// me" sort), so I think there's not a problem using their code.
-//
-////////////////////////////////////////////////////////////////////
+/**
+ * PANDA 3D SOFTWARE
+ * Copyright (c) Carnegie Mellon University.  All rights reserved.
+ *
+ * All use of this software is subject to the terms of the revised BSD
+ * license.  You should have received a copy of this license along
+ * with this source code in a file named "LICENSE."
+ *
+ * @file webcamVideoDS.cxx
+ * @author jyelon
+ * @date 2007-11-01
+ *
+ * It goes against Panda3D coding style conventions to hide an
+ * entire class in a C++ file and not expose it through header
+ * files at all.  However, in this case, these classes are so full
+ * of OS-specific junk that I feel it is better to hide them
+ * entirely.  - Josh
+ *
+ * This code was created by studying and adapting the VDOGRAB
+ * library by Shu-Kai Yang and the videoInput library by Theodore
+ * Watson.  We owe both of them a great deal of thanks for
+ * figuring all this out.  Both of their libraries have
+ * informal licenses (the "do whatever you want and don't blame
+ * me" sort), so I think there's not a problem using their code.
+ */
 
 #if defined(HAVE_DIRECTCAM) && !defined(CPPPARSER)
 
@@ -63,33 +58,34 @@
 #include <string.h>
 #include <windows.h>
 
-// This used to work back when qedit.h still existed.  The hacks
-// served to prevent it from including the defunct dxtrans.h.
-//#pragma include_alias( "dxtrans.h", "qedit.h" )
-//#define __IDxtCompositor_INTERFACE_DEFINED__
-//#define __IDxtAlphaSetter_INTERFACE_DEFINED__
-//#define __IDxtJpeg_INTERFACE_DEFINED_
-//#define __IDxtKey_INTERFACE_DEFINED__
-//#define IDXEffect IUnknown
-//#include <qedit.h>
+using std::cerr;
+using std::string;
 
-// We can use this fugly hack to still access the qedit.h interfaces.
-// When this stops working, we'll have to just copy the relevant
-// definitions to this file.
+/*
+ * This used to work back when qedit.h still existed.  The hacks served to
+ * prevent it from including the defunct dxtrans.h.  #pragma include_alias(
+ * "dxtrans.h", "qedit.h" ) #define __IDxtCompositor_INTERFACE_DEFINED__
+ * #define __IDxtAlphaSetter_INTERFACE_DEFINED__ #define
+ * __IDxtJpeg_INTERFACE_DEFINED_ #define __IDxtKey_INTERFACE_DEFINED__ #define
+ * IDXEffect IUnknown #include <qedit.h>
+ */
+
+// We can use this fugly hack to still access the qedit.h interfaces.  When
+// this stops working, we'll have to just copy the relevant definitions to
+// this file.
 #import "libid:78530B68-61F9-11D2-8CAD-00A024580902" \
   no_namespace named_guids raw_interfaces_only no_implementation \
   exclude("_AMMediaType", "_FilterState", "IReferenceClock", "IMediaFilter", \
-  	      "_PinDirection", "IEnumMediaTypes", "IFilterGraph", "_FilterInfo", \
-  	      "IGraphBuilder", "IBaseFilter", "_PinInfo", "IPin", "IEnumPins", \
-  	      "IEnumFilters", "IEnumMediaTypes", "IAMSetErrorLog","IAMTimelineObj", \
-  	      "IMediaDet", "IMediaSample", "IPersistStream", "IPersist", "IStream", \
-  	      "ISequentialStream", "_LARGE_INTEGER", "_ULARGE_INTEGER", \
-  	      "tagSTATSTG", "_FILETIME", "IPropertyBag", "IErrorLog")
+          "_PinDirection", "IEnumMediaTypes", "IFilterGraph", "_FilterInfo", \
+          "IGraphBuilder", "IBaseFilter", "_PinInfo", "IPin", "IEnumPins", \
+          "IEnumFilters", "IEnumMediaTypes", "IAMSetErrorLog","IAMTimelineObj", \
+          "IMediaDet", "IMediaSample", "IPersistStream", "IPersist", "IStream", \
+          "ISequentialStream", "_LARGE_INTEGER", "_ULARGE_INTEGER", \
+          "tagSTATSTG", "_FILETIME", "IPropertyBag", "IErrorLog")
 
-////////////////////////////////////////////////////////////////////
-//       Class : WebcamVideoDS
-// Description : The directshow implementation of webcams.
-////////////////////////////////////////////////////////////////////
+/**
+ * The directshow implementation of webcams.
+ */
 
 class WebcamVideoDS : public WebcamVideo
 {
@@ -136,10 +132,9 @@ private:
 
 TypeHandle WebcamVideoDS::_type_handle;
 
-////////////////////////////////////////////////////////////////////
-//       Class : WebcamVideoCursorDS
-// Description : The directshow implementation of webcams.
-////////////////////////////////////////////////////////////////////
+/**
+ * The directshow implementation of webcams.
+ */
 
 
 class WebcamVideoCursorDS : public MovieVideoCursor
@@ -175,7 +170,7 @@ public:
   ISampleGrabber          *_pSampleGrabber;
   IBaseFilter             *_pStreamRenderer;
   IMediaControl           *_pMediaCtrl;
-  //  IMemAllocator           *_pAllocator;
+  // IMemAllocator           *_pAllocator;
   CSampleGrabberCB         _sample_cb;
 
 public:
@@ -198,12 +193,10 @@ private:
 
 TypeHandle WebcamVideoCursorDS::_type_handle;
 
-////////////////////////////////////////////////////////////////////
-//     Function: WebcamVideoDS::media_score
-//       Access: Public, Static
-//  Description: Evaluate an AM_MEDIA_TYPE to determine how
-//               desirable it is for our purposes.  Lower is better.
-////////////////////////////////////////////////////////////////////
+/**
+ * Evaluate an AM_MEDIA_TYPE to determine how desirable it is for our
+ * purposes.  Lower is better.
+ */
 int WebcamVideoDS::
 media_score(AM_MEDIA_TYPE *media) {
   const GUID &subtype = media->subtype;
@@ -214,67 +207,57 @@ media_score(AM_MEDIA_TYPE *media) {
   return 4;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: WebcamVideoDS::media_x
-//       Access: Public, Static
-//  Description: Returns the x-resolution of the AM_MEDIA_TYPE
-////////////////////////////////////////////////////////////////////
+/**
+ * Returns the x-resolution of the AM_MEDIA_TYPE
+ */
 int WebcamVideoDS::
 media_x(AM_MEDIA_TYPE *media) {
   VIDEOINFOHEADER *header = (VIDEOINFOHEADER*)(media->pbFormat);
   return (header->bmiHeader.biWidth);
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: WebcamVideoDS::media_y
-//       Access: Public, Static
-//  Description: Returns the y-resolution of the AM_MEDIA_TYPE
-////////////////////////////////////////////////////////////////////
+/**
+ * Returns the y-resolution of the AM_MEDIA_TYPE
+ */
 int WebcamVideoDS::
 media_y(AM_MEDIA_TYPE *media) {
   VIDEOINFOHEADER *header = (VIDEOINFOHEADER*)(media->pbFormat);
   return (header->bmiHeader.biHeight);
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: WebcamVideoDS::media_fps
-//       Access: Public, Static
-//  Description: Returns the frame-rate of the AM_MEDIA_TYPE
-////////////////////////////////////////////////////////////////////
+/**
+ * Returns the frame-rate of the AM_MEDIA_TYPE
+ */
 int WebcamVideoDS::
 media_fps(AM_MEDIA_TYPE *media) {
   VIDEOINFOHEADER *header = (VIDEOINFOHEADER*)(media->pbFormat);
   return int(10000000.0 / (header->AvgTimePerFrame));
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: WebcamVideoDS::delete_media_type
-//       Access: Public, Static
-//  Description: Free all memory of the AM_MEDIA_TYPE
-////////////////////////////////////////////////////////////////////
+/**
+ * Free all memory of the AM_MEDIA_TYPE
+ */
 void WebcamVideoDS::
 delete_media_type(AM_MEDIA_TYPE *pmt) {
-  if (pmt == NULL) {
+  if (pmt == nullptr) {
     return;
   }
   if (pmt->cbFormat != 0) {
     CoTaskMemFree((PVOID)pmt->pbFormat);
     pmt->cbFormat = 0;
-    pmt->pbFormat = NULL;
+    pmt->pbFormat = nullptr;
   }
-  if (pmt->pUnk != NULL) {
+  if (pmt->pUnk != nullptr) {
     // Unecessary because pUnk should not be used, but safest.
     pmt->pUnk->Release();
-    pmt->pUnk = NULL;
+    pmt->pUnk = nullptr;
   }
   CoTaskMemFree(pmt);
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: WebcamVideoDS::bstr_to_string
-//       Access: Public, Static
-//  Description: Converts a visual basic BSTR to a C++ string.
-////////////////////////////////////////////////////////////////////
+/**
+ * Converts a visual basic BSTR to a C++ string.
+ */
 string WebcamVideoDS::
 bstr_to_string(const BSTR &source) {
   string res = "";
@@ -286,15 +269,13 @@ bstr_to_string(const BSTR &source) {
   return res;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: WebcamVideoDS::get_moniker_name
-//       Access: Public, Static
-//  Description: Obtains the text name associated with an IMoniker
-////////////////////////////////////////////////////////////////////
+/**
+ * Obtains the text name associated with an IMoniker
+ */
 string WebcamVideoDS::
 get_moniker_name(IMoniker *pMoniker) {
   string res = "Unknown Device";
-  IPropertyBag *propBag=NULL;
+  IPropertyBag *propBag=nullptr;
   VARIANT name; HRESULT hResult;
   pMoniker->BindToStorage(0, 0, IID_IPropertyBag, (void**)&propBag);
   VariantInit(&name);
@@ -314,15 +295,12 @@ get_moniker_name(IMoniker *pMoniker) {
   return res;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: WebcamVideoDS::add_device
-//       Access: Public, Static
-//  Description: Creates a new WebcamVideoDS and adds it to the list,
-//               unless there is already a very similar configuration
-//               in the list.  If there is already a very similar
-//               configuration, this routine will leave one or the
-//               other on the list based on a scoring system.
-////////////////////////////////////////////////////////////////////
+/**
+ * Creates a new WebcamVideoDS and adds it to the list, unless there is
+ * already a very similar configuration in the list.  If there is already a
+ * very similar configuration, this routine will leave one or the other on the
+ * list based on a scoring system.
+ */
 void WebcamVideoDS::
 add_device(WebcamVideoList &list, IMoniker *pMoniker, AM_MEDIA_TYPE *media) {
   for (int i=0; i<(int)list.size(); i++) {
@@ -351,36 +329,33 @@ add_device(WebcamVideoList &list, IMoniker *pMoniker, AM_MEDIA_TYPE *media) {
 }
 
 
-////////////////////////////////////////////////////////////////////
-//     Function: WebcamVideoDS::find_all_webcams_ds
-//       Access: Public, Static
-//  Description: Finds all DirectShow webcams and adds them to
-//               the global list _all_webcams.
-////////////////////////////////////////////////////////////////////
+/**
+ * Finds all DirectShow webcams and adds them to the global list _all_webcams.
+ */
 void WebcamVideoDS::
 find_all_webcams_ds() {
 
   pvector <PT(WebcamVideoDS)> list;
 
-  ICreateDevEnum *pCreateDevEnum=NULL;
-  IEnumMoniker *pEnumMoniker=NULL;
-  IGraphBuilder *pGraphBuilder=NULL;
-  ICaptureGraphBuilder2 *pCaptureGraphBuilder2=NULL;
-  IMoniker *pMoniker=NULL;
-  IBaseFilter *pBaseFilter=NULL;
-  IAMStreamConfig *pStreamConfig=NULL;
+  ICreateDevEnum *pCreateDevEnum=nullptr;
+  IEnumMoniker *pEnumMoniker=nullptr;
+  IGraphBuilder *pGraphBuilder=nullptr;
+  ICaptureGraphBuilder2 *pCaptureGraphBuilder2=nullptr;
+  IMoniker *pMoniker=nullptr;
+  IBaseFilter *pBaseFilter=nullptr;
+  IAMStreamConfig *pStreamConfig=nullptr;
   HRESULT hResult;
   ULONG cFetched;
 
-  hResult=CoCreateInstance(CLSID_FilterGraph, NULL, CLSCTX_INPROC,
+  hResult=CoCreateInstance(CLSID_FilterGraph, nullptr, CLSCTX_INPROC,
                            IID_IGraphBuilder,(void**)&pGraphBuilder);
   if (hResult != S_OK) goto cleanup;
-  hResult=CoCreateInstance(CLSID_CaptureGraphBuilder2, NULL, CLSCTX_INPROC,
+  hResult=CoCreateInstance(CLSID_CaptureGraphBuilder2, nullptr, CLSCTX_INPROC,
                            IID_ICaptureGraphBuilder2, (void**)&pCaptureGraphBuilder2);
   if (hResult != S_OK) goto cleanup;
   hResult = pCaptureGraphBuilder2->SetFiltergraph(pGraphBuilder);
   if (hResult != S_OK) goto cleanup;
-  hResult=CoCreateInstance(CLSID_SystemDeviceEnum, NULL, CLSCTX_INPROC_SERVER,
+  hResult=CoCreateInstance(CLSID_SystemDeviceEnum, nullptr, CLSCTX_INPROC_SERVER,
                            IID_ICreateDevEnum, (void**)&pCreateDevEnum);
   if (hResult != S_OK) goto cleanup;
   hResult=pCreateDevEnum->CreateClassEnumerator(CLSID_VideoInputDeviceCategory,
@@ -395,7 +370,7 @@ find_all_webcams_ds() {
     hResult = pEnumMoniker->Next(1, &pMoniker, &cFetched);
     if (hResult != S_OK) break;
 
-    hResult = pMoniker->BindToObject(NULL,NULL,IID_IBaseFilter, (void**)&pBaseFilter);
+    hResult = pMoniker->BindToObject(nullptr,nullptr,IID_IBaseFilter, (void**)&pBaseFilter);
     if (hResult != S_OK) continue;
     hResult = pCaptureGraphBuilder2->FindInterface(&PIN_CATEGORY_CAPTURE, &MEDIATYPE_Video, pBaseFilter,
                                                    IID_IAMStreamConfig, (void **)&pStreamConfig);
@@ -439,41 +414,37 @@ void find_all_webcams_ds() {
   WebcamVideoDS::find_all_webcams_ds();
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: WebcamVideoDS::open
-//       Access: Published, Virtual
-//  Description: Open this video, returning a MovieVideoCursor.
-////////////////////////////////////////////////////////////////////
+/**
+ * Open this video, returning a MovieVideoCursor.
+ */
 PT(MovieVideoCursor) WebcamVideoDS::
 open() {
   return new WebcamVideoCursorDS(this);
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: WebcamVideoCursorDS::Constructor
-//       Access: Published
-//  Description:
-////////////////////////////////////////////////////////////////////
+/**
+ *
+ */
 WebcamVideoCursorDS::
 WebcamVideoCursorDS(WebcamVideoDS *src) :
   MovieVideoCursor(src),
-  _pGraphBuilder(NULL),
-  _pCaptureBuilder(NULL),
-  _pSrcFilter(NULL),
-  _pStreamConfig(NULL),
-  _pStreamRenderer(NULL),
-  _pMediaCtrl(NULL)
+  _pGraphBuilder(nullptr),
+  _pCaptureBuilder(nullptr),
+  _pSrcFilter(nullptr),
+  _pStreamConfig(nullptr),
+  _pStreamRenderer(nullptr),
+  _pMediaCtrl(nullptr)
 {
   AM_MEDIA_TYPE mediaType;
   VIDEOINFOHEADER *pVideoInfo;
 
   HRESULT hResult;
 
-  hResult=CoCreateInstance(CLSID_FilterGraph, NULL, CLSCTX_INPROC,
+  hResult=CoCreateInstance(CLSID_FilterGraph, nullptr, CLSCTX_INPROC,
                            IID_IGraphBuilder,(void**)&_pGraphBuilder);
   if(hResult != S_OK) { cleanup(); return; }
 
-  hResult=CoCreateInstance(CLSID_CaptureGraphBuilder2, NULL, CLSCTX_INPROC,
+  hResult=CoCreateInstance(CLSID_CaptureGraphBuilder2, nullptr, CLSCTX_INPROC,
                            IID_ICaptureGraphBuilder2, (void**)&_pCaptureBuilder);
   if(hResult != S_OK) { cleanup(); return; }
 
@@ -486,8 +457,8 @@ WebcamVideoCursorDS(WebcamVideoDS *src) :
     cleanup(); return;  }
   cerr << "  IID_IMediaControl interface is acquired.\n";
 
-  src->_moniker->BindToObject(NULL,NULL,IID_IBaseFilter, (void**)&_pSrcFilter);
-  if(_pSrcFilter == NULL)
+  src->_moniker->BindToObject(nullptr,nullptr,IID_IBaseFilter, (void**)&_pSrcFilter);
+  if(_pSrcFilter == nullptr)
     {  cerr << "  Such capture device is not found.\n";
     cleanup(); return;  }
   cerr << "  The capture filter is acquired.\n";
@@ -511,15 +482,15 @@ WebcamVideoCursorDS(WebcamVideoDS *src) :
     cleanup(); return;
   }
 
-  hResult = CoCreateInstance(CLSID_SampleGrabber, NULL, CLSCTX_INPROC, IID_PPV_ARGS(&_pSampleGrabber));
+  hResult = CoCreateInstance(CLSID_SampleGrabber, nullptr, CLSCTX_INPROC, IID_PPV_ARGS(&_pSampleGrabber));
   if(hResult != S_OK)
     {  cerr << "  Can not create the sample grabber, maybe qedit.dll is not registered?";
     cleanup(); return;  }
 
 
-  //hResult = CoCreateInstance(CLSID_SampleGrabber,)
-  //CComQIPtr< IBaseFilter, &IID_IBaseFilter > pGrabberFilter(_pSampleGrabber);
-  IBaseFilter *pGrabberFilter = NULL;
+  // hResult = CoCreateInstance(CLSID_SampleGrabber,) CComQIPtr< IBaseFilter,
+  // &IID_IBaseFilter > pGrabberFilter(_pSampleGrabber);
+  IBaseFilter *pGrabberFilter = nullptr;
   hResult = _pSampleGrabber->QueryInterface(IID_PPV_ARGS(&pGrabberFilter));
   cerr << "  IID_IBaseFilter of CLSID_SampleGrabber is acquired.\n";
 
@@ -538,8 +509,8 @@ WebcamVideoCursorDS(WebcamVideoDS *src) :
     cleanup(); return;  }
   cerr << "  The sample grabber has been added to the graph.\n";
 
-  //used to give the video stream somewhere to go to.
-  hResult = CoCreateInstance(CLSID_NullRenderer, NULL, CLSCTX_INPROC_SERVER, IID_IBaseFilter, (void**)&_pStreamRenderer);
+  // used to give the video stream somewhere to go to.
+  hResult = CoCreateInstance(CLSID_NullRenderer, nullptr, CLSCTX_INPROC_SERVER, IID_IBaseFilter, (void**)&_pStreamRenderer);
   if(hResult != S_OK)
     {  cerr << "  Can not create the null renderer.";
     cleanup(); return;  }
@@ -564,33 +535,21 @@ WebcamVideoCursorDS(WebcamVideoDS *src) :
     cleanup(); return;
   }
 
-  //  IPin *iPin;
-  //  hResult = FindInputPin(pGrabberFilter, &iPin);
-  //  if ((iPin == 0)||(hResult != S_OK)) {
-  //    cerr << "Could not get sampler input pin.\n";
-  //    cleanup(); return;
-  //  }
-  //  CComQIPtr< IMemInputPin, &IID_IMemInputPin > pMemInputPin(iPin);
-  //  if (pMemInputPin == 0) {
-  //    cerr << "Could not get sampler meminput pin.\n";
-  //    cleanup(); return;
-  //  }
-  //  hResult = pMemInputPin->GetAllocator(&_pAllocator);
-  //  if (hResult != S_OK) {
-  //    cerr << "Could not get sample grabber allocator handle.\n";
-  //  }
-  //  ALLOCATOR_PROPERTIES props, aprops;
-  //  hResult = _pAllocator->GetProperties(&props);
-  //  if (hResult != S_OK) {
-  //    cerr << "Could not get allocator properties.\n";
-  //  }
-  //  cerr << "Allocator properties: cBuffers=" << props.cBuffers << "\n";
-  //  props.cBuffers += 10;
-  //  hResult = _pAllocator->SetProperties(&props, &aprops);
-  //  if (hResult != S_OK) {
-  //    cerr << "Could not set allocator properties.\n";
-  //  }
-  //  cerr << "Allocator properties (adjusted): cBuffers=" << aprops.cBuffers << "\n";
+/*
+ * IPin *iPin; hResult = FindInputPin(pGrabberFilter, &iPin); if ((iPin ==
+ * 0)||(hResult != S_OK)) { cerr << "Could not get sampler input pin.\n";
+ * cleanup(); return; } CComQIPtr< IMemInputPin, &IID_IMemInputPin >
+ * pMemInputPin(iPin); if (pMemInputPin == 0) { cerr << "Could not get sampler
+ * meminput pin.\n"; cleanup(); return; } hResult =
+ * pMemInputPin->GetAllocator(&_pAllocator); if (hResult != S_OK) { cerr <<
+ * "Could not get sample grabber allocator handle.\n"; } ALLOCATOR_PROPERTIES
+ * props, aprops; hResult = _pAllocator->GetProperties(&props); if (hResult !=
+ * S_OK) { cerr << "Could not get allocator properties.\n"; } cerr <<
+ * "Allocator properties: cBuffers=" << props.cBuffers << "\n"; props.cBuffers
+ * += 10; hResult = _pAllocator->SetProperties(&props, &aprops); if (hResult
+ * != S_OK) { cerr << "Could not set allocator properties.\n"; } cerr <<
+ * "Allocator properties (adjusted): cBuffers=" << aprops.cBuffers << "\n";
+ */
 
   pVideoInfo=(VIDEOINFOHEADER*)mediaType.pbFormat;
   _size_x = pVideoInfo->bmiHeader.biWidth;
@@ -610,17 +569,17 @@ WebcamVideoCursorDS(WebcamVideoDS *src) :
   if(mediaType.cbFormat != 0) {
     CoTaskMemFree((PVOID)mediaType.pbFormat);
     mediaType.cbFormat=0;
-    mediaType.pbFormat=NULL;
+    mediaType.pbFormat=nullptr;
   }
 
-  if(mediaType.pUnk != NULL) {
+  if(mediaType.pUnk != nullptr) {
     mediaType.pUnk->Release();
-    mediaType.pUnk=NULL;
+    mediaType.pUnk=nullptr;
   }
 
-  if(pGrabberFilter != NULL) {
-  	pGrabberFilter->Release();
-  	pGrabberFilter=NULL;
+  if(pGrabberFilter != nullptr) {
+    pGrabberFilter->Release();
+    pGrabberFilter=nullptr;
   }
 
   _pSampleGrabber->SetBufferSamples(FALSE);
@@ -635,11 +594,9 @@ WebcamVideoCursorDS(WebcamVideoDS *src) :
   _pMediaCtrl->Run();
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: WebcamVideoCursorDS::cleanup
-//       Access: Published
-//  Description:
-////////////////////////////////////////////////////////////////////
+/**
+ *
+ */
 void WebcamVideoCursorDS::
 cleanup() {
   if (_buffer) {
@@ -651,34 +608,30 @@ cleanup() {
     _pMediaCtrl->Stop();
   }
 
-  if(_pMediaCtrl)       {  _pMediaCtrl->Release();  _pMediaCtrl=NULL;  }
-  if(_pCaptureBuilder)  {  _pCaptureBuilder->Release();  _pCaptureBuilder=NULL;  }
-  if(_pGraphBuilder)    {  _pGraphBuilder->Release();  _pGraphBuilder=NULL;  }
-  if(_pSampleGrabber)   {  _pSampleGrabber->Release();  _pSampleGrabber=NULL;  }
-  if(_pStreamRenderer)  {  _pStreamRenderer->Release();  _pStreamRenderer=NULL;  }
-  if(_pSrcFilter)       {  _pSrcFilter->Release();  _pSrcFilter=NULL;  }
-  if(_pStreamConfig)    {  _pStreamConfig->Release();  _pStreamConfig=NULL;  }
+  if(_pMediaCtrl)       {  _pMediaCtrl->Release();  _pMediaCtrl=nullptr;  }
+  if(_pCaptureBuilder)  {  _pCaptureBuilder->Release();  _pCaptureBuilder=nullptr;  }
+  if(_pGraphBuilder)    {  _pGraphBuilder->Release();  _pGraphBuilder=nullptr;  }
+  if(_pSampleGrabber)   {  _pSampleGrabber->Release();  _pSampleGrabber=nullptr;  }
+  if(_pStreamRenderer)  {  _pStreamRenderer->Release();  _pStreamRenderer=nullptr;  }
+  if(_pSrcFilter)       {  _pSrcFilter->Release();  _pSrcFilter=nullptr;  }
+  if(_pStreamConfig)    {  _pStreamConfig->Release();  _pStreamConfig=nullptr;  }
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: WebcamVideoCursorDS::Destructor
-//       Access: Published
-//  Description:
-////////////////////////////////////////////////////////////////////
+/**
+ *
+ */
 WebcamVideoCursorDS::
 ~WebcamVideoCursorDS() {
   cleanup();
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: WebcamVideoCursorDS::fetch_buffer
-//       Access: Published
-//  Description:
-////////////////////////////////////////////////////////////////////
+/**
+ *
+ */
 PT(MovieVideoCursor::Buffer) WebcamVideoCursorDS::
 fetch_buffer() {
   if (!_ready) {
-    return NULL;
+    return nullptr;
   }
 
   Buffer *buffer = get_standard_buffer();
@@ -704,11 +657,9 @@ fetch_buffer() {
 }
 
 
-////////////////////////////////////////////////////////////////////
-//     Function: WebcamVideoCursorDS::CSampleGrabberCB::QueryInterface
-//       Access: Private
-//  Description:
-////////////////////////////////////////////////////////////////////
+/**
+ *
+ */
 HRESULT __stdcall WebcamVideoCursorDS::CSampleGrabberCB::QueryInterface(REFIID riid, void **ppv)
 {
   if((riid == IID_ISampleGrabberCB) || (riid == IID_IUnknown)) {
@@ -719,11 +670,9 @@ HRESULT __stdcall WebcamVideoCursorDS::CSampleGrabberCB::QueryInterface(REFIID r
 }
 
 
-////////////////////////////////////////////////////////////////////
-//     Function: WebcamVideoCursorDS::CSampleGrabberCB::SampleCB
-//       Access: Private
-//  Description:
-////////////////////////////////////////////////////////////////////
+/**
+ *
+ */
 HRESULT __stdcall WebcamVideoCursorDS::CSampleGrabberCB::SampleCB(double SampleTime, IMediaSample *pSample)
 {
   if (_host->_ready) {
@@ -749,47 +698,25 @@ HRESULT __stdcall WebcamVideoCursorDS::CSampleGrabberCB::SampleCB(double SampleT
   return 0;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: WebcamVideoCursorDS::CSampleGrabberCB::BufferCB
-//       Access: Private
-//  Description:
-////////////////////////////////////////////////////////////////////
+/**
+ *
+ */
 HRESULT __stdcall WebcamVideoCursorDS::CSampleGrabberCB::BufferCB(double dblSampleTime, BYTE *pBuffer, long lBufferSize)
 {
   // Not used.
   return 0;
 }
 
-//HRESULT FindInputPin(IBaseFilter *pFilter, IPin **ppPin)
-//{
-//  if (!pFilter || ! ppPin)
-//    return E_POINTER;
-//
-//  *ppPin = 0;
-//  HRESULT hr;
-//  //Find the output pin of the Source Filter
-//  IEnumPins *pPinEnum;
-//  hr = pFilter->EnumPins(&pPinEnum);
-//  if (FAILED(hr))
-//    return E_FAIL;
-//
-//  IPin *pSearchPin;
-//  while (pPinEnum->Next(1, &pSearchPin, NULL) == S_OK)
-//    {
-//      PIN_DIRECTION pPinDir;
-//      hr = pSearchPin->QueryDirection(&pPinDir);
-//      if (FAILED(hr))
-//  return E_FAIL;
-//      if (pPinDir == PINDIR_INPUT)
-//  {
-//    //Found out pin
-//    *ppPin = pSearchPin;
-//    break;
-//  }
-//    }
-//  pPinEnum->Release();
-//  return hr;
-//}
+/*
+ * HRESULT FindInputPin(IBaseFilter *pFilter, IPin **ppPin) { if (!pFilter ||
+ * ! ppPin) return E_POINTER; *ppPin = 0; HRESULT hr; Find the output pin of
+ * the Source Filter IEnumPins *pPinEnum; hr = pFilter->EnumPins(&pPinEnum);
+ * if (FAILED(hr)) return E_FAIL; IPin *pSearchPin; while (pPinEnum->Next(1,
+ * &pSearchPin, NULL) == S_OK) { PIN_DIRECTION pPinDir; hr =
+ * pSearchPin->QueryDirection(&pPinDir); if (FAILED(hr)) return E_FAIL; if
+ * (pPinDir == PINDIR_INPUT) { Found out pin *ppPin = pSearchPin; break; } }
+ * pPinEnum->Release(); return hr; }
+ */
 
 
 #endif // HAVE_DIRECTSHOW

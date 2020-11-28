@@ -6,7 +6,7 @@ from panda3d.core import *
 from panda3d.direct import *
 from direct.showbase.MessengerGlobal import *
 from direct.directnotify.DirectNotifyGlobal import directNotify
-import Interval
+from . import Interval
 
 
 #############################################################
@@ -34,11 +34,10 @@ class FunctionInterval(Interval.Interval):
                 # print 'testing: ', ival.function, oldFunction
                 # Note: you can only replace methods currently
                 if type(ival.function) == types.MethodType:
-                    if (ival.function.im_func == oldFunction):
+                    if ival.function.__func__ == oldFunction:
                         # print 'found: ', ival.function, oldFunction
                         ival.function = types.MethodType(newFunction,
-                                                         ival.function.im_self,
-                                                         ival.function.im_class)
+                                                         ival.function.__self__)
                         count += 1
             return count
 
@@ -77,7 +76,10 @@ class FunctionInterval(Interval.Interval):
 
     @staticmethod
     def makeUniqueName(func, suffix = ''):
-        name = 'Func-%s-%d' % (getattr(func, '__name__', str(func)), FunctionInterval.functionIntervalNum)
+        func_name = getattr(func, '__name__', None)
+        if func_name is None:
+            func_name = str(func)
+        name = 'Func-%s-%d' % (func_name, FunctionInterval.functionIntervalNum)
         FunctionInterval.functionIntervalNum += 1
         if suffix:
             name = '%s-%s' % (name, str(suffix))

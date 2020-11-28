@@ -1,16 +1,15 @@
-// Filename: mouseWatcher.cxx
-// Created by:  drose (12Mar02)
-//
-////////////////////////////////////////////////////////////////////
-//
-// PANDA 3D SOFTWARE
-// Copyright (c) Carnegie Mellon University.  All rights reserved.
-//
-// All use of this software is subject to the terms of the revised BSD
-// license.  You should have received a copy of this license along
-// with this source code in a file named "LICENSE."
-//
-////////////////////////////////////////////////////////////////////
+/**
+ * PANDA 3D SOFTWARE
+ * Copyright (c) Carnegie Mellon University.  All rights reserved.
+ *
+ * All use of this software is subject to the terms of the revised BSD
+ * license.  You should have received a copy of this license along
+ * with this source code in a file named "LICENSE."
+ *
+ * @file mouseWatcher.cxx
+ * @author drose
+ * @date 2002-03-12
+ */
 
 #include "mouseWatcher.h"
 #include "config_tform.h"
@@ -36,13 +35,13 @@
 
 #include <algorithm>
 
+using std::string;
+
 TypeHandle MouseWatcher::_type_handle;
 
-////////////////////////////////////////////////////////////////////
-//     Function: MouseWatcher::Constructor
-//       Access: Published
-//  Description:
-////////////////////////////////////////////////////////////////////
+/**
+ *
+ */
 MouseWatcher::
 MouseWatcher(const string &name) :
   DataNode(name)
@@ -65,12 +64,12 @@ MouseWatcher(const string &name) :
 
   _has_mouse = false;
   _internal_suppress = 0;
-  _preferred_region = (MouseWatcherRegion *)NULL;
-  _preferred_button_down_region = (MouseWatcherRegion *)NULL;
+  _preferred_region = nullptr;
+  _preferred_button_down_region = nullptr;
   _button_down = false;
-  _eh = (EventHandler *)NULL;
-  _display_region = (DisplayRegion *)NULL;
-  _button_down_display_region = (DisplayRegion *)NULL;
+  _eh = nullptr;
+  _display_region = nullptr;
+  _button_down_display_region = nullptr;
 
   _frame.set(-1.0f, 1.0f, -1.0f, 1.0f);
 
@@ -85,61 +84,50 @@ MouseWatcher(const string &name) :
   _last_activity = 0.0;
   _inactivity_state = IS_active;
 
-  // When this flag is true, the mouse pointer is allowed to be
-  // "entered" into multiple regions simultaneously; when false, it
-  // will only be "within" multiple regions, but "entered" into the
-  // topmost of those.
+  // When this flag is true, the mouse pointer is allowed to be "entered" into
+  // multiple regions simultaneously; when false, it will only be "within"
+  // multiple regions, but "entered" into the topmost of those.
   _enter_multiple = false;
 
-  // When this flag is true, moving the pointer into a region is
-  // enough to click it.  The click is simulated with mouse button
-  // one.
+  // When this flag is true, moving the pointer into a region is enough to
+  // click it.  The click is simulated with mouse button one.
   _implicit_click = false;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: MouseWatcher::Destructor
-//       Access: Published
-//  Description:
-////////////////////////////////////////////////////////////////////
+/**
+ *
+ */
 MouseWatcher::
 ~MouseWatcher() {
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: MouseWatcher::remove_region
-//       Access: Published
-//  Description: Removes the indicated region from the group.
-//               Returns true if it was successfully removed, or false
-//               if it wasn't there in the first place.
-////////////////////////////////////////////////////////////////////
+/**
+ * Removes the indicated region from the group.  Returns true if it was
+ * successfully removed, or false if it wasn't there in the first place.
+ */
 bool MouseWatcher::
 remove_region(MouseWatcherRegion *region) {
   LightMutexHolder holder(_lock);
 
   remove_region_from(_current_regions, region);
   if (region == _preferred_region) {
-    if (_preferred_region != (MouseWatcherRegion *)NULL) {
+    if (_preferred_region != nullptr) {
       exit_region(_preferred_region, MouseWatcherParameter());
     }
-    _preferred_region = (MouseWatcherRegion *)NULL;
+    _preferred_region = nullptr;
   }
   if (region == _preferred_button_down_region) {
-    _preferred_button_down_region = (MouseWatcherRegion *)NULL;
+    _preferred_button_down_region = nullptr;
   }
 
   return MouseWatcherBase::do_remove_region(region);
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: MouseWatcher::get_over_region
-//       Access: Published
-//  Description: Returns the preferred region the mouse is over.  In
-//               the case of overlapping regions, the region with the
-//               largest sort order is preferred; if two regions have
-//               the same sort order, then the smaller region is
-//               preferred.
-////////////////////////////////////////////////////////////////////
+/**
+ * Returns the preferred region the mouse is over.  In the case of overlapping
+ * regions, the region with the largest sort order is preferred; if two
+ * regions have the same sort order, then the smaller region is preferred.
+ */
 MouseWatcherRegion *MouseWatcher::
 get_over_region(const LPoint2 &pos) const {
   LightMutexHolder holder(_lock);
@@ -149,27 +137,23 @@ get_over_region(const LPoint2 &pos) const {
   return get_preferred_region(regions);
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: MouseWatcher::add_group
-//       Access: Published
-//  Description: Adds the indicated group of regions to the set of
-//               regions the MouseWatcher will monitor each frame.
-//
-//               Since the MouseWatcher itself inherits from
-//               MouseWatcherBase, this operation is normally not
-//               necessary--you can simply add the Regions you care
-//               about one at a time.  Adding a complete group is
-//               useful when you may want to explicitly remove the
-//               regions as a group later.
-//
-//               Returns true if the group was successfully added, or
-//               false if it was already on the list.
-////////////////////////////////////////////////////////////////////
+/**
+ * Adds the indicated group of regions to the set of regions the MouseWatcher
+ * will monitor each frame.
+ *
+ * Since the MouseWatcher itself inherits from MouseWatcherBase, this
+ * operation is normally not necessary--you can simply add the Regions you
+ * care about one at a time.  Adding a complete group is useful when you may
+ * want to explicitly remove the regions as a group later.
+ *
+ * Returns true if the group was successfully added, or false if it was
+ * already on the list.
+ */
 bool MouseWatcher::
 add_group(MouseWatcherGroup *group) {
   LightMutexHolder holder(_lock);
 
-  // See if the group is in the set/vector already
+  // See if the group is in the setvector already
   PT(MouseWatcherGroup) pt = group;
   Groups::const_iterator gi =
     find(_groups.begin(), _groups.end(), pt);
@@ -190,14 +174,11 @@ add_group(MouseWatcherGroup *group) {
   return true;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: MouseWatcher::remove_group
-//       Access: Published
-//  Description: Removes the indicated group from the set of extra
-//               groups associated with the MouseWatcher.  Returns
-//               true if successful, or false if the group was already
-//               removed or was never added via add_group().
-////////////////////////////////////////////////////////////////////
+/**
+ * Removes the indicated group from the set of extra groups associated with
+ * the MouseWatcher.  Returns true if successful, or false if the group was
+ * already removed or was never added via add_group().
+ */
 bool MouseWatcher::
 remove_group(MouseWatcherGroup *group) {
   LightMutexHolder holder(_lock);
@@ -211,13 +192,13 @@ remove_group(MouseWatcherGroup *group) {
   set_current_regions(only_a);
 
   if (has_region_in(both, _preferred_region)) {
-    if (_preferred_region != (MouseWatcherRegion *)NULL) {
+    if (_preferred_region != nullptr) {
       exit_region(_preferred_region, MouseWatcherParameter());
     }
-    _preferred_region = (MouseWatcherRegion *)NULL;
+    _preferred_region = nullptr;
   }
   if (has_region_in(both, _preferred_button_down_region)) {
-    _preferred_button_down_region = (MouseWatcherRegion *)NULL;
+    _preferred_button_down_region = nullptr;
   }
 
 #ifndef NDEBUG
@@ -226,7 +207,7 @@ remove_group(MouseWatcherGroup *group) {
   }
 #endif  // NDEBUG
 
-  // See if the group is in the set/vector
+  // See if the group is in the setvector
   PT(MouseWatcherGroup) pt = group;
   Groups::iterator gi =
     find(_groups.begin(), _groups.end(), pt);
@@ -240,18 +221,15 @@ remove_group(MouseWatcherGroup *group) {
   return false;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: MouseWatcher::replace_group
-//       Access: Published
-//  Description: Atomically removes old_group from the MouseWatcher,
-//               and replaces it with new_group.  Presumably old_group
-//               and new_group might have some regions in common;
-//               these are handled properly.
-//
-//               If old_group is not already present, simply adds
-//               new_group and returns false.  Otherwise, removes
-//               old_group and adds new_group, and then returns true.
-////////////////////////////////////////////////////////////////////
+/**
+ * Atomically removes old_group from the MouseWatcher, and replaces it with
+ * new_group.  Presumably old_group and new_group might have some regions in
+ * common; these are handled properly.
+ *
+ * If old_group is not already present, simply adds new_group and returns
+ * false.  Otherwise, removes old_group and adds new_group, and then returns
+ * true.
+ */
 bool MouseWatcher::
 replace_group(MouseWatcherGroup *old_group, MouseWatcherGroup *new_group) {
   if (old_group == new_group) {
@@ -292,19 +270,18 @@ replace_group(MouseWatcherGroup *old_group, MouseWatcherGroup *new_group) {
     any_new_current_regions = true;
 
     if (has_region_in(both, _preferred_region)) {
-      if (_preferred_region != (MouseWatcherRegion *)NULL) {
+      if (_preferred_region != nullptr) {
         exit_region(_preferred_region, MouseWatcherParameter());
       }
-      _preferred_region = (MouseWatcherRegion *)NULL;
+      _preferred_region = nullptr;
     }
     if (has_region_in(both, _preferred_button_down_region)) {
-      _preferred_button_down_region = (MouseWatcherRegion *)NULL;
+      _preferred_button_down_region = nullptr;
     }
   }
 
-  // Don't add the new regions--we have no reason to believe these
-  // should become current; some of them may not even be under the
-  // mouse.
+  // Don't add the new regions--we have no reason to believe these should
+  // become current; some of them may not even be under the mouse.
   /*
   // And add the new regions
   if (!add.empty()) {
@@ -352,39 +329,31 @@ replace_group(MouseWatcherGroup *old_group, MouseWatcherGroup *new_group) {
   return false;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: MouseWatcher::get_num_groups
-//       Access: Published
-//  Description: Returns the number of separate groups added to the
-//               MouseWatcher via add_group().
-////////////////////////////////////////////////////////////////////
+/**
+ * Returns the number of separate groups added to the MouseWatcher via
+ * add_group().
+ */
 int MouseWatcher::
 get_num_groups() const {
   LightMutexHolder holder(_lock);
   return _groups.size();
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: MouseWatcher::get_group
-//       Access: Published
-//  Description: Returns the nth group added to the MouseWatcher via
-//               add_group().
-////////////////////////////////////////////////////////////////////
+/**
+ * Returns the nth group added to the MouseWatcher via add_group().
+ */
 MouseWatcherGroup *MouseWatcher::
 get_group(int n) const {
   LightMutexHolder holder(_lock);
-  nassertr(n >= 0 && n < (int)_groups.size(), NULL);
+  nassertr(n >= 0 && n < (int)_groups.size(), nullptr);
   return _groups[n];
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: MouseWatcher::set_trail_log_duration
-//       Access: Published
-//  Description: If the duration is nonzero, causes the MouseWatcher
-//               to log the mouse's trail.  Events older than the
-//               specified duration are discarded.  If the duration is
-//               zero, logging is disabled.
-////////////////////////////////////////////////////////////////////
+/**
+ * If the duration is nonzero, causes the MouseWatcher to log the mouse's
+ * trail.  Events older than the specified duration are discarded.  If the
+ * duration is zero, logging is disabled.
+ */
 void MouseWatcher::
 set_trail_log_duration(double duration) {
   if (duration < 0.0) {
@@ -394,17 +363,13 @@ set_trail_log_duration(double duration) {
   discard_excess_trail_log();
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: MouseWatcher::discard_excess_trail_log
-//       Access: Private
-//  Description: Discards trail log events whose age exceed the
-//               desired log duration.  Keeps one event that is beyond
-//               the specified age, because otherwise, it is not always
-//               possible to determine where the mouse was for the
-//               full logging duration.  Also, keeps a minimum of two
-//               events in the queue.  If the duration is zero, this
-//               method discards all trail events.
-////////////////////////////////////////////////////////////////////
+/**
+ * Discards trail log events whose age exceed the desired log duration.  Keeps
+ * one event that is beyond the specified age, because otherwise, it is not
+ * always possible to determine where the mouse was for the full logging
+ * duration.  Also, keeps a minimum of two events in the queue.  If the
+ * duration is zero, this method discards all trail events.
+ */
 void MouseWatcher::
 discard_excess_trail_log() {
   if (_trail_log_duration == 0.0) {
@@ -421,54 +386,43 @@ discard_excess_trail_log() {
   }
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: MouseWatcher::get_trail_node
-//       Access: Published
-//  Description: Returns a GeomNode that represents the mouse trail.
-//               The intent is that you should reparent this GeomNode
-//               to Render2D, and then forget about it.  The
-//               MouseWatcher will continually update the trail node.
-//               There is only one trail node, it does not create a
-//               new one each time you call get_trail_node.
-//
-//               This is not a particularly beautiful way to render
-//               a mouse trail.  It is intended more for debugging
-//               purposes than for finished applications.  Even so,
-//               It is suggested that you might want to apply a line
-//               thickness and antialias mode to the line --- doing
-//               so makes it look a lot better.
-////////////////////////////////////////////////////////////////////
+/**
+ * Returns a GeomNode that represents the mouse trail.  The intent is that you
+ * should reparent this GeomNode to Render2D, and then forget about it.  The
+ * MouseWatcher will continually update the trail node.  There is only one
+ * trail node, it does not create a new one each time you call get_trail_node.
+ *
+ * This is not a particularly beautiful way to render a mouse trail.  It is
+ * intended more for debugging purposes than for finished applications.  Even
+ * so, It is suggested that you might want to apply a line thickness and
+ * antialias mode to the line --- doing so makes it look a lot better.
+ */
 PT(GeomNode) MouseWatcher::
 get_trail_node() {
-  if (_trail_node == 0) {
+  if (_trail_node == nullptr) {
     _trail_node = new GeomNode("Mouse Trail Node");
     update_trail_node();
   }
   return _trail_node;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: MouseWatcher::clear_trail_node
-//       Access: Published
-//  Description: If you have previously fetched the trail node
-//               using get_trail_node, then the MouseWatcher is
-//               continually updating the trail node every frame.
-//               Using clear_trail_node causes the MouseWatcher to
-//               forget the trail node and stop updating it.
-////////////////////////////////////////////////////////////////////
+/**
+ * If you have previously fetched the trail node using get_trail_node, then
+ * the MouseWatcher is continually updating the trail node every frame.  Using
+ * clear_trail_node causes the MouseWatcher to forget the trail node and stop
+ * updating it.
+ */
 void MouseWatcher::
 clear_trail_node() {
-  _trail_node = 0;
+  _trail_node = nullptr;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: MouseWatcher::update_trail_node
-//       Access: Private
-//  Description: Causes the trail node to represent the mouse trail.
-////////////////////////////////////////////////////////////////////
+/**
+ * Causes the trail node to represent the mouse trail.
+ */
 void MouseWatcher::
 update_trail_node() {
-  if (_trail_node == 0) {
+  if (_trail_node == nullptr) {
     return;
   }
   _trail_node->remove_all_geoms();
@@ -500,21 +454,16 @@ update_trail_node() {
   _trail_node->add_geom(l_geom);
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: MouseWatcher::note_activity
-//       Access: Published
-//  Description: Can be used in conjunction with the inactivity
-//               timeout to inform the MouseWatcher that the user has
-//               just performed some action which proves he/she is
-//               present.  It may be necessary to call this for
-//               external events, such as joystick action, that the
-//               MouseWatcher might otherwise not know about.  This
-//               will reset the current inactivity timer.  When the
-//               inactivity timer reaches the length of time specified
-//               by set_inactivity_timeout(), with no keyboard or
-//               mouse activity and no calls to note_activity(), then
-//               any buttons held will be automatically released.
-////////////////////////////////////////////////////////////////////
+/**
+ * Can be used in conjunction with the inactivity timeout to inform the
+ * MouseWatcher that the user has just performed some action which proves
+ * he/she is present.  It may be necessary to call this for external events,
+ * such as joystick action, that the MouseWatcher might otherwise not know
+ * about.  This will reset the current inactivity timer.  When the inactivity
+ * timer reaches the length of time specified by set_inactivity_timeout(),
+ * with no keyboard or mouse activity and no calls to note_activity(), then
+ * any buttons held will be automatically released.
+ */
 void MouseWatcher::
 note_activity() {
   _last_activity = ClockObject::get_global_clock()->get_frame_time();
@@ -536,56 +485,47 @@ note_activity() {
 }
 
 
-////////////////////////////////////////////////////////////////////
-//     Function: MouseWatcher::output
-//       Access: Public, Virtual
-//  Description:
-////////////////////////////////////////////////////////////////////
+/**
+ *
+ */
 void MouseWatcher::
-output(ostream &out) const {
+output(std::ostream &out) const {
   LightMutexHolder holder(_lock);
   DataNode::output(out);
 
-  int count = _regions.size();
-  Groups::const_iterator gi;
-  for (gi = _groups.begin(); gi != _groups.end(); ++gi) {
-    MouseWatcherGroup *group = (*gi);
-    count += group->_regions.size();
+  if (!_sorted) {
+    ((MouseWatcher *)this)->do_sort_regions();
+  }
+
+  size_t count = _regions.size();
+  for (MouseWatcherGroup *group : _groups) {
+    count += group->get_num_regions();
   }
 
   out << " (" << count << " regions)";
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: MouseWatcher::write
-//       Access: Public, Virtual
-//  Description:
-////////////////////////////////////////////////////////////////////
+/**
+ *
+ */
 void MouseWatcher::
-write(ostream &out, int indent_level) const {
+write(std::ostream &out, int indent_level) const {
   indent(out, indent_level)
     << "MouseWatcher " << get_name() << ":\n";
   MouseWatcherBase::write(out, indent_level + 2);
 
   LightMutexHolder holder(_lock);
-  if (!_groups.empty()) {
-    Groups::const_iterator gi;
-    for (gi = _groups.begin(); gi != _groups.end(); ++gi) {
-      MouseWatcherGroup *group = (*gi);
-      indent(out, indent_level + 2)
-        << "Subgroup:\n";
-      group->write(out, indent_level + 4);
-    }
+  for (MouseWatcherGroup *group : _groups) {
+    indent(out, indent_level + 2)
+      << "Subgroup:\n";
+    group->write(out, indent_level + 4);
   }
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: MouseWatcher::get_over_regions
-//       Access: Protected
-//  Description: Fills up the "regions" list with the set of regions
-//               that the indicated point is over, sorted in order by
-//               pointer.  Assumes the lock is held.
-////////////////////////////////////////////////////////////////////
+/**
+ * Fills up the "regions" list with the set of regions that the indicated
+ * point is over, sorted in order by pointer.  Assumes the lock is held.
+ */
 void MouseWatcher::
 get_over_regions(MouseWatcher::Regions &regions, const LPoint2 &pos) const {
   nassertv(_lock.debug_is_locked());
@@ -594,15 +534,18 @@ get_over_regions(MouseWatcher::Regions &regions, const LPoint2 &pos) const {
   PN_stdfloat mx = (pos[0] + 1.0f) * 0.5f * (_frame[1] - _frame[0]) + _frame[0];
   PN_stdfloat my = (pos[1] + 1.0f) * 0.5f * (_frame[3] - _frame[2]) + _frame[2];
 
-  //  pos[0] = 2.0f * (mx - _frame[0]) / (_frame[1] - _frame[0]) - 1.0f;
-  //  pos[1] = 2.0f * (my - _frame[2]) / (_frame[3] - _frame[2]) - 1.0f;
+  // pos[0] = 2.0f * (mx - _frame[0])  (_frame[1] - _frame[0]) - 1.0f; pos[1]
+  // = 2.0f * (my - _frame[2])  (_frame[3] - _frame[2]) - 1.0f;
 
   // Ensure the vector is empty before we begin.
   regions.clear();
 
-  Regions::const_iterator ri;
-  for (ri = _regions.begin(); ri != _regions.end(); ++ri) {
-    MouseWatcherRegion *region = (*ri);
+  // Make sure there are no duplicates in the regions vector.
+  if (!_sorted) {
+    ((MouseWatcher *)this)->do_sort_regions();
+  }
+
+  for (MouseWatcherRegion *region : _regions) {
     const LVecBase4 &frame = region->get_frame();
 
     if (region->get_active() &&
@@ -614,11 +557,10 @@ get_over_regions(MouseWatcher::Regions &regions, const LPoint2 &pos) const {
   }
 
   // Also check all of our sub-groups.
-  Groups::const_iterator gi;
-  for (gi = _groups.begin(); gi != _groups.end(); ++gi) {
-    MouseWatcherGroup *group = (*gi);
-    for (ri = group->_regions.begin(); ri != group->_regions.end(); ++ri) {
-      MouseWatcherRegion *region = (*ri);
+  for (MouseWatcherGroup *group : _groups) {
+    group->sort_regions();
+
+    for (MouseWatcherRegion *region : group->_regions) {
       const LVecBase4 &frame = region->get_frame();
 
       if (region->get_active() &&
@@ -630,25 +572,21 @@ get_over_regions(MouseWatcher::Regions &regions, const LPoint2 &pos) const {
     }
   }
 
-  // Now sort the regions by pointer.  By convention, the Regions
-  // vectors are always kept in order by pointer, so we can do easy
-  // linear comparison and intersection operations.
+  // Now sort the regions by pointer.  By convention, the Regions vectors are
+  // always kept in order by pointer, so we can do easy linear comparison and
+  // intersection operations.
   sort(regions.begin(), regions.end());
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: MouseWatcher::get_preferred_region
-//       Access: Protected, Static
-//  Description: Returns the innermost region of all the regions
-//               indicated in the given vector (usually, the regions
-//               the mouse is over).  This is the "preferred" region
-//               that gets some special treatment.  Assumes the lock
-//               is already held.
-////////////////////////////////////////////////////////////////////
+/**
+ * Returns the innermost region of all the regions indicated in the given
+ * vector (usually, the regions the mouse is over).  This is the "preferred"
+ * region that gets some special treatment.  Assumes the lock is already held.
+ */
 MouseWatcherRegion *MouseWatcher::
 get_preferred_region(const MouseWatcher::Regions &regions) {
   if (regions.empty()) {
-    return (MouseWatcherRegion *)NULL;
+    return nullptr;
   }
 
   Regions::const_iterator ri;
@@ -667,16 +605,13 @@ get_preferred_region(const MouseWatcher::Regions &regions) {
   return preferred;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: MouseWatcher::set_current_regions
-//       Access: Protected
-//  Description: Changes the "current" regions--the one we consider the
-//               mouse to be over--to the indicated list, and throws
-//               whatever events are appropriate because of that.
-//
-//               The list passed in is destroyed.  Assumes the lock is
-//               already held.
-////////////////////////////////////////////////////////////////////
+/**
+ * Changes the "current" regions--the one we consider the mouse to be over--to
+ * the indicated list, and throws whatever events are appropriate because of
+ * that.
+ *
+ * The list passed in is destroyed.  Assumes the lock is already held.
+ */
 void MouseWatcher::
 set_current_regions(MouseWatcher::Regions &regions) {
   nassertv(_lock.debug_is_locked());
@@ -690,9 +625,9 @@ set_current_regions(MouseWatcher::Regions &regions) {
   Regions::const_iterator new_ri = regions.begin();
   Regions::const_iterator old_ri = _current_regions.begin();
 
-  // Queue up all the new regions so we can send the within patterns
-  // all at once, after all of the without patterns have been thrown.
-  vector<MouseWatcherRegion *> new_regions;
+  // Queue up all the new regions so we can send the within patterns all at
+  // once, after all of the without patterns have been thrown.
+  std::vector<MouseWatcherRegion *> new_regions;
 
   bool any_changes = false;
   while (new_ri != regions.end() && old_ri != _current_regions.end()) {
@@ -734,12 +669,12 @@ set_current_regions(MouseWatcher::Regions &regions) {
   }
 
   if (any_changes) {
-    // Now that we've compared the two vectors, simply swap them to set
-    // the new vector.
+    // Now that we've compared the two vectors, simply swap them to set the
+    // new vector.
     _current_regions.swap(regions);
 
     // And don't forget to throw all of the new regions' "within" events.
-    vector<MouseWatcherRegion *>::const_iterator ri;
+    std::vector<MouseWatcherRegion *>::const_iterator ri;
     for (ri = new_regions.begin(); ri != new_regions.end(); ++ri) {
       MouseWatcherRegion *new_region = (*ri);
       within_region(new_region, param);
@@ -747,36 +682,33 @@ set_current_regions(MouseWatcher::Regions &regions) {
   }
 
   if (!_enter_multiple) {
-    // Determine which is the "preferred region", if any.  This is the
-    // topmost region that the mouse cursor is over, and the one that
-    // we are considered "entered" into.
+    // Determine which is the "preferred region", if any.  This is the topmost
+    // region that the mouse cursor is over, and the one that we are
+    // considered "entered" into.
     MouseWatcherRegion *new_preferred_region =
       get_preferred_region(_current_regions);
 
     if (_button_down && new_preferred_region != _preferred_button_down_region) {
-      // If the button's being held down, we're only allowed to select
-      // the preferred button down region.
-      new_preferred_region = (MouseWatcherRegion *)NULL;
+      // If the button's being held down, we're only allowed to select the
+      // preferred button down region.
+      new_preferred_region = nullptr;
     }
 
     if (new_preferred_region != _preferred_region) {
-      if (_preferred_region != (MouseWatcherRegion *)NULL) {
+      if (_preferred_region != nullptr) {
         exit_region(_preferred_region, param);
       }
       _preferred_region = new_preferred_region;
-      if (_preferred_region != (MouseWatcherRegion *)NULL) {
+      if (_preferred_region != nullptr) {
         enter_region(_preferred_region, param);
       }
     }
   }
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: MouseWatcher::clear_current_regions
-//       Access: Protected
-//  Description: Empties the set of current regions.  Assumes the lock
-//               is already held.
-////////////////////////////////////////////////////////////////////
+/**
+ * Empties the set of current regions.  Assumes the lock is already held.
+ */
 void MouseWatcher::
 clear_current_regions() {
   nassertv(_lock.debug_is_locked());
@@ -794,78 +726,68 @@ clear_current_regions() {
       MouseWatcherRegion *old_region = (*old_ri);
       old_region->exit_region(param);
       throw_event_pattern(_leave_pattern, old_region, ButtonHandle::none());
+      if (_preferred_region == old_region) {
+        _preferred_region = nullptr;
+      }
       ++old_ri;
     }
 
     _current_regions.clear();
 
-    if (_preferred_region != (MouseWatcherRegion *)NULL) {
+    if (_preferred_region != nullptr) {
       _preferred_region->exit_region(param);
       throw_event_pattern(_leave_pattern, _preferred_region, ButtonHandle::none());
-      _preferred_region = (MouseWatcherRegion *)NULL;
+      _preferred_region = nullptr;
     }
   }
 }
 
-#ifndef NDEBUG
-////////////////////////////////////////////////////////////////////
-//     Function: MouseWatcher::do_show_regions
-//       Access: Protected, Virtual
-//  Description: The protected implementation of show_regions().  This
-//               assumes the lock is already held.
-////////////////////////////////////////////////////////////////////
+/**
+ * The protected implementation of show_regions().  This assumes the lock is
+ * already held.
+ */
 void MouseWatcher::
 do_show_regions(const NodePath &render2d, const string &bin_name,
                 int draw_order) {
+#ifndef NDEBUG
   MouseWatcherBase::do_show_regions(render2d, bin_name, draw_order);
   _show_regions_render2d = render2d;
   _show_regions_bin_name = bin_name;
   _show_regions_draw_order = draw_order;
 
-  Groups::const_iterator gi;
-  for (gi = _groups.begin(); gi != _groups.end(); ++gi) {
-    MouseWatcherGroup *group = (*gi);
+  for (MouseWatcherGroup *group : _groups) {
     group->show_regions(render2d, bin_name, draw_order);
   }
-}
 #endif  // NDEBUG
+}
 
-#ifndef NDEBUG
-////////////////////////////////////////////////////////////////////
-//     Function: MouseWatcher::do_hide_regions
-//       Access: Protected, Virtual
-//  Description: The protected implementation of hide_regions().  This
-//               assumes the lock is already held.
-////////////////////////////////////////////////////////////////////
+/**
+ * The protected implementation of hide_regions().  This assumes the lock is
+ * already held.
+ */
 void MouseWatcher::
 do_hide_regions() {
+#ifndef NDEBUG
   MouseWatcherBase::do_hide_regions();
   _show_regions_render2d = NodePath();
   _show_regions_bin_name = string();
   _show_regions_draw_order = 0;
 
-  Groups::const_iterator gi;
-  for (gi = _groups.begin(); gi != _groups.end(); ++gi) {
-    MouseWatcherGroup *group = (*gi);
+  for (MouseWatcherGroup *group : _groups) {
     group->hide_regions();
   }
-}
 #endif  // NDEBUG
+}
 
-////////////////////////////////////////////////////////////////////
-//     Function: MouseWatcher::intersect_regions
-//       Access: Protected, Static
-//  Description: Computes the list of regions that are in both
-//               regions_a and regions_b, as well as the list of
-//               regions only in regions_a, and the list of regions
-//               only in regions_b.  Any or all of the three output
-//               lists may be the same object, but they must be
-//               different objects from both of the input lists.
-//
-//               It is assumed that both vectors are already sorted in
-//               pointer order.  It is also assumed that any relevant
-//               locks are already held.
-////////////////////////////////////////////////////////////////////
+/**
+ * Computes the list of regions that are in both regions_a and regions_b, as
+ * well as the list of regions only in regions_a, and the list of regions only
+ * in regions_b.  Any or all of the three output lists may be the same object,
+ * but they must be different objects from both of the input lists.
+ *
+ * It is assumed that both vectors are already sorted in pointer order.  It is
+ * also assumed that any relevant locks are already held.
+ */
 void MouseWatcher::
 intersect_regions(MouseWatcher::Regions &only_a,
                   MouseWatcher::Regions &only_b,
@@ -896,14 +818,11 @@ intersect_regions(MouseWatcher::Regions &only_a,
   }
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: MouseWatcher::remove_region_from
-//       Access: Protected, Static
-//  Description: Removes the indicated region from the given vector.
-//               Assumes the vector is sorted in pointer order.
-//               Returns true if removed, false if it wasn't there.
-//               Assumes any relevent locks are already held.
-////////////////////////////////////////////////////////////////////
+/**
+ * Removes the indicated region from the given vector.  Assumes the vector is
+ * sorted in pointer order.  Returns true if removed, false if it wasn't
+ * there.  Assumes any relevent locks are already held.
+ */
 bool MouseWatcher::
 remove_region_from(MouseWatcher::Regions &regions,
                    MouseWatcherRegion *region) {
@@ -918,12 +837,10 @@ remove_region_from(MouseWatcher::Regions &regions,
   return false;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: MouseWatcher::has_region_in
-//       Access: Protected, Static
-//  Description: Returns true if the indicated region is a member of
-//               the given sorted list, false otherwise.
-////////////////////////////////////////////////////////////////////
+/**
+ * Returns true if the indicated region is a member of the given sorted list,
+ * false otherwise.
+ */
 bool MouseWatcher::
 has_region_in(const MouseWatcher::Regions &regions,
               MouseWatcherRegion *region) {
@@ -932,12 +849,10 @@ has_region_in(const MouseWatcher::Regions &regions,
   return (ri != regions.end() && (*ri) == ptr);
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: MouseWatcher::throw_event_pattern
-//       Access: Protected
-//  Description: Throws an event associated with the indicated region,
-//               using the given pattern.
-////////////////////////////////////////////////////////////////////
+/**
+ * Throws an event associated with the indicated region, using the given
+ * pattern.
+ */
 void MouseWatcher::
 throw_event_pattern(const string &pattern, const MouseWatcherRegion *region,
                     const ButtonHandle &button) {
@@ -945,7 +860,7 @@ throw_event_pattern(const string &pattern, const MouseWatcherRegion *region,
     return;
   }
 #ifndef NDEBUG
-  if (region != (MouseWatcherRegion *)NULL) {
+  if (region != nullptr) {
     region->test_ref_count_integrity();
   }
 #endif
@@ -953,8 +868,8 @@ throw_event_pattern(const string &pattern, const MouseWatcherRegion *region,
   string button_name;
   if (button != ButtonHandle::none()) {
     if (!_mods.has_button(button)) {
-      // We only prepend modifier names for buttons which are not
-      // themselves modifiers.
+      // We only prepend modifier names for buttons which are not themselves
+      // modifiers.
       button_name = _mods.get_prefix();
     }
     button_name += button.get_name();
@@ -966,7 +881,7 @@ throw_event_pattern(const string &pattern, const MouseWatcherRegion *region,
       string cmd = pattern.substr(p + 1, 1);
       p++;
       if (cmd == "r") {
-        if (region != (MouseWatcherRegion *)NULL) {
+        if (region != nullptr) {
           event += region->get_name();
         }
 
@@ -984,18 +899,16 @@ throw_event_pattern(const string &pattern, const MouseWatcherRegion *region,
 
   if (!event.empty()) {
     throw_event(event, EventParameter(region), EventParameter(button_name));
-    if (_eh != (EventHandler*)0L)
+    if (_eh != nullptr)
       throw_event_directly(*_eh, event, EventParameter(region),
                            EventParameter(button_name));
   }
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: MouseWatcher::move
-//       Access: Protected
-//  Description: Records the indicated mouse or keyboard button as
-//               being moved from last position.
-////////////////////////////////////////////////////////////////////
+/**
+ * Records the indicated mouse or keyboard button as being moved from last
+ * position.
+ */
 void MouseWatcher::
 move() {
   nassertv(_lock.debug_is_locked());
@@ -1004,17 +917,14 @@ move() {
   param.set_modifier_buttons(_mods);
   param.set_mouse(_mouse);
 
-  if (_preferred_button_down_region != (MouseWatcherRegion *)NULL) {
+  if (_preferred_button_down_region != nullptr) {
     _preferred_button_down_region->move(param);
   }
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: MouseWatcher::press
-//       Access: Protected
-//  Description: Records the indicated mouse or keyboard button as
-//               being depressed.
-////////////////////////////////////////////////////////////////////
+/**
+ * Records the indicated mouse or keyboard button as being depressed.
+ */
 void MouseWatcher::
 press(ButtonHandle button, bool keyrepeat) {
   nassertv(_lock.debug_is_locked());
@@ -1033,7 +943,7 @@ press(ButtonHandle button, bool keyrepeat) {
     }
     _button_down = true;
 
-    if (_preferred_button_down_region != (MouseWatcherRegion *)NULL) {
+    if (_preferred_button_down_region != nullptr) {
       _preferred_button_down_region->press(param);
       if (keyrepeat) {
         throw_event_pattern(_button_repeat_pattern,
@@ -1045,33 +955,28 @@ press(ButtonHandle button, bool keyrepeat) {
     }
 
   } else {
-    // It's a keyboard button; therefore, send the event to every
-    // region that wants keyboard buttons, regardless of the mouse
-    // position.
-    if (_preferred_region != (MouseWatcherRegion *)NULL) {
-      // Our current region, the one under the mouse, always get
-      // all the keyboard events, even if it doesn't set its
-      // keyboard flag.
+    // It's a keyboard button; therefore, send the event to every region that
+    // wants keyboard buttons, regardless of the mouse position.
+    if (_preferred_region != nullptr) {
+      // Our current region, the one under the mouse, always get all the
+      // keyboard events, even if it doesn't set its keyboard flag.
       _preferred_region->press(param);
       consider_keyboard_suppress(_preferred_region);
     }
 
     if ((_internal_suppress & MouseWatcherRegion::SF_other_button) == 0) {
-      // All the other regions only get the keyboard events if they
-      // set their global keyboard flag, *and* the current region does
-      // not suppress keyboard buttons.
+      // All the other regions only get the keyboard events if they set their
+      // global keyboard flag, *and* the current region does not suppress
+      // keyboard buttons.
       param.set_outside(true);
       global_keyboard_press(param);
     }
   }
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: MouseWatcher::release
-//       Access: Protected
-//  Description: Records the indicated mouse or keyboard button as
-//               being released.
-////////////////////////////////////////////////////////////////////
+/**
+ * Records the indicated mouse or keyboard button as being released.
+ */
 void MouseWatcher::
 release(ButtonHandle button) {
   nassertv(_lock.debug_is_locked());
@@ -1082,27 +987,37 @@ release(ButtonHandle button) {
   param.set_mouse(_mouse);
 
   if (MouseButton::is_mouse_button(button)) {
-    // Button up.  Send the up event associated with the region(s) we
-    // were over when the button went down.
+    // Button up.  Send the up event associated with the region(s) we were
+    // over when the button went down.
 
-    // There is some danger of losing button-up events here.  If
-    // more than one button goes down together, we won't detect
-    // both of the button-up events properly.
-    if (_preferred_button_down_region != (MouseWatcherRegion *)NULL) {
+    if (_preferred_button_down_region != nullptr) {
       param.set_outside(_preferred_button_down_region != _preferred_region);
       _preferred_button_down_region->release(param);
       throw_event_pattern(_button_up_pattern,
                           _preferred_button_down_region, button);
     }
 
-    _button_down = false;
-    _preferred_button_down_region = (MouseWatcherRegion *)NULL;
+    // Do not stop capturing until the last mouse button has gone up.  This is
+    // needed to prevent stopping the capture until the capturing region has
+    // finished processing all the releases.
+    bool has_button = false;
+    for (size_t i = 0; i < MouseButton::num_mouse_buttons; ++i) {
+      if (MouseButton::_buttons[i] != button &&
+          _current_buttons_down.get_bit(MouseButton::_buttons[i].get_index())) {
+        has_button = true;
+      }
+    }
+
+    if (!has_button) {
+      // The last mouse button went up.
+      _button_down = false;
+      _preferred_button_down_region = nullptr;
+    }
 
   } else {
-    // It's a keyboard button; therefore, send the event to every
-    // region that wants keyboard buttons, regardless of the mouse
-    // position.
-    if (_preferred_region != (MouseWatcherRegion *)NULL) {
+    // It's a keyboard button; therefore, send the event to every region that
+    // wants keyboard buttons, regardless of the mouse position.
+    if (_preferred_region != nullptr) {
       _preferred_region->release(param);
     }
 
@@ -1111,12 +1026,9 @@ release(ButtonHandle button) {
   }
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: MouseWatcher::keystroke
-//       Access: Protected
-//  Description: Records that the indicated keystroke has been
-//               generated.
-////////////////////////////////////////////////////////////////////
+/**
+ * Records that the indicated keystroke has been generated.
+ */
 void MouseWatcher::
 keystroke(int keycode) {
   nassertv(_lock.debug_is_locked());
@@ -1126,16 +1038,17 @@ keystroke(int keycode) {
   param.set_modifier_buttons(_mods);
   param.set_mouse(_mouse);
 
-  // Keystrokes go to all those regions that want keyboard events,
-  // regardless of which is the "preferred" region (that is, without
-  // respect to the mouse position).  However, we do set the outside
-  // flag according to whether the given region is the preferred
-  // region or not.
+  // Make sure there are no duplicates in the regions vector.
+  if (!_sorted) {
+    ((MouseWatcher *)this)->do_sort_regions();
+  }
 
-  Regions::const_iterator ri;
-  for (ri = _regions.begin(); ri != _regions.end(); ++ri) {
-    MouseWatcherRegion *region = (*ri);
+  // Keystrokes go to all those regions that want keyboard events, regardless
+  // of which is the "preferred" region (that is, without respect to the mouse
+  // position).  However, we do set the outside flag according to whether the
+  // given region is the preferred region or not.
 
+  for (MouseWatcherRegion *region : _regions) {
     if (region->get_keyboard()) {
       param.set_outside(region != _preferred_region);
       region->keystroke(param);
@@ -1144,12 +1057,10 @@ keystroke(int keycode) {
   }
 
   // Also check all of our sub-groups.
-  Groups::const_iterator gi;
-  for (gi = _groups.begin(); gi != _groups.end(); ++gi) {
-    MouseWatcherGroup *group = (*gi);
-    for (ri = group->_regions.begin(); ri != group->_regions.end(); ++ri) {
-      MouseWatcherRegion *region = (*ri);
+  for (MouseWatcherGroup *group : _groups) {
+    group->sort_regions();
 
+    for (MouseWatcherRegion *region : group->_regions) {
       if (region->get_keyboard()) {
         param.set_outside(region != _preferred_region);
         region->keystroke(param);
@@ -1159,14 +1070,12 @@ keystroke(int keycode) {
   }
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: MouseWatcher::candidate
-//       Access: Protected
-//  Description: Records that the indicated candidate string has been
-//               highlighted in the IME.
-////////////////////////////////////////////////////////////////////
+/**
+ * Records that the indicated candidate string has been highlighted in the
+ * IME.
+ */
 void MouseWatcher::
-candidate(const wstring &candidate_string, size_t highlight_start,
+candidate(const std::wstring &candidate_string, size_t highlight_start,
           size_t highlight_end, size_t cursor_pos) {
   nassertv(_lock.debug_is_locked());
 
@@ -1175,13 +1084,15 @@ candidate(const wstring &candidate_string, size_t highlight_start,
   param.set_modifier_buttons(_mods);
   param.set_mouse(_mouse);
 
-  // Candidate strings go to all those regions that want keyboard
-  // events, exactly like keystrokes, above.
+  // Make sure there are no duplicates in the regions vector.
+  if (!_sorted) {
+    ((MouseWatcher *)this)->do_sort_regions();
+  }
 
-  Regions::const_iterator ri;
-  for (ri = _regions.begin(); ri != _regions.end(); ++ri) {
-    MouseWatcherRegion *region = (*ri);
+  // Candidate strings go to all those regions that want keyboard events,
+  // exactly like keystrokes, above.
 
+  for (MouseWatcherRegion *region : _regions) {
     if (region->get_keyboard()) {
       param.set_outside(region != _preferred_region);
       region->candidate(param);
@@ -1189,12 +1100,10 @@ candidate(const wstring &candidate_string, size_t highlight_start,
   }
 
   // Also check all of our sub-groups.
-  Groups::const_iterator gi;
-  for (gi = _groups.begin(); gi != _groups.end(); ++gi) {
-    MouseWatcherGroup *group = (*gi);
-    for (ri = group->_regions.begin(); ri != group->_regions.end(); ++ri) {
-      MouseWatcherRegion *region = (*ri);
+  for (MouseWatcherGroup *group : _groups) {
+    group->sort_regions();
 
+    for (MouseWatcherRegion *region : group->_regions) {
       if (region->get_keyboard()) {
         param.set_outside(region != _preferred_region);
         region->candidate(param);
@@ -1203,21 +1112,21 @@ candidate(const wstring &candidate_string, size_t highlight_start,
   }
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: MouseWatcher::global_keyboard_press
-//       Access: Protected
-//  Description: Calls press() on all regions that are interested in
-//               receiving global keyboard events, except for the
-//               current region (which already received this one).
-////////////////////////////////////////////////////////////////////
+/**
+ * Calls press() on all regions that are interested in receiving global
+ * keyboard events, except for the current region (which already received this
+ * one).
+ */
 void MouseWatcher::
 global_keyboard_press(const MouseWatcherParameter &param) {
   nassertv(_lock.debug_is_locked());
 
-  Regions::const_iterator ri;
-  for (ri = _regions.begin(); ri != _regions.end(); ++ri) {
-    MouseWatcherRegion *region = (*ri);
+  // Make sure there are no duplicates in the regions vector.
+  if (!_sorted) {
+    ((MouseWatcher *)this)->do_sort_regions();
+  }
 
+  for (MouseWatcherRegion *region : _regions) {
     if (region != _preferred_region && region->get_keyboard()) {
       region->press(param);
       consider_keyboard_suppress(region);
@@ -1225,12 +1134,10 @@ global_keyboard_press(const MouseWatcherParameter &param) {
   }
 
   // Also check all of our sub-groups.
-  Groups::const_iterator gi;
-  for (gi = _groups.begin(); gi != _groups.end(); ++gi) {
-    MouseWatcherGroup *group = (*gi);
-    for (ri = group->_regions.begin(); ri != group->_regions.end(); ++ri) {
-      MouseWatcherRegion *region = (*ri);
+  for (MouseWatcherGroup *group : _groups) {
+    group->sort_regions();
 
+    for (MouseWatcherRegion *region : group->_regions) {
       if (region != _preferred_region && region->get_keyboard()) {
         region->press(param);
         consider_keyboard_suppress(region);
@@ -1238,33 +1145,31 @@ global_keyboard_press(const MouseWatcherParameter &param) {
     }
   }
 }
-////////////////////////////////////////////////////////////////////
-//     Function: MouseWatcher::global_keyboard_release
-//       Access: Protected
-//  Description: Calls release() on all regions that are interested in
-//               receiving global keyboard events, except for the
-//               current region (which already received this one).
-////////////////////////////////////////////////////////////////////
+/**
+ * Calls release() on all regions that are interested in receiving global
+ * keyboard events, except for the current region (which already received this
+ * one).
+ */
 void MouseWatcher::
 global_keyboard_release(const MouseWatcherParameter &param) {
   nassertv(_lock.debug_is_locked());
 
-  Regions::const_iterator ri;
-  for (ri = _regions.begin(); ri != _regions.end(); ++ri) {
-    MouseWatcherRegion *region = (*ri);
+  // Make sure there are no duplicates in the regions vector.
+  if (!_sorted) {
+    ((MouseWatcher *)this)->do_sort_regions();
+  }
 
+  for (MouseWatcherRegion *region : _regions) {
     if (region != _preferred_region && region->get_keyboard()) {
       region->release(param);
     }
   }
 
   // Also check all of our sub-groups.
-  Groups::const_iterator gi;
-  for (gi = _groups.begin(); gi != _groups.end(); ++gi) {
-    MouseWatcherGroup *group = (*gi);
-    for (ri = group->_regions.begin(); ri != group->_regions.end(); ++ri) {
-      MouseWatcherRegion *region = (*ri);
+  for (MouseWatcherGroup *group : _groups) {
+    group->sort_regions();
 
+    for (MouseWatcherRegion *region : group->_regions) {
       if (region != _preferred_region && region->get_keyboard()) {
         region->release(param);
       }
@@ -1272,12 +1177,10 @@ global_keyboard_release(const MouseWatcherParameter &param) {
   }
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: MouseWatcher::enter_region
-//       Access: Protected
-//  Description: Called internally to indicate the mouse pointer is
-//               favoring the indicated region.
-////////////////////////////////////////////////////////////////////
+/**
+ * Called internally to indicate the mouse pointer is favoring the indicated
+ * region.
+ */
 void MouseWatcher::
 enter_region(MouseWatcherRegion *region, const MouseWatcherParameter &param) {
   nassertv(_lock.debug_is_locked());
@@ -1291,12 +1194,10 @@ enter_region(MouseWatcherRegion *region, const MouseWatcherParameter &param) {
   }
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: MouseWatcher::exit_region
-//       Access: Protected
-//  Description: Called internally to indicate the mouse pointer is no
-//               longer favoring the indicated region.
-////////////////////////////////////////////////////////////////////
+/**
+ * Called internally to indicate the mouse pointer is no longer favoring the
+ * indicated region.
+ */
 void MouseWatcher::
 exit_region(MouseWatcherRegion *region, const MouseWatcherParameter &param) {
   nassertv(_lock.debug_is_locked());
@@ -1310,12 +1211,10 @@ exit_region(MouseWatcherRegion *region, const MouseWatcherParameter &param) {
   throw_event_pattern(_leave_pattern, region, ButtonHandle::none());
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: MouseWatcher::set_no_mouse
-//       Access: Protected
-//  Description: Called from do_transmit_data() to indicate the mouse
-//               is not within the window.
-////////////////////////////////////////////////////////////////////
+/**
+ * Called from do_transmit_data() to indicate the mouse is not within the
+ * window.
+ */
 void MouseWatcher::
 set_no_mouse() {
   nassertv(_lock.debug_is_locked());
@@ -1331,13 +1230,10 @@ set_no_mouse() {
   clear_current_regions();
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: MouseWatcher::set_mouse
-//       Access: Protected
-//  Description: Called from do_transmit_data() to indicate the mouse
-//               is within the window, and to specify its current
-//               position.
-////////////////////////////////////////////////////////////////////
+/**
+ * Called from do_transmit_data() to indicate the mouse is within the window,
+ * and to specify its current position.
+ */
 void MouseWatcher::
 set_mouse(const LVecBase2 &xy, const LVecBase2 &pixel_xy) {
   nassertv(_lock.debug_is_locked());
@@ -1360,18 +1256,14 @@ set_mouse(const LVecBase2 &xy, const LVecBase2 &pixel_xy) {
   set_current_regions(regions);
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: MouseWatcher::consider_keyboard_suppress
-//       Access: Private
-//  Description: If we send any keyboard events to a region that has
-//               the SF_other_button suppress flag set, that means we
-//               should not send the keyboard event along the data
-//               graph.
-//
-//               This method is called as each keyboard event is sent
-//               to a region; it should update the internal
-//               _keyboard_suppress bitmask to indicate this.
-////////////////////////////////////////////////////////////////////
+/**
+ * If we send any keyboard events to a region that has the SF_other_button
+ * suppress flag set, that means we should not send the keyboard event along
+ * the data graph.
+ *
+ * This method is called as each keyboard event is sent to a region; it should
+ * update the internal _keyboard_suppress bitmask to indicate this.
+ */
 void MouseWatcher::
 consider_keyboard_suppress(const MouseWatcherRegion *region) {
   if ((region->get_suppress_flags() & MouseWatcherRegion::SF_other_button) != 0) {
@@ -1379,19 +1271,14 @@ consider_keyboard_suppress(const MouseWatcherRegion *region) {
   }
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: MouseWatcher::do_transmit_data
-//       Access: Protected, Virtual
-//  Description: The virtual implementation of transmit_data().  This
-//               function receives an array of input parameters and
-//               should generate an array of output parameters.  The
-//               input parameters may be accessed with the index
-//               numbers returned by the define_input() calls that
-//               were made earlier (presumably in the constructor);
-//               likewise, the output parameters should be set with
-//               the index numbers returned by the define_output()
-//               calls.
-////////////////////////////////////////////////////////////////////
+/**
+ * The virtual implementation of transmit_data().  This function receives an
+ * array of input parameters and should generate an array of output
+ * parameters.  The input parameters may be accessed with the index numbers
+ * returned by the define_input() calls that were made earlier (presumably in
+ * the constructor); likewise, the output parameters should be set with the
+ * index numbers returned by the define_output() calls.
+ */
 void MouseWatcher::
 do_transmit_data(DataGraphTraverser *trav, const DataNodeTransmit &input,
                  DataNodeTransmit &output) {
@@ -1400,8 +1287,8 @@ do_transmit_data(DataGraphTraverser *trav, const DataNodeTransmit &input,
 
   bool activity = false;
 
-  // Initially, we do not suppress any events to objects below us in
-  // the data graph.
+  // Initially, we do not suppress any events to objects below us in the data
+  // graph.
   _internal_suppress = 0;
   _external_suppress = 0;
 
@@ -1427,14 +1314,14 @@ do_transmit_data(DataGraphTraverser *trav, const DataNodeTransmit &input,
       move();
     }
 
-    if (_display_region != (DisplayRegion *)NULL) {
+    if (_display_region != nullptr) {
       // If we've got a display region, constrain the mouse to it.
       if (constrain_display_region(_display_region, f, p, current_thread)) {
         set_mouse(f, p);
 
       } else {
-        // The mouse is outside the display region, even though it's
-        // within the window.  This is considered not having a mouse.
+        // The mouse is outside the display region, even though it's within
+        // the window.  This is considered not having a mouse.
         set_no_mouse();
 
         // This also means we should suppress mouse button events below us.
@@ -1453,7 +1340,7 @@ do_transmit_data(DataGraphTraverser *trav, const DataNodeTransmit &input,
     const PointerEventList *this_pointer_events;
     DCAST_INTO_V(this_pointer_events, input.get_data(_pointer_events_input).get_ptr());
     _num_trail_recent = this_pointer_events->get_num_events();
-    for (int i = 0; i < _num_trail_recent; i++) {
+    for (size_t i = 0; i < _num_trail_recent; i++) {
       bool in_win = this_pointer_events->get_in_window(i);
       int xpos = this_pointer_events->get_xpos(i);
       int ypos = this_pointer_events->get_ypos(i);
@@ -1470,10 +1357,10 @@ do_transmit_data(DataGraphTraverser *trav, const DataNodeTransmit &input,
     _num_trail_recent = _trail_log->get_num_events();
   }
 
-  // If the mouse is over a particular region, or still considered
-  // owned by a region because of a recent button-down event, that
-  // region determines whether we suppress events below us.
-  if (_preferred_region != (MouseWatcherRegion *)NULL) {
+  // If the mouse is over a particular region, or still considered owned by a
+  // region because of a recent button-down event, that region determines
+  // whether we suppress events below us.
+  if (_preferred_region != nullptr) {
     _internal_suppress |= _preferred_region->get_suppress_flags();
   }
 
@@ -1499,8 +1386,8 @@ do_transmit_data(DataGraphTraverser *trav, const DataNodeTransmit &input,
           new_button_events.add_event(be);
           break;
         }
-        // The button was already depressed, so this is really just
-        // keyrepeat.  Fall through.
+        // The button was already depressed, so this is really just keyrepeat.
+        // Fall through.
 
       case ButtonEvent::T_repeat:
         _current_buttons_down.set_bit(be._button.get_index());
@@ -1517,8 +1404,8 @@ do_transmit_data(DataGraphTraverser *trav, const DataNodeTransmit &input,
         break;
 
       case ButtonEvent::T_keystroke:
-        // We don't consider "keystroke" an activity event, because it
-        // might be just keyrepeat.
+        // We don't consider "keystroke" an activity event, because it might
+        // be just keyrepeat.
         keystroke(be._keycode);
         new_button_events.add_event(be);
         break;
@@ -1530,9 +1417,8 @@ do_transmit_data(DataGraphTraverser *trav, const DataNodeTransmit &input,
         break;
 
       case ButtonEvent::T_resume_down:
-        //_current_buttons_down.set_bit(be._button.get_index());
-        // Don't call press(), since the button wasn't actually
-        // pressed just now.
+        // _current_buttons_down.set_bit(be._button.get_index()); Don't call
+        // press(), since the button wasn't actually pressed just now.
         new_button_events.add_event(be);
         break;
 
@@ -1550,10 +1436,10 @@ do_transmit_data(DataGraphTraverser *trav, const DataNodeTransmit &input,
   }
 
   if (!input.has_data(_xy_input)) {
-    // No mouse in the window.  We check this down here, below the
-    // button checking, in case the mouse left the window in the same
-    // frame it released a button (particularly likely with a
-    // touchscreen input that's emulating a mouse).
+    // No mouse in the window.  We check this down here, below the button
+    // checking, in case the mouse left the window in the same frame it
+    // released a button (particularly likely with a touchscreen input that's
+    // emulating a mouse).
     set_no_mouse();
   }
 
@@ -1600,10 +1486,10 @@ do_transmit_data(DataGraphTraverser *trav, const DataNodeTransmit &input,
         << " seconds of inactivity; releasing held buttons.\n";
     }
     {
-      for (int i = 0; i < _current_buttons_down.get_num_bits(); ++i) {
+      for (size_t i = 0; i < _current_buttons_down.get_num_bits(); ++i) {
         if (_current_buttons_down.get_bit(i)) {
-          release(ButtonHandle(i));
-          new_button_events.add_event(ButtonEvent(ButtonHandle(i), ButtonEvent::T_up));
+          release(ButtonHandle((int)i));
+          new_button_events.add_event(ButtonEvent(ButtonHandle((int)i), ButtonEvent::T_up));
         }
       }
     }
@@ -1614,10 +1500,10 @@ do_transmit_data(DataGraphTraverser *trav, const DataNodeTransmit &input,
   case IS_inactive_to_active:
     // "Press" all of the buttons we "released" before.
     {
-      for (int i = 0; i < _current_buttons_down.get_num_bits(); ++i) {
+      for (size_t i = 0; i < _current_buttons_down.get_num_bits(); ++i) {
         if (_current_buttons_down.get_bit(i)) {
-          press(ButtonHandle(i), false);
-          new_button_events.add_event(ButtonEvent(ButtonHandle(i), ButtonEvent::T_down));
+          press(ButtonHandle((int)i), false);
+          new_button_events.add_event(ButtonEvent(ButtonHandle((int)i), ButtonEvent::T_down));
         }
       }
     }
@@ -1662,33 +1548,28 @@ do_transmit_data(DataGraphTraverser *trav, const DataNodeTransmit &input,
   }
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: MouseWatcher::constrain_display_region
-//       Access: Private
-//  Description: Constrains the mouse coordinates to within the
-//               indicated DisplayRegion.  If the mouse pointer does
-//               indeed fall within the DisplayRegion, rescales f and
-//               p correspondingly, and returns true.  If the mouse
-//               pointer does not fall within the DisplayRegion,
-//               leaves f and p unchanged, and returns false.
-////////////////////////////////////////////////////////////////////
+/**
+ * Constrains the mouse coordinates to within the indicated DisplayRegion.  If
+ * the mouse pointer does indeed fall within the DisplayRegion, rescales f and
+ * p correspondingly, and returns true.  If the mouse pointer does not fall
+ * within the DisplayRegion, leaves f and p unchanged, and returns false.
+ */
 bool MouseWatcher::
 constrain_display_region(DisplayRegion *display_region,
                          LVecBase2 &f, LVecBase2 &p,
                          Thread *current_thread) {
   if (!_button_down) {
-    _button_down_display_region = NULL;
+    _button_down_display_region = nullptr;
   }
-  if (_button_down_display_region != NULL) {
-    // If the button went down over this DisplayRegion, we consider
-    // the button within the same DisplayRegion until it is released
-    // (even if it wanders outside the borders).
+  if (_button_down_display_region != nullptr) {
+    // If the button went down over this DisplayRegion, we consider the button
+    // within the same DisplayRegion until it is released (even if it wanders
+    // outside the borders).
     display_region = _button_down_display_region;
 
   } else {
-    // If it's a stereo DisplayRegion, we should actually call this
-    // method twice, once for each eye, in case we have side-by-side
-    // stereo.
+    // If it's a stereo DisplayRegion, we should actually call this method
+    // twice, once for each eye, in case we have side-by-side stereo.
     if (display_region->is_stereo()) {
       StereoDisplayRegion *stereo_display_region;
       DCAST_INTO_R(stereo_display_region, display_region, false);
@@ -1705,7 +1586,7 @@ constrain_display_region(DisplayRegion *display_region,
   PN_stdfloat x = (f[0] + 1.0f) / 2.0f;
   PN_stdfloat y = (f[1] + 1.0f) / 2.0f;
 
-  if (_button_down_display_region == NULL &&
+  if (_button_down_display_region == nullptr &&
       (x < left || x >= right || y < bottom || y >= top)) {
     // The mouse is outside the display region.
     return false;

@@ -21,7 +21,7 @@
 #include <maya/MFnMesh.h>
 #include <maya/MPointArray.h>
 
-using namespace std;
+using std::cerr;
 
 void
 scan_nodes() {
@@ -94,7 +94,7 @@ get_slider(MString slider_name) {
       cerr << "selected element is not a blend shape\n";
     }
   }
-  
+
   cerr << "Couldn't find slider " << slider_name << "\n";
   exit(1);
 }
@@ -160,7 +160,7 @@ get_mesh(MString mesh_name) {
       cerr << "selected element is not a mesh\n";
     }
   }
-  
+
   cerr << "Couldn't find mesh " << mesh_name << "\n";
   exit(1);
 }
@@ -170,14 +170,14 @@ output_vertices(const char *filename, MFnMesh &mesh) {
   MStatus status;
 
   MPointArray verts;
-  //  status = mesh.getPoints(verts, MSpace::kObject);
+  // status = mesh.getPoints(verts, MSpace::kObject);
   status = mesh.getPoints(verts, MSpace::kWorld);
   if (!status) {
     status.perror("mesh.getPoints");
     exit(1);
   }
 
-  ofstream file(filename, ios::out | ios::trunc);
+  std::ofstream file(filename, std::ios::out | std::ios::trunc);
   if (!file) {
     cerr << "Couldn't open " << filename << " for output.\n";
     exit(1);

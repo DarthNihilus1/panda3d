@@ -2,21 +2,21 @@
 ## import os
 ## from wx.lib.agw import fourwaysplitter as FWS
 
-from pandac.PandaModules import *
+from panda3d.core import *
 from direct.wxwidgets.WxPandaShell import *
 from direct.directtools.DirectSelection import SelectionRay
 
 #from ViewPort import *
-from ObjectPaletteUI import *
-from ObjectPropertyUI import *
-from SceneGraphUI import *
-from LayerEditorUI import *
-from HotKeyUI import *
-from ProtoPaletteUI import *
-from ActionMgr import *
-from AnimControlUI import *
-from CurveAnimUI import *
-from GraphEditorUI import *
+from .ObjectPaletteUI import *
+from .ObjectPropertyUI import *
+from .SceneGraphUI import *
+from .LayerEditorUI import *
+from .HotKeyUI import *
+from .ProtoPaletteUI import *
+from .ActionMgr import *
+from .AnimControlUI import *
+from .CurveAnimUI import *
+from .GraphEditorUI import *
 
 class PandaTextDropTarget(wx.TextDropTarget):
     def __init__(self, editor, view):
@@ -32,7 +32,7 @@ class PandaTextDropTarget(wx.TextDropTarget):
         action = ActionAddNewObj(self.editor, text, parent=parentNPRef[0])
         self.editor.actionMgr.push(action)
         newobj = action()
-        print newobj
+        print(newobj)
         if newobj is None:
             return
 
@@ -478,7 +478,7 @@ class LevelEditorUIBase(WxPandaShell):
         self.editor.reset()
 
     def onOpen(self, evt=None):
-        dialog = wx.FileDialog(None, "Choose a file", os.getcwd(), "", "*.py", wx.OPEN)
+        dialog = wx.FileDialog(None, "Choose a file", os.getcwd(), "", "*.py", style = wx.FD_OPEN | wx.FD_FILE_MUST_EXIST)
         if dialog.ShowModal() == wx.ID_OK:
             self.editor.load(dialog.GetPath())
             self.editor.setTitleWithFilename(dialog.GetPath())
@@ -492,7 +492,7 @@ class LevelEditorUIBase(WxPandaShell):
             self.editor.save()
 
     def onSaveAs(self, evt):
-        dialog = wx.FileDialog(None, "Choose a file", os.getcwd(), "", "*.py", wx.SAVE)
+        dialog = wx.FileDialog(None, "Choose a file", os.getcwd(), "", "*.py", style = wx.FD_SAVE | wx.FD_OVERWRITE_PROMPT)
         result = True
         if dialog.ShowModal() == wx.ID_OK:
             self.editor.saveAs(dialog.GetPath())
@@ -503,7 +503,7 @@ class LevelEditorUIBase(WxPandaShell):
         return result
 
     def onExportToMaya(self, evt):
-        dialog = wx.FileDialog(None, "Choose a file", os.getcwd(), "", "*.mb", wx.SAVE)
+        dialog = wx.FileDialog(None, "Choose a file", os.getcwd(), "", "*.mb", style = wx.FD_SAVE | wx.FD_OVERWRITE_PROMPT)
         if dialog.ShowModal() == wx.ID_OK:
             self.editor.exportToMaya(dialog.GetPath())
         dialog.Destroy()
@@ -584,12 +584,12 @@ class LevelEditorUIBase(WxPandaShell):
     def replaceObject(self, evt, all=False):
         currObj = self.editor.objectMgr.findObjectByNodePath(base.direct.selected.last)
         if currObj is None:
-            print 'No valid object is selected for replacement'
+            print('No valid object is selected for replacement')
             return
 
         targetType = self.editor.ui.objectPaletteUI.getSelected()
         if targetType is None:
-            print 'No valid target type is selected for replacement'
+            print('No valid target type is selected for replacement')
             return
 
         if all:

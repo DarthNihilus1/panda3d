@@ -1,16 +1,15 @@
-// Filename: loader.cxx
-// Created by:  mike (09Jan97)
-//
-////////////////////////////////////////////////////////////////////
-//
-// PANDA 3D SOFTWARE
-// Copyright (c) Carnegie Mellon University.  All rights reserved.
-//
-// All use of this software is subject to the terms of the revised BSD
-// license.  You should have received a copy of this license along
-// with this source code in a file named "LICENSE."
-//
-////////////////////////////////////////////////////////////////////
+/**
+ * PANDA 3D SOFTWARE
+ * Copyright (c) Carnegie Mellon University.  All rights reserved.
+ *
+ * All use of this software is subject to the terms of the revised BSD
+ * license.  You should have received a copy of this license along
+ * with this source code in a file named "LICENSE."
+ *
+ * @file loader.cxx
+ * @author mike
+ * @date 1997-01-09
+ */
 
 #include "loader.h"
 #include "loaderFileType.h"
@@ -20,7 +19,7 @@
 #include "modelLoadRequest.h"
 #include "modelSaveRequest.h"
 #include "config_express.h"
-#include "config_util.h"
+#include "config_putil.h"
 #include "virtualFileSystem.h"
 #include "filename.h"
 #include "load_dso.h"
@@ -33,15 +32,15 @@
 #include "configVariableInt.h"
 #include "configVariableEnum.h"
 
+using std::string;
+
 bool Loader::_file_types_loaded = false;
 PT(Loader) Loader::_global_ptr;
 TypeHandle Loader::_type_handle;
 
-////////////////////////////////////////////////////////////////////
-//     Function: Loader::Constructor
-//       Access: Published
-//  Description:
-////////////////////////////////////////////////////////////////////
+/**
+ *
+ */
 Loader::
 Loader(const string &name) :
   Namable(name)
@@ -49,7 +48,7 @@ Loader(const string &name) :
   _task_manager = AsyncTaskManager::get_global_ptr();
   _task_chain = name;
 
-  if (_task_manager->find_task_chain(_task_chain) == NULL) {
+  if (_task_manager->find_task_chain(_task_chain) == nullptr) {
     PT(AsyncTaskChain) chain = _task_manager->make_task_chain(_task_chain);
 
     ConfigVariableInt loader_num_threads
@@ -73,24 +72,20 @@ Loader(const string &name) :
   }
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: Loader::make_async_request
-//       Access: Published
-//  Description: Returns a new AsyncTask object suitable for adding to
-//               load_async() to start an asynchronous model load.
-////////////////////////////////////////////////////////////////////
+/**
+ * Returns a new AsyncTask object suitable for adding to load_async() to start
+ * an asynchronous model load.
+ */
 PT(AsyncTask) Loader::
 make_async_request(const Filename &filename, const LoaderOptions &options) {
   return new ModelLoadRequest(string("model:")+filename.get_basename(),
                               filename, options, this);
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: Loader::make_async_save_request
-//       Access: Published
-//  Description: Returns a new AsyncTask object suitable for adding to
-//               save_async() to start an asynchronous model save.
-////////////////////////////////////////////////////////////////////
+/**
+ * Returns a new AsyncTask object suitable for adding to save_async() to start
+ * an asynchronous model save.
+ */
 PT(AsyncTask) Loader::
 make_async_save_request(const Filename &filename, const LoaderOptions &options,
                         PandaNode *node) {
@@ -98,29 +93,25 @@ make_async_save_request(const Filename &filename, const LoaderOptions &options,
                               filename, options, node, this);
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: Loader::load_bam_stream
-//       Access: Published
-//  Description: Attempts to read a bam file from the indicated stream
-//               and return the scene graph defined there.
-////////////////////////////////////////////////////////////////////
+/**
+ * Attempts to read a bam file from the indicated stream and return the scene
+ * graph defined there.
+ */
 PT(PandaNode) Loader::
-load_bam_stream(istream &in) {
+load_bam_stream(std::istream &in) {
   BamFile bam_file;
   if (!bam_file.open_read(in)) {
-    return NULL;
+    return nullptr;
   }
 
   return bam_file.read_node();
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: Loader::output
-//       Access: Published, Virtual
-//  Description:
-////////////////////////////////////////////////////////////////////
+/**
+ *
+ */
 void Loader::
-output(ostream &out) const {
+output(std::ostream &out) const {
   out << get_type() << " " << get_name();
 
   int num_tasks = _task_manager->make_task_chain(_task_chain)->get_num_tasks();
@@ -129,17 +120,13 @@ output(ostream &out) const {
   }
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: Loader::load_file
-//       Access: Private
-//  Description: Loads a single scene graph file, if possible.
-//               Returns the Node that is the root of the file, or
-//               NULL if the file cannot be loaded.
-//
-//               If search is true, the file is searched for along the
-//               model path; otherwise, only the exact filename is
-//               loaded.
-////////////////////////////////////////////////////////////////////
+/**
+ * Loads a single scene graph file, if possible.  Returns the Node that is the
+ * root of the file, or NULL if the file cannot be loaded.
+ *
+ * If search is true, the file is searched for along the model path;
+ * otherwise, only the exact filename is loaded.
+ */
 PT(PandaNode) Loader::
 load_file(const Filename &filename, const LoaderOptions &options) const {
   Filename this_filename(filename);
@@ -149,16 +136,16 @@ load_file(const Filename &filename, const LoaderOptions &options) const {
 
   string extension = this_filename.get_extension();
   if (extension.empty()) {
-    // If the filename has no filename extension, append the default
-    // extension specified in the Config file.
+    // If the filename has no filename extension, append the default extension
+    // specified in the Config file.
     this_filename = this_filename.get_fullpath() + default_model_extension.get_value();
     extension = this_filename.get_extension();
   }
 
-  bool pz_file = false;
+  bool compressed = false;
 #ifdef HAVE_ZLIB
-  if (extension == "pz") {
-    pz_file = true;
+  if (extension == "pz" || extension == "gz") {
+    compressed = true;
     extension = Filename(this_filename.get_basename_wo_extension()).get_extension();
   }
 #endif  // HAVE_ZLIB
@@ -174,36 +161,29 @@ load_file(const Filename &filename, const LoaderOptions &options) const {
         "in your Config.prc to globally assume a particular model "
         "filename extension.\n";
     }
-    return NULL;
+    return nullptr;
   }
 
   LoaderFileTypeRegistry *reg = LoaderFileTypeRegistry::get_global_ptr();
-  LoaderFileType *requested_type =
-    reg->get_type_from_extension(extension);
-  if (requested_type == (LoaderFileType *)NULL) {
-    if (report_errors) {
-      loader_cat.error()
-        << "Extension of file " << this_filename
-        << " is unrecognized; cannot load.\n";
-      loader_cat.error(false)
-        << "Currently known scene file types are:\n";
-      reg->write(loader_cat.error(false), 2);
+  LoaderFileType *requested_type = reg->get_type_from_extension(extension);
+  // requested_type may be nullptr at this point, because there's still a
+  // chance we can load it via the model-cache or by adding .bam to the end.
+  if (requested_type != nullptr) {
+    if (!requested_type->supports_load()) {
+      if (report_errors) {
+        loader_cat.error()
+          << requested_type->get_name() << " file type (."
+          << extension << ") does not support loading.\n";
+      }
+      return nullptr;
+    } else if (compressed && !requested_type->supports_compressed()) {
+      if (report_errors) {
+        loader_cat.error()
+          << requested_type->get_name() << " file type (."
+          << extension << ") does not support in-line compression.\n";
+      }
+      return nullptr;
     }
-    return NULL;
-  } else if (!requested_type->supports_load()) {
-    if (report_errors) {
-      loader_cat.error()
-        << requested_type->get_name() << " file type (."
-        << extension << ") does not support loading.\n";
-    }
-    return NULL;
-  } else if (pz_file && !requested_type->supports_compressed()) {
-    if (report_errors) {
-      loader_cat.error()
-        << requested_type->get_name() << " file type (."
-        << extension << ") does not support in-line compression.\n";
-    }
-    return NULL;
   }
 
   bool search = (this_options.get_flags() & LoaderOptions::LF_search) != 0;
@@ -212,21 +192,21 @@ load_file(const Filename &filename, const LoaderOptions &options) const {
     search = false;
   }
 
-  // Now that we've decided whether to search for the file, don't try
-  // to search again.
+  // Now that we've decided whether to search for the file, don't try to
+  // search again.
   this_options.set_flags(this_options.get_flags() & ~LoaderOptions::LF_search);
 
   VirtualFileSystem *vfs = VirtualFileSystem::get_global_ptr();
 
   if (search) {
     // Look for the file along the model path.
-    const ConfigVariableSearchPath &model_path = get_model_path();
+    DSearchPath model_path(get_model_path());
     int num_dirs = model_path.get_num_directories();
     for (int i = 0; i < num_dirs; ++i) {
       Filename pathname(model_path.get_directory(i), this_filename);
       PT(PandaNode) result = try_load_file(pathname, this_options,
                                            requested_type);
-      if (result != (PandaNode *)NULL) {
+      if (result != nullptr) {
         return result;
       }
     }
@@ -242,6 +222,14 @@ load_file(const Filename &filename, const LoaderOptions &options) const {
       }
 
       if (any_exist) {
+        if (requested_type == nullptr) {
+          loader_cat.error()
+            << "Extension of file " << this_filename
+            << " is unrecognized; cannot load.\n";
+          loader_cat.error(false)
+            << "Currently known scene file types are:\n";
+          reg->write(loader_cat.error(false), 2);
+        }
         loader_cat.error()
           << "Couldn't load file " << this_filename
           << ": all matching files on model path invalid "
@@ -258,11 +246,19 @@ load_file(const Filename &filename, const LoaderOptions &options) const {
     // Look for the file only where it is.
     VirtualFileSystem *vfs = VirtualFileSystem::get_global_ptr();
     PT(PandaNode) result = try_load_file(this_filename, this_options, requested_type);
-    if (result != (PandaNode *)NULL) {
+    if (result != nullptr) {
       return result;
     }
     if (report_errors) {
       if (vfs->exists(this_filename)) {
+        if (requested_type == nullptr) {
+          loader_cat.error()
+            << "Extension of file " << this_filename
+            << " is unrecognized; cannot load.\n";
+          loader_cat.error(false)
+            << "Currently known scene file types are:\n";
+          reg->write(loader_cat.error(false), 2);
+        }
         loader_cat.error()
           << "Couldn't load file " << this_filename << ": invalid.\n";
       } else {
@@ -271,28 +267,25 @@ load_file(const Filename &filename, const LoaderOptions &options) const {
       }
     }
   }
-  return NULL;
+  return nullptr;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: Loader::try_load_file
-//       Access: Private
-//  Description: The implementatin of load_file(), this tries a single
-//               possible file without searching further along the
-//               path.
-////////////////////////////////////////////////////////////////////
+/**
+ * The implementatin of load_file(), this tries a single possible file without
+ * searching further along the path.
+ */
 PT(PandaNode) Loader::
 try_load_file(const Filename &pathname, const LoaderOptions &options,
               LoaderFileType *requested_type) const {
   BamCache *cache = BamCache::get_global_ptr();
 
-  bool allow_ram_cache = requested_type->get_allow_ram_cache(options);
+  bool allow_ram_cache =
+    ((options.get_flags() & LoaderOptions::LF_no_ram_cache) == 0);
 
   if (allow_ram_cache) {
-    // If we're allowing a RAM cache, use the ModelPool to load the
-    // file.
+    // If we're allowing a RAM cache, use the ModelPool to load the file.
     PT(PandaNode) node = ModelPool::get_model(pathname, true);
-    if (node != (PandaNode *)NULL) {
+    if (node != nullptr) {
       if ((options.get_flags() & LoaderOptions::LF_allow_instance) == 0) {
         if (loader_cat.is_debug()) {
           loader_cat.debug()
@@ -308,11 +301,11 @@ try_load_file(const Filename &pathname, const LoaderOptions &options,
   bool report_errors = ((options.get_flags() & LoaderOptions::LF_report_errors) != 0 || loader_cat.is_debug());
 
   PT(BamCacheRecord) record;
-  if (cache->get_cache_models() && requested_type->get_allow_disk_cache(options)) {
-    // See if the model can be found in the on-disk cache, if it is
-    // active.
+  if (cache->get_cache_models() &&
+      (options.get_flags() & LoaderOptions::LF_no_disk_cache) == 0) {
+    // See if the model can be found in the on-disk cache, if it is active.
     record = cache->lookup(pathname, "bam");
-    if (record != (BamCacheRecord *)NULL) {
+    if (record != nullptr) {
       if (record->has_data()) {
         if (report_errors) {
           loader_cat.info()
@@ -331,9 +324,9 @@ try_load_file(const Filename &pathname, const LoaderOptions &options,
           model_root->set_timestamp(record->get_source_timestamp());
 
           if (allow_ram_cache) {
-            // Store the loaded model in the RAM cache, and make sure
-            // we return a copy so that this node can be modified
-            // independently from the RAM cached version.
+            // Store the loaded model in the RAM cache, and make sure we
+            // return a copy so that this node can be modified independently
+            // from the RAM cached version.
             ModelPool::add_model(pathname, model_root);
             if ((options.get_flags() & LoaderOptions::LF_allow_instance) == 0) {
               return model_root->copy_subgraph();
@@ -350,45 +343,72 @@ try_load_file(const Filename &pathname, const LoaderOptions &options,
     }
   }
 
-  bool cache_only = (options.get_flags() & LoaderOptions::LF_cache_only) != 0;
-  if (!cache_only) {
-    // Load the model from disk.
-    PT(PandaNode) result = requested_type->load_file(pathname, options, record);
-    if (result != (PandaNode *)NULL) {
-      if (record != (BamCacheRecord *)NULL) {
-        // Store the loaded model in the model cache.
-        record->set_data(result);
-        cache->store(record);
-      }
+  if (options.get_flags() & LoaderOptions::LF_cache_only) {
+    // We're not allowed to read from disk.
+    return nullptr;
+  }
 
-      if (premunge_data) {
-        SceneGraphReducer sgr;
-        sgr.premunge(result, RenderState::make_empty());
-      }
+  // Load the model from disk.
+  PT(PandaNode) result;
+  if (requested_type != nullptr) {
+    result = requested_type->load_file(pathname, options, record);
+  }
+  if (result != nullptr) {
+    if (record != nullptr) {
+      // Store the loaded model in the model cache.
+      record->set_data(result);
+      cache->store(record);
+    }
+  } else {
+    // Do we have the same filename, but with .bam appended to the end?
+    string extension = pathname.get_extension();
+    Filename pathname_bam = pathname;
+    if (extension == "pz" || extension == "gz") {
+      // Strip .pz/.gz, so that model.egg.pz -> model.egg.bam
+      extension = pathname_bam.get_extension();
+      pathname_bam = pathname_bam.get_fullpath_wo_extension();
+    }
+    if (extension == "bam") {
+      // Don't try to load .bam.bam files, that is just silly.
+      return nullptr;
+    }
+    pathname_bam += ".bam";
 
-      if (allow_ram_cache && result->is_of_type(ModelRoot::get_class_type())) {
-        // Store the loaded model in the RAM cache, and make sure
-        // we return a copy so that this node can be modified
-        // independently from the RAM cached version.
-        ModelPool::add_model(pathname, DCAST(ModelRoot, result.p()));
-        if ((options.get_flags() & LoaderOptions::LF_allow_instance) == 0) {
-          result = result->copy_subgraph();
-        }
-      }
-      return result;
+    BamFile bam_file;
+    if (!bam_file.open_read(pathname_bam, report_errors)) {
+      return nullptr;
+    }
+
+    bam_file.get_reader()->set_loader_options(options);
+    result = bam_file.read_node(report_errors);
+
+    nassertr_always(result != nullptr && result->is_of_type(ModelRoot::get_class_type()), nullptr);
+    // We don't bother with the model-cache here, since this .bam file is
+    // already effectively a cached version of the original model.
+  }
+
+  if (premunge_data) {
+    SceneGraphReducer sgr;
+    sgr.premunge(result, RenderState::make_empty());
+  }
+
+  if (allow_ram_cache && result->is_of_type(ModelRoot::get_class_type())) {
+    // Store the loaded model in the RAM cache, and make sure we return a
+    // copy so that this node can be modified independently from the RAM
+    // cached version.
+    ModelPool::add_model(pathname, DCAST(ModelRoot, result.p()));
+    if ((options.get_flags() & LoaderOptions::LF_allow_instance) == 0) {
+      result = result->copy_subgraph();
     }
   }
 
-  return NULL;
+  return result;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: Loader::save_file
-//       Access: Private
-//  Description: Saves a scene graph to a single file, if possible.
-//               The file type written is implicit in the filename
-//               extension.
-////////////////////////////////////////////////////////////////////
+/**
+ * Saves a scene graph to a single file, if possible.  The file type written
+ * is implicit in the filename extension.
+ */
 bool Loader::
 save_file(const Filename &filename, const LoaderOptions &options,
           PandaNode *node) const {
@@ -399,16 +419,16 @@ save_file(const Filename &filename, const LoaderOptions &options,
 
   string extension = this_filename.get_extension();
   if (extension.empty()) {
-    // If the filename has no filename extension, append the default
-    // extension specified in the Config file.
+    // If the filename has no filename extension, append the default extension
+    // specified in the Config file.
     this_filename = this_filename.get_fullpath() + default_model_extension.get_value();
     extension = this_filename.get_extension();
   }
 
-  bool pz_file = false;
+  bool compressed = false;
 #ifdef HAVE_ZLIB
-  if (extension == "pz") {
-    pz_file = true;
+  if (extension == "pz" || extension == "gz") {
+    compressed = true;
     extension = Filename(this_filename.get_basename_wo_extension()).get_extension();
   }
 #endif  // HAVE_ZLIB
@@ -426,7 +446,7 @@ save_file(const Filename &filename, const LoaderOptions &options,
   LoaderFileType *requested_type =
     reg->get_type_from_extension(extension);
 
-  if (requested_type == (LoaderFileType *)NULL) {
+  if (requested_type == nullptr) {
     if (report_errors) {
       loader_cat.error()
         << "Extension of file " << this_filename
@@ -445,7 +465,7 @@ save_file(const Filename &filename, const LoaderOptions &options,
     }
     return false;
 
-  } else if (pz_file && !requested_type->supports_compressed()) {
+  } else if (compressed && !requested_type->supports_compressed()) {
     if (report_errors) {
       loader_cat.error()
         << requested_type->get_name() << " file type (."
@@ -453,8 +473,6 @@ save_file(const Filename &filename, const LoaderOptions &options,
     }
     return false;
   }
-
-  VirtualFileSystem *vfs = VirtualFileSystem::get_global_ptr();
 
   bool result = try_save_file(this_filename, this_options, node, requested_type);
   if (!result) {
@@ -467,29 +485,21 @@ save_file(const Filename &filename, const LoaderOptions &options,
   return result;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: Loader::try_save_file
-//       Access: Private
-//  Description: The implementation of save_file(), this tries to
-//               write a specific file type.
-////////////////////////////////////////////////////////////////////
+/**
+ * The implementation of save_file(), this tries to write a specific file
+ * type.
+ */
 bool Loader::
 try_save_file(const Filename &pathname, const LoaderOptions &options,
               PandaNode *node, LoaderFileType *requested_type) const {
-  bool report_errors = ((options.get_flags() & LoaderOptions::LF_report_errors) != 0 || loader_cat.is_debug());
-
-  bool result = requested_type->save_file(pathname, options, node);
-  return result;
+  return requested_type->save_file(pathname, options, node);
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: Loader::load_file_types
-//       Access: Private, Static
-//  Description: Loads up all of the dynamic libraries named in a
-//               load-file-type Configure variable.  Presumably this
-//               will make the various file types available for
-//               runtime loading.
-////////////////////////////////////////////////////////////////////
+/**
+ * Loads up all of the dynamic libraries named in a load-file-type Configure
+ * variable.  Presumably this will make the various file types available for
+ * runtime loading.
+ */
 void Loader::
 load_file_types() {
   if (!_file_types_loaded) {
@@ -506,21 +516,21 @@ load_file_types() {
         string name = words[0];
         Filename dlname = Filename::dso_filename("lib" + name + ".so");
         loader_cat.info()
-          << "loading file type module: " << name << endl;
+          << "loading file type module: " << name << std::endl;
         void *tmp = load_dso(get_plugin_path().get_value(), dlname);
-        if (tmp == (void *)NULL) {
+        if (tmp == nullptr) {
           loader_cat.warning()
             << "Unable to load " << dlname.to_os_specific()
-            << ": " << load_dso_error() << endl;
+            << ": " << load_dso_error() << std::endl;
         } else if (loader_cat.is_debug()) {
           loader_cat.debug()
-            << "done loading file type module: " << name << endl;
+            << "done loading file type module: " << name << std::endl;
         }
 
       } else if (words.size() > 1) {
-        // Multiple words: the first n words are filename extensions,
-        // and the last word is the name of the library to load should
-        // any of those filename extensions be encountered.
+        // Multiple words: the first n words are filename extensions, and the
+        // last word is the name of the library to load should any of those
+        // filename extensions be encountered.
         LoaderFileTypeRegistry *registry = LoaderFileTypeRegistry::get_global_ptr();
         size_t num_extensions = words.size() - 1;
         string library_name = words[num_extensions];
@@ -540,16 +550,12 @@ load_file_types() {
   }
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: Loader::make_global_ptr
-//       Access: Private, Static
-//  Description: Called once per application to create the global
-//               loader object.
-////////////////////////////////////////////////////////////////////
+/**
+ * Called once per application to create the global loader object.
+ */
 void Loader::
 make_global_ptr() {
-  nassertv(_global_ptr == (Loader *)NULL);
+  nassertv(_global_ptr == nullptr);
 
   _global_ptr = new Loader("loader");
 }
-

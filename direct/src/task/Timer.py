@@ -1,8 +1,8 @@
-"""Undocumented Module"""
+"""Contains the Timer class."""
 
 __all__ = ['Timer']
 
-import Task
+from . import Task
 
 class Timer:
     id = 0

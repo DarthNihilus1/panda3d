@@ -1,16 +1,15 @@
-// Filename: pnmFileTypeTIFF.cxx
-// Created by:  drose (19Jun00)
-//
-////////////////////////////////////////////////////////////////////
-//
-// PANDA 3D SOFTWARE
-// Copyright (c) Carnegie Mellon University.  All rights reserved.
-//
-// All use of this software is subject to the terms of the revised BSD
-// license.  You should have received a copy of this license along
-// with this source code in a file named "LICENSE."
-//
-////////////////////////////////////////////////////////////////////
+/**
+ * PANDA 3D SOFTWARE
+ * Copyright (c) Carnegie Mellon University.  All rights reserved.
+ *
+ * All use of this software is subject to the terms of the revised BSD
+ * license.  You should have received a copy of this license along
+ * with this source code in a file named "LICENSE."
+ *
+ * @file pnmFileTypeTIFF.cxx
+ * @author drose
+ * @date 2000-06-19
+ */
 
 #include "pnmFileTypeTIFF.h"
 
@@ -29,6 +28,11 @@
 #define int32 tiff_int32
 #define uint32 tiff_uint32
 
+using std::ios;
+using std::istream;
+using std::ostream;
+using std::string;
+
 extern "C" {
 #include <tiff.h>
 #include <tiffio.h>
@@ -39,11 +43,11 @@ static const char * const extensions_tiff[] = {
 };
 static const int num_extensions_tiff = sizeof(extensions_tiff) / sizeof(const char *);
 
-// These are configurable parameters to specify TIFF details on
-// output.  See tiff.h or type man pnmtotiff for a better explanation
-// of options.
+// These are configurable parameters to specify TIFF details on output.  See
+// tiff.h or type man pnmtotiff for a better explanation of options.
 
-//unsigned short tiff_compression = COMPRESSION_LZW;  // lzw not supported anymore because of big bad Unisys
+// unsigned short tiff_compression = COMPRESSION_LZW;   lzw not supported
+// anymore because of big bad Unisys
 unsigned short tiff_compression = COMPRESSION_NONE;
 
 /* One of:
@@ -81,8 +85,8 @@ short tiff_predictor = 0;
 #define PHOTOMETRIC_DEPTH 32768
 #endif
 
-// Here's a number of functions to support the iostream interface
-// via the TIFF library.
+// Here's a number of functions to support the iostream interface via the TIFF
+// library.
 static tsize_t
 istream_read(thandle_t fd, tdata_t buf, tsize_t size) {
   istream *in = (istream *)fd;
@@ -101,15 +105,15 @@ ostream_write(thandle_t fd, tdata_t buf, tsize_t size) {
 
 static tsize_t
 ostream_dont_read(thandle_t, tdata_t, tsize_t) {
-  // This no-op variant of istream_read() is passed in when we open the
-  // file for writing only.  Shouldn't mix reads and writes.
+  // This no-op variant of istream_read() is passed in when we open the file
+  // for writing only.  Shouldn't mix reads and writes.
   return 0;
 }
 
 static tsize_t
 istream_dont_write(thandle_t, tdata_t, tsize_t) {
-  // This no-op variant of ostream_write() is passed in when we open the
-  // file for reading only.  Shouldn't mix reads and writes.
+  // This no-op variant of ostream_write() is passed in when we open the file
+  // for reading only.  Shouldn't mix reads and writes.
   return 0;
 }
 
@@ -139,7 +143,7 @@ istream_seek(thandle_t fd, toff_t off, int whence) {
 
   if (pnmimage_tiff_cat->is_spam()) {
     pnmimage_tiff_cat->spam()
-      << "istream_seek(" << (void *)in << ", " << off << ", " 
+      << "istream_seek(" << (void *)in << ", " << off << ", "
       << whence << "), result = " << in->tellg() << "\n";
   }
   return in->tellg();
@@ -171,7 +175,7 @@ ostream_seek(thandle_t fd, toff_t off, int whence) {
 
   if (pnmimage_tiff_cat->is_spam()) {
     pnmimage_tiff_cat->spam()
-      << "ostream_seek(" << (void *)out << ", " << off << ", " 
+      << "ostream_seek(" << (void *)out << ", " << off << ", "
       << whence << "), result = " << out->tellp() << "\n";
   }
   return out->tellp();
@@ -209,11 +213,9 @@ iostream_unmap(thandle_t, tdata_t, toff_t) {
 bool PNMFileTypeTIFF::_installed_error_handlers = false;
 TypeHandle PNMFileTypeTIFF::_type_handle;
 
-////////////////////////////////////////////////////////////////////
-//     Function: PNMFileTypeTIFF::Constructor
-//       Access: Public
-//  Description:
-////////////////////////////////////////////////////////////////////
+/**
+ *
+ */
 PNMFileTypeTIFF::
 PNMFileTypeTIFF() {
   // This constructor may run at static init time, so we use the ->
@@ -224,70 +226,56 @@ PNMFileTypeTIFF() {
   }
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: PNMFileTypeTIFF::get_name
-//       Access: Public, Virtual
-//  Description: Returns a few words describing the file type.
-////////////////////////////////////////////////////////////////////
+/**
+ * Returns a few words describing the file type.
+ */
 string PNMFileTypeTIFF::
 get_name() const {
   return "TIFF";
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: PNMFileTypeTIFF::get_num_extensions
-//       Access: Public, Virtual
-//  Description: Returns the number of different possible filename
-//               extensions associated with this particular file type.
-////////////////////////////////////////////////////////////////////
+/**
+ * Returns the number of different possible filename extensions associated
+ * with this particular file type.
+ */
 int PNMFileTypeTIFF::
 get_num_extensions() const {
   return num_extensions_tiff;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: PNMFileTypeTIFF::get_extension
-//       Access: Public, Virtual
-//  Description: Returns the nth possible filename extension
-//               associated with this particular file type, without a
-//               leading dot.
-////////////////////////////////////////////////////////////////////
+/**
+ * Returns the nth possible filename extension associated with this particular
+ * file type, without a leading dot.
+ */
 string PNMFileTypeTIFF::
 get_extension(int n) const {
   nassertr(n >= 0 && n < num_extensions_tiff, string());
   return extensions_tiff[n];
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: PNMFileTypeTIFF::get_suggested_extension
-//       Access: Public, Virtual
-//  Description: Returns a suitable filename extension (without a
-//               leading dot) to suggest for files of this type, or
-//               empty string if no suggestions are available.
-////////////////////////////////////////////////////////////////////
+/**
+ * Returns a suitable filename extension (without a leading dot) to suggest
+ * for files of this type, or empty string if no suggestions are available.
+ */
 string PNMFileTypeTIFF::
 get_suggested_extension() const {
   return "tiff";
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: PNMFileTypeTIFF::has_magic_number
-//       Access: Public, Virtual
-//  Description: Returns true if this particular file type uses a
-//               magic number to identify it, false otherwise.
-////////////////////////////////////////////////////////////////////
+/**
+ * Returns true if this particular file type uses a magic number to identify
+ * it, false otherwise.
+ */
 bool PNMFileTypeTIFF::
 has_magic_number() const {
   return true;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: PNMFileTypeTIFF::matches_magic_number
-//       Access: Public, Virtual
-//  Description: Returns true if the indicated "magic number" byte
-//               stream (the initial few bytes read from the file)
-//               matches this particular file type, false otherwise.
-////////////////////////////////////////////////////////////////////
+/**
+ * Returns true if the indicated "magic number" byte stream (the initial few
+ * bytes read from the file) matches this particular file type, false
+ * otherwise.
+ */
 bool PNMFileTypeTIFF::
 matches_magic_number(const string &magic_number) const {
   nassertr(magic_number.size() >= 2, false);
@@ -297,13 +285,11 @@ matches_magic_number(const string &magic_number) const {
   return (mn == TIFF_BIGENDIAN || mn == TIFF_LITTLEENDIAN);
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: PNMFileTypeTIFF::make_reader
-//       Access: Public, Virtual
-//  Description: Allocates and returns a new PNMReader suitable for
-//               reading from this file type, if possible.  If reading
-//               from this file type is not supported, returns NULL.
-////////////////////////////////////////////////////////////////////
+/**
+ * Allocates and returns a new PNMReader suitable for reading from this file
+ * type, if possible.  If reading from this file type is not supported,
+ * returns NULL.
+ */
 PNMReader *PNMFileTypeTIFF::
 make_reader(istream *file, bool owns_file, const string &magic_number) {
   init_pnm();
@@ -311,13 +297,11 @@ make_reader(istream *file, bool owns_file, const string &magic_number) {
   return new Reader(this, file, owns_file, magic_number);
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: PNMFileTypeTIFF::make_writer
-//       Access: Public, Virtual
-//  Description: Allocates and returns a new PNMWriter suitable for
-//               reading from this file type, if possible.  If writing
-//               files of this type is not supported, returns NULL.
-////////////////////////////////////////////////////////////////////
+/**
+ * Allocates and returns a new PNMWriter suitable for reading from this file
+ * type, if possible.  If writing files of this type is not supported, returns
+ * NULL.
+ */
 PNMWriter *PNMFileTypeTIFF::
 make_writer(ostream *file, bool owns_file) {
   init_pnm();
@@ -325,11 +309,9 @@ make_writer(ostream *file, bool owns_file) {
   return new Writer(this, file, owns_file);
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: PNMFileTypeTIFF::Reader::Constructor
-//       Access: Public
-//  Description:
-////////////////////////////////////////////////////////////////////
+/**
+ *
+ */
 PNMFileTypeTIFF::Reader::
 Reader(PNMFileType *type, istream *file, bool owns_file, string magic_number) :
   PNMReader(type, file, owns_file)
@@ -361,7 +343,7 @@ Reader(PNMFileType *type, istream *file, bool owns_file, string magic_number) :
                          iostream_dont_close, istream_size,
                          iostream_map, iostream_unmap);
 
-    if ( tif == NULL ) {
+    if ( tif == nullptr ) {
       _is_valid = false;
     }
   }
@@ -397,9 +379,9 @@ Reader(PNMFileType *type, istream *file, bool owns_file, string magic_number) :
 
   if (_is_valid) {
     unsigned short num_extra_samples;
-    unsigned short *extra_samples = NULL;
+    unsigned short *extra_samples = nullptr;
 
-    if (!TIFFGetField(tif, TIFFTAG_EXTRASAMPLES, &num_extra_samples, 
+    if (!TIFFGetField(tif, TIFFTAG_EXTRASAMPLES, &num_extra_samples,
                       &extra_samples)) {
       num_extra_samples = 0;
     }
@@ -408,8 +390,7 @@ Reader(PNMFileType *type, istream *file, bool owns_file, string magic_number) :
     assoc_alpha_sample = 0;
 
     if (_num_channels == 1 || _num_channels == 3) {
-      // Look for an alpha channel in one of the extra samples, if
-      // any.
+      // Look for an alpha channel in one of the extra samples, if any.
       bool got_alpha = false;
       for (unsigned short s = 0; s < num_extra_samples && !got_alpha; s++) {
         if (extra_samples[s] == EXTRASAMPLE_UNASSALPHA) {
@@ -424,10 +405,10 @@ Reader(PNMFileType *type, istream *file, bool owns_file, string magic_number) :
         }
       }
 
-      // Unfortunately, Photoshop seems to write
-      // EXTRASAMPLE_UNSPECIFIED into the EXTRASAMPLES field for its
-      // alpha channels.  If we have exactly one extra channel and
-      // it's an UNSPECIFIED channel, assume it's meant to be alpha.
+      // Unfortunately, Photoshop seems to write EXTRASAMPLE_UNSPECIFIED into
+      // the EXTRASAMPLES field for its alpha channels.  If we have exactly
+      // one extra channel and it's an UNSPECIFIED channel, assume it's meant
+      // to be alpha.
       if (!got_alpha && num_extra_samples == 1 &&
           extra_samples[0] == EXTRASAMPLE_UNSPECIFIED) {
         unassoc_alpha_sample = _num_channels;
@@ -435,10 +416,9 @@ Reader(PNMFileType *type, istream *file, bool owns_file, string magic_number) :
       }
 
     } else if ((_num_channels == 2 || _num_channels == 4) && num_extra_samples == 0) {
-      // If we have a 2- or 4-channel image but the extra samples are
-      // not declared, assume it was written out by a broken TIFF
-      // implementation and that the extra channel is really meant to
-      // be alpha.
+      // If we have a 2- or 4-channel image but the extra samples are not
+      // declared, assume it was written out by a broken TIFF implementation
+      // and that the extra channel is really meant to be alpha.
       unassoc_alpha_sample = _num_channels - 1;
       if (pnmimage_tiff_cat.is_debug()) {
         pnmimage_tiff_cat.debug()
@@ -448,7 +428,7 @@ Reader(PNMFileType *type, istream *file, bool owns_file, string magic_number) :
 
     } else {
       pnmimage_tiff_cat.error()
-        << "Cannot handle " << spp << "-color image (with " 
+        << "Cannot handle " << spp << "-color image (with "
         << num_extra_samples << " extra channels).\n";
       _is_valid = false;
     }
@@ -567,37 +547,30 @@ Reader(PNMFileType *type, istream *file, bool owns_file, string magic_number) :
   }
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: PNMFileTypeTIFF::Reader::Destructor
-//       Access: Public, Virtual
-//  Description:
-////////////////////////////////////////////////////////////////////
+/**
+ *
+ */
 PNMFileTypeTIFF::Reader::
 ~Reader() {
-  if (tif != (struct tiff *)NULL) {
+  if (tif != nullptr) {
     TIFFClose(tif);
   }
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: PNMFileTypeTIFF::Reader::is_floating_point
-//       Access: Public, Virtual
-//  Description: Returns true if this PNMFileType represents a
-//               floating-point image type, false if it is a normal,
-//               integer type.  If this returns true, read_pfm() is
-//               implemented instead of read_data().
-////////////////////////////////////////////////////////////////////
+/**
+ * Returns true if this PNMFileType represents a floating-point image type,
+ * false if it is a normal, integer type.  If this returns true, read_pfm() is
+ * implemented instead of read_data().
+ */
 bool PNMFileTypeTIFF::Reader::
 is_floating_point() {
   return (sample_format == SAMPLEFORMAT_IEEEFP);
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: PNMFileTypeTIFF::Reader::read_pfm
-//       Access: Public, Virtual
-//  Description: Reads floating-point data directly into the indicated
-//               PfmFile.  Returns true on success, false on failure.
-////////////////////////////////////////////////////////////////////
+/**
+ * Reads floating-point data directly into the indicated PfmFile.  Returns
+ * true on success, false on failure.
+ */
 bool PNMFileTypeTIFF::Reader::
 read_pfm(PfmFile &pfm) {
   if (!is_valid()) {
@@ -627,30 +600,23 @@ read_pfm(PfmFile &pfm) {
   return true;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: PNMFileTypeTIFF::Reader::supports_read_row
-//       Access: Public, Virtual
-//  Description: Returns true if this particular PNMReader supports a
-//               streaming interface to reading the data: that is, it
-//               is capable of returning the data one row at a time,
-//               via repeated calls to read_row().  Returns false if
-//               the only way to read from this file is all at once,
-//               via read_data().
-////////////////////////////////////////////////////////////////////
+/**
+ * Returns true if this particular PNMReader supports a streaming interface to
+ * reading the data: that is, it is capable of returning the data one row at a
+ * time, via repeated calls to read_row().  Returns false if the only way to
+ * read from this file is all at once, via read_data().
+ */
 bool PNMFileTypeTIFF::Reader::
 supports_read_row() const {
   return true;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: PNMFileTypeTIFF::Reader::read_row
-//       Access: Public, Virtual
-//  Description: If supports_read_row(), above, returns true, this
-//               function may be called repeatedly to read the image,
-//               one horizontal row at a time, beginning from the top.
-//               Returns true if the row is successfully read, false
-//               if there is an error or end of file.
-////////////////////////////////////////////////////////////////////
+/**
+ * If supports_read_row(), above, returns true, this function may be called
+ * repeatedly to read the image, one horizontal row at a time, beginning from
+ * the top.  Returns true if the row is successfully read, false if there is
+ * an error or end of file.
+ */
 bool PNMFileTypeTIFF::Reader::
 read_row(xel *row_data, xelval *alpha_data, int x_size, int) {
   if (!is_valid()) {
@@ -659,7 +625,7 @@ read_row(xel *row_data, xelval *alpha_data, int x_size, int) {
 
   size_t scanline_size = (size_t)TIFFScanlineSize(tif);
   unsigned char *buf = (unsigned char*) alloca(scanline_size);
-  
+
   int col;
   xelval gray, sample;
   xelval r, g, b;
@@ -674,14 +640,14 @@ read_row(xel *row_data, xelval *alpha_data, int x_size, int) {
   unsigned s;
   int bits_left = 8;
 
-  // Get a pointer to a function that extracts the next bps-bit sample
-  // from the bitarray.  There are a handful of different functions,
-  // which are optimized for different values of bps.
+  // Get a pointer to a function that extracts the next bps-bit sample from
+  // the bitarray.  There are a handful of different functions, which are
+  // optimized for different values of bps.
   xelval (PNMFileTypeTIFF::Reader::*next_sample)(unsigned char *&buf_ptr, int &bits_left) const;
 
   if (bps < 8) {
     next_sample = &PNMFileTypeTIFF::Reader::next_sample_lt_8;
-  
+
   } else if (bps == 8) {
     next_sample = &PNMFileTypeTIFF::Reader::next_sample_8;
 
@@ -689,8 +655,8 @@ read_row(xel *row_data, xelval *alpha_data, int x_size, int) {
     next_sample = &PNMFileTypeTIFF::Reader::next_sample_16;
 
   } else if (bps == 32) {
-    // Actually, it's not likely that a 32-bit sample will fit within
-    // a xelval.  Deal with this when we come to it.
+    // Actually, it's not likely that a 32-bit sample will fit within a
+    // xelval.  Deal with this when we come to it.
     next_sample = &PNMFileTypeTIFF::Reader::next_sample_32;
 
   } else {
@@ -784,7 +750,7 @@ read_row(xel *row_data, xelval *alpha_data, int x_size, int) {
         sample = (this->*next_sample)(buf_ptr, bits_left);
         if (s == unassoc_alpha_sample) {
           alpha_data[col] = sample;
-          
+
         } else if (s == assoc_alpha_sample) {
           alpha_data[col] = sample;
           if (sample != 0) {
@@ -811,12 +777,9 @@ read_row(xel *row_data, xelval *alpha_data, int x_size, int) {
   return true;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: PNMFileTypeTIFF::Reader::next_sample_lt_8
-//       Access: Private
-//  Description: Returns the next color sample from the row, when it
-//               is known that bps < 8.
-////////////////////////////////////////////////////////////////////
+/**
+ * Returns the next color sample from the row, when it is known that bps < 8.
+ */
 xelval PNMFileTypeTIFF::Reader::
 next_sample_lt_8(unsigned char *&buf_ptr, int &bits_left) const {
   if (bits_left == 0) {
@@ -828,54 +791,44 @@ next_sample_lt_8(unsigned char *&buf_ptr, int &bits_left) const {
   return (*buf_ptr >> bits_left) & _maxval;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: PNMFileTypeTIFF::Reader::next_sample_8
-//       Access: Private
-//  Description: Returns the next color sample from the row, when it
-//               is known that bps == 8.
-////////////////////////////////////////////////////////////////////
+/**
+ * Returns the next color sample from the row, when it is known that bps == 8.
+ */
 xelval PNMFileTypeTIFF::Reader::
 next_sample_8(unsigned char *&buf_ptr, int &bits_left) const {
   return *buf_ptr++;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: PNMFileTypeTIFF::Reader::next_sample_16
-//       Access: Private
-//  Description: Returns the next color sample from the row, when it
-//               is known that bps == 16.
-////////////////////////////////////////////////////////////////////
+/**
+ * Returns the next color sample from the row, when it is known that bps ==
+ * 16.
+ */
 xelval PNMFileTypeTIFF::Reader::
 next_sample_16(unsigned char *&buf_ptr, int &bits_left) const {
-  // The TIFF library has already byte-swapped the values if
-  // necessary.  Thus, we only need to treat it as an array of shorts.
+  // The TIFF library has already byte-swapped the values if necessary.  Thus,
+  // we only need to treat it as an array of shorts.
   unsigned short result = *(unsigned short *)buf_ptr;
   buf_ptr += 2;
   return result;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: PNMFileTypeTIFF::Reader::next_sample_32
-//       Access: Private
-//  Description: Returns the next color sample from the row, when it
-//               is known that bps == 32.
-////////////////////////////////////////////////////////////////////
+/**
+ * Returns the next color sample from the row, when it is known that bps ==
+ * 32.
+ */
 xelval PNMFileTypeTIFF::Reader::
 next_sample_32(unsigned char *&buf_ptr, int &bits_left) const {
-  // The TIFF library has already byte-swapped the values if
-  // necessary.  Thus, we only need to treat it as an array of longs.
+  // The TIFF library has already byte-swapped the values if necessary.  Thus,
+  // we only need to treat it as an array of longs.
   unsigned long result = *(unsigned long *)buf_ptr;
   buf_ptr += 2;
   return (xelval)result;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: PNMFileTypeTIFF::Reader::next_sample_general
-//       Access: Private
-//  Description: Returns the next color sample from the row, in
-//               general.  This unpacks an arbitrary string of bits
-//               from the sequence.
-////////////////////////////////////////////////////////////////////
+/**
+ * Returns the next color sample from the row, in general.  This unpacks an
+ * arbitrary string of bits from the sequence.
+ */
 xelval PNMFileTypeTIFF::Reader::
 next_sample_general(unsigned char *&buf_ptr, int &bits_left) const {
   unsigned int result = 0;
@@ -887,13 +840,13 @@ next_sample_general(unsigned char *&buf_ptr, int &bits_left) const {
       ++buf_ptr;
       bits_left = 8;
     }
-    
+
     if (bits_needed <= bits_left) {
       bits_left -= bits_needed;
       unsigned int mask = (1 << bits_needed) - 1;
       result |= ((*buf_ptr) >> bits_left) & mask;
       bits_needed = 0;
-      
+
     } else {
       bits_needed -= bits_left;
       unsigned int mask = (1 << bits_left) - 1;
@@ -906,49 +859,39 @@ next_sample_general(unsigned char *&buf_ptr, int &bits_left) const {
 }
 
 
-////////////////////////////////////////////////////////////////////
-//     Function: PNMFileTypeTIFF::Writer::Constructor
-//       Access: Public
-//  Description:
-////////////////////////////////////////////////////////////////////
+/**
+ *
+ */
 PNMFileTypeTIFF::Writer::
 Writer(PNMFileType *type, ostream *file, bool owns_file) :
   PNMWriter(type, file, owns_file)
 {
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: PNMFileTypeTIFF::Writer::supports_floating_point
-//       Access: Public, Virtual
-//  Description: Returns true if this PNMFileType can accept a
-//               floating-point image type, false if it can only
-//               accept a normal, integer type.  If this returns true,
-//               write_pfm() is implemented.
-////////////////////////////////////////////////////////////////////
+/**
+ * Returns true if this PNMFileType can accept a floating-point image type,
+ * false if it can only accept a normal, integer type.  If this returns true,
+ * write_pfm() is implemented.
+ */
 bool PNMFileTypeTIFF::Writer::
 supports_floating_point() {
   return true;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: PNMFileTypeTIFF::Writer::supports_integer
-//       Access: Public, Virtual
-//  Description: Returns true if this PNMFileType can accept an
-//               integer image type, false if it can only
-//               accept a floating-point type.  If this returns true,
-//               write_data() or write_row() is implemented.
-////////////////////////////////////////////////////////////////////
+/**
+ * Returns true if this PNMFileType can accept an integer image type, false if
+ * it can only accept a floating-point type.  If this returns true,
+ * write_data() or write_row() is implemented.
+ */
 bool PNMFileTypeTIFF::Writer::
 supports_integer() {
   return true;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: PNMFileTypeTIFF::Writer::write_pfm
-//       Access: Public, Virtual
-//  Description: Writes floating-point data from the indicated
-//               PfmFile.  Returns true on success, false on failure.
-////////////////////////////////////////////////////////////////////
+/**
+ * Writes floating-point data from the indicated PfmFile.  Returns true on
+ * success, false on failure.
+ */
 bool PNMFileTypeTIFF::Writer::
 write_pfm(const PfmFile &pfm) {
   struct tiff *tif;
@@ -960,7 +903,7 @@ write_pfm(const PfmFile &pfm) {
                        (TIFFSeekProc)ostream_seek,
                        iostream_dont_close, ostream_size,
                        iostream_map, iostream_unmap);
-  if (tif == NULL) {
+  if (tif == nullptr) {
     return false;
   }
 
@@ -1002,31 +945,25 @@ write_pfm(const PfmFile &pfm) {
   return true;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: PNMFileTypeTIFF::Writer::write_data
-//       Access: Public, Virtual
-//  Description: Writes out an entire image all at once, including the
-//               header, based on the image data stored in the given
-//               _x_size * _y_size array and alpha pointers.  (If the
-//               image type has no alpha channel, alpha is ignored.)
-//               Returns the number of rows correctly written.
-//
-//               It is the user's responsibility to fill in the header
-//               data via calls to set_x_size(), set_num_channels(),
-//               etc., or copy_header_from(), before calling
-//               write_data().
-//
-//               It is important to delete the PNMWriter class after
-//               successfully writing the data.  Failing to do this
-//               may result in some data not getting flushed!
-//
-//               Derived classes need not override this if they
-//               instead provide supports_streaming() and write_row(),
-//               below.
-////////////////////////////////////////////////////////////////////
+/**
+ * Writes out an entire image all at once, including the header, based on the
+ * image data stored in the given _x_size * _y_size array and alpha pointers.
+ * (If the image type has no alpha channel, alpha is ignored.) Returns the
+ * number of rows correctly written.
+ *
+ * It is the user's responsibility to fill in the header data via calls to
+ * set_x_size(), set_num_channels(), etc., or copy_header_from(), before
+ * calling write_data().
+ *
+ * It is important to delete the PNMWriter class after successfully writing
+ * the data.  Failing to do this may result in some data not getting flushed!
+ *
+ * Derived classes need not override this if they instead provide
+ * supports_streaming() and write_row(), below.
+ */
 int PNMFileTypeTIFF::Writer::
 write_data(xel *array, xelval *alpha) {
-  colorhist_vector chv = (colorhist_vector) 0;
+  colorhist_vector chv = nullptr;
   colorhash_table cht;
   unsigned short
     red[TIFF_COLORMAP_MAXCOLORS],
@@ -1046,15 +983,15 @@ write_data(xel *array, xelval *alpha) {
 
   switch ( get_color_type() ) {
   case CT_color:
-    // This call is a bit of fakery to convert our proper 2-d array of
-    // xels to an indirect 2-d array of pixels.  We make it look like a
-    // single row of _x_size * _y_size pixels.
+    // This call is a bit of fakery to convert our proper 2-d array of xels to
+    // an indirect 2-d array of pixels.  We make it look like a single row of
+    // _x_size * _y_size pixels.
 
-    // We can't actually write palettes bigger than 256 colors,
-    // regardless of the number of colors we can read.
+    // We can't actually write palettes bigger than 256 colors, regardless of
+    // the number of colors we can read.
     chv = ppm_computecolorhist( (pixel **)&array, _x_size * _y_size, 1,
                                 256, &colors );
-    if ( chv == (colorhist_vector) 0 ) {
+    if ( chv == nullptr ) {
       pnmimage_tiff_cat.debug()
         << colors << " colors found; too many for a palette.\n"
         << "Writing a 24-bit RGB file.\n";
@@ -1079,12 +1016,12 @@ write_data(xel *array, xelval *alpha) {
 
   case CT_two_channel:  // We don't yet support two-channel output for TIFF's.
   case CT_four_channel:
-    chv = (colorhist_vector) 0;
+    chv = nullptr;
     grayscale = false;
     break;
 
   case CT_grayscale:
-    chv = (colorhist_vector) 0;
+    chv = nullptr;
     grayscale = true;
     break;
 
@@ -1099,7 +1036,7 @@ write_data(xel *array, xelval *alpha) {
                        (TIFFSeekProc)ostream_seek,
                        iostream_dont_close, ostream_size,
                        iostream_map, iostream_unmap);
-  if ( tif == NULL ) {
+  if ( tif == nullptr ) {
     return 0;
   }
 
@@ -1107,20 +1044,20 @@ write_data(xel *array, xelval *alpha) {
   switch ( get_color_type() ) {
   case CT_color:
   case CT_four_channel:
-    if ( chv == (colorhist_vector) 0 ) {
+    if ( chv == nullptr ) {
       samplesperpixel = _num_channels;
       bitspersample = 8;
       photometric = PHOTOMETRIC_RGB;
       bytesperrow = _x_size * samplesperpixel;
     } else if ( grayscale ) {
       samplesperpixel = 1;
-      bitspersample = pm_maxvaltobits( _maxval );
+      bitspersample = std::min(8, pm_maxvaltobits(_maxval));
       photometric = PHOTOMETRIC_MINISBLACK;
       i = 8 / bitspersample;
       bytesperrow = ( _x_size + i - 1 ) / i;
     } else {
       samplesperpixel = 1;
-      bitspersample = 8;
+      bitspersample = std::min(8, pm_maxvaltobits(_maxval));
       photometric = PHOTOMETRIC_PALETTE;
       bytesperrow = _x_size;
     }
@@ -1140,7 +1077,7 @@ write_data(xel *array, xelval *alpha) {
   }
 
   buf = (unsigned char*) malloc( bytesperrow );
-  if ( buf == (unsigned char*) 0 ) {
+  if ( buf == nullptr ) {
     pnmimage_tiff_cat.error()
       << "Can't allocate memory for row buffer\n";
     return 0;
@@ -1159,7 +1096,7 @@ write_data(xel *array, xelval *alpha) {
     TIFFSetField( tif, TIFFTAG_PREDICTOR, tiff_predictor );
   TIFFSetField( tif, TIFFTAG_PHOTOMETRIC, photometric );
   TIFFSetField( tif, TIFFTAG_FILLORDER, tiff_fillorder );
-  //TIFFSetField( tif, TIFFTAG_DOCUMENTNAME, "TIFF Image File");
+  // TIFFSetField( tif, TIFFTAG_DOCUMENTNAME, "TIFF Image File");
   TIFFSetField( tif, TIFFTAG_IMAGEDESCRIPTION,
                 "Generated via pnmimage.\n" );
   TIFFSetField( tif, TIFFTAG_SAMPLESPERPIXEL, samplesperpixel );
@@ -1168,8 +1105,8 @@ write_data(xel *array, xelval *alpha) {
   }
   TIFFSetField( tif, TIFFTAG_PLANARCONFIG, PLANARCONFIG_CONTIG );
 
-  if ( chv == (colorhist_vector) 0 ) {
-    cht = (colorhash_table) 0;
+  if ( chv == nullptr ) {
+    cht = nullptr;
   } else {
     /* Make TIFF colormap. */
     for ( i = 0; i < colors; ++i ) {
@@ -1190,7 +1127,7 @@ write_data(xel *array, xelval *alpha) {
     xelval *alpha_data = alpha + row*_x_size;
 
     if ( !is_grayscale() && ! grayscale ) {
-      if ( cht == (colorhash_table) 0 ) {
+      if ( cht == nullptr ) {
         tP = buf;
         for ( col = 0; col < _x_size; ++col ) {
           *tP++ = (unsigned char)(255 * PPM_GETR(row_data[col]) / _maxval);
@@ -1256,15 +1193,11 @@ write_data(xel *array, xelval *alpha) {
   return _y_size;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: PNMFileTypeTIFF::install_error_handlers
-//       Access: Private
-//  Description: Installs our personal error and warning message
-//               handlers if they have not already been installed.
-//               These methods are used to route the Tiff error
-//               messages through notify, so we can turn some of them
-//               off.
-////////////////////////////////////////////////////////////////////
+/**
+ * Installs our personal error and warning message handlers if they have not
+ * already been installed.  These methods are used to route the Tiff error
+ * messages through notify, so we can turn some of them off.
+ */
 void PNMFileTypeTIFF::
 install_error_handlers() {
   if (!_installed_error_handlers) {
@@ -1274,42 +1207,30 @@ install_error_handlers() {
   }
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: PNMFileTypeTIFF::tiff_warning
-//       Access: Private, Static
-//  Description: This is our own warning handler.  It is called by the
-//               tiff library to issue a warning message.
-////////////////////////////////////////////////////////////////////
+/**
+ * This is our own warning handler.  It is called by the tiff library to issue
+ * a warning message.
+ */
 void PNMFileTypeTIFF::
 tiff_warning(const char *, const char *format, va_list ap) {
   static const int buffer_size = 1024;
   char buffer[buffer_size];
-#if defined(WIN32_VC) || defined(WIN64_VC)
-  vsprintf(buffer, format, ap);
-#else
   vsnprintf(buffer, buffer_size, format, ap);
-#endif
 
   // We ignore the module.  It seems generally useless to us.
   pnmimage_tiff_cat.warning()
     << buffer << "\n";
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: PNMFileTypeTIFF::tiff_error
-//       Access: Private, Static
-//  Description: This is our own error handler.  It is called by the
-//               tiff library to issue a error message.
-////////////////////////////////////////////////////////////////////
+/**
+ * This is our own error handler.  It is called by the tiff library to issue a
+ * error message.
+ */
 void PNMFileTypeTIFF::
 tiff_error(const char *module, const char *format, va_list ap) {
   static const int buffer_size = 1024;
   char buffer[buffer_size];
-#if defined(WIN32_VC) || defined(WIN64_VC)
-  vsprintf(buffer, format, ap);
-#else
   vsnprintf(buffer, buffer_size, format, ap);
-#endif
 
   // We ignore the module.  It seems generally useless to us.
   pnmimage_tiff_cat.error()
@@ -1317,30 +1238,23 @@ tiff_error(const char *module, const char *format, va_list ap) {
 }
 
 
-////////////////////////////////////////////////////////////////////
-//     Function: PNMFileTypeTIFF::register_with_read_factory
-//       Access: Public, Static
-//  Description: Registers the current object as something that can be
-//               read from a Bam file.
-////////////////////////////////////////////////////////////////////
+/**
+ * Registers the current object as something that can be read from a Bam file.
+ */
 void PNMFileTypeTIFF::
 register_with_read_factory() {
   BamReader::get_factory()->
     register_factory(get_class_type(), make_PNMFileTypeTIFF);
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: PNMFileTypeTIFF::make_PNMFileTypeTIFF
-//       Access: Protected, Static
-//  Description: This method is called by the BamReader when an object
-//               of this type is encountered in a Bam file; it should
-//               allocate and return a new object with all the data
-//               read.
-//
-//               In the case of the PNMFileType objects, since these
-//               objects are all shared, we just pull the object from
-//               the registry.
-////////////////////////////////////////////////////////////////////
+/**
+ * This method is called by the BamReader when an object of this type is
+ * encountered in a Bam file; it should allocate and return a new object with
+ * all the data read.
+ *
+ * In the case of the PNMFileType objects, since these objects are all shared,
+ * we just pull the object from the registry.
+ */
 TypedWritable *PNMFileTypeTIFF::
 make_PNMFileTypeTIFF(const FactoryParams &params) {
   return PNMFileTypeRegistry::get_global_ptr()->get_type_by_handle(get_class_type());

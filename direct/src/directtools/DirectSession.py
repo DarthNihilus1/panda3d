@@ -1,27 +1,24 @@
 import math
-import types
-import string
 
 from panda3d.core import *
-from DirectUtil import *
+from .DirectUtil import *
 
 from direct.showbase.DirectObject import DirectObject
 from direct.task import Task
 
-from DirectGlobals import DIRECT_NO_MOD
-from DirectCameraControl import DirectCameraControl
-from DirectManipulation import DirectManipulationControl
-from DirectSelection import SelectionRay, COA_ORIGIN, SelectedNodePaths
-from DirectGrid import DirectGrid
+from .DirectGlobals import DIRECT_NO_MOD
+from .DirectCameraControl import DirectCameraControl
+from .DirectManipulation import DirectManipulationControl
+from .DirectSelection import SelectionRay, COA_ORIGIN, SelectedNodePaths
+from .DirectGrid import DirectGrid
 #from DirectGeometry import *
-from DirectLights import DirectLights
+from .DirectLights import DirectLights
 from direct.cluster.ClusterClient import createClusterClient, DummyClusterClient
 from direct.cluster.ClusterServer import ClusterServer
 ## from direct.tkpanels import Placer
 ## from direct.tkwidgets import Slider
 ## from direct.tkwidgets import SceneGraphExplorer
 from direct.gui import OnscreenText
-from direct.showbase import Loader
 from direct.interval.IntervalGlobal import *
 
 class DirectSession(DirectObject):
@@ -71,24 +68,24 @@ class DirectSession(DirectObject):
         self.activeParent = None
 
         self.selectedNPReadout = OnscreenText.OnscreenText(
-            pos = (-1.0, -0.9), bg=Vec4(1, 1, 1, 1),
-            scale = 0.05, align = TextNode.ALeft,
+            pos = (0.1, 0.1), bg=Vec4(0, 0, 0, .2), style=3,
+            fg = (1, 1, 1, 1), scale = 0.05, align = TextNode.ALeft,
             mayChange = 1, font = self.font)
         # Make sure readout is never lit or drawn in wireframe
         useDirectRenderStyle(self.selectedNPReadout)
         self.selectedNPReadout.reparentTo(hidden)
 
         self.activeParentReadout = OnscreenText.OnscreenText(
-            pos = (-1.0, -0.975), bg=Vec4(1, 1, 1, 1),
-            scale = 0.05, align = TextNode.ALeft,
+            pos = (0.1, 0.16), bg=Vec4(0, 0, 0, .2), style = 3,
+            fg = (1, 1, 1, 1), scale = 0.05, align = TextNode.ALeft,
             mayChange = 1, font = self.font)
         # Make sure readout is never lit or drawn in wireframe
         useDirectRenderStyle(self.activeParentReadout)
         self.activeParentReadout.reparentTo(hidden)
 
         self.directMessageReadout = OnscreenText.OnscreenText(
-            pos = (-1.0, 0.9), bg=Vec4(1, 1, 1, 1),
-            scale = 0.05, align = TextNode.ALeft,
+            pos = (0.1, -0.1), bg=Vec4(0, 0, 0, .2), style = 3,
+            fg = (1, 1, 1, 1), scale = 0.05, align = TextNode.ALeft,
             mayChange = 1, font = self.font)
         # Make sure readout is never lit or drawn in wireframe
         useDirectRenderStyle(self.directMessageReadout)
@@ -115,7 +112,7 @@ class DirectSession(DirectObject):
             if fastrak:
                 from direct.directdevices import DirectFastrak
                 # parse string into format device:N where N is the sensor name
-                fastrak = string.split(fastrak)
+                fastrak = fastrak.split()
                 for i in range(len(fastrak))[1:]:
                     self.fastrak.append(DirectFastrak.DirectFastrak(fastrak[0] + ':' + fastrak[i]))
 
@@ -556,12 +553,12 @@ class DirectSession(DirectObject):
                     input = input[:-7]
 
         # Deal with keyboard and mouse input
-        if input in self.hotKeyMap.keys():
+        if input in self.hotKeyMap:
             keyDesc = self.hotKeyMap[input]
             messenger.send(keyDesc[1])
-        elif input in self.speicalKeyMap.keys():
+        elif input in self.speicalKeyMap:
             messenger.send(self.speicalKeyMap[input])
-        elif input in self.directOnlyKeyMap.keys():
+        elif input in self.directOnlyKeyMap:
             if self.fIgnoreDirectOnlyKeyMap:
                 return
             keyDesc = self.directOnlyKeyMap[input]
@@ -701,7 +698,7 @@ class DirectSession(DirectObject):
                 self.ancestry = dnp.getAncestors()
                 self.ancestryIndex = 0
             # Update the selectedNPReadout
-            self.selectedNPReadout.reparentTo(aspect2d)
+            self.selectedNPReadout.reparentTo(base.a2dBottomLeft)
             self.selectedNPReadout.setText(
                 'Selected:' + dnp.getName())
             # Show the manipulation widget
@@ -785,7 +782,7 @@ class DirectSession(DirectObject):
         # Record new parent
         self.activeParent = nodePath
         # Update the activeParentReadout
-        self.activeParentReadout.reparentTo(aspect2d)
+        self.activeParentReadout.reparentTo(base.a2dBottomLeft)
         self.activeParentReadout.setText(
             'Active Reparent Target:' + nodePath.getName())
         # Alert everyone else
@@ -808,7 +805,7 @@ class DirectSession(DirectObject):
 
     def isNotCycle(self, nodePath, parent):
         if nodePath == parent:
-            print 'DIRECT.reparent: Invalid parent'
+            print('DIRECT.reparent: Invalid parent')
             return 0
         elif parent.hasParent():
             return self.isNotCycle(nodePath, parent.getParent())
@@ -902,7 +899,7 @@ class DirectSession(DirectObject):
             # If nothing specified, try selected node path
             nodePath = self.selected.last
         if nodePath:
-            nodePath.remove()
+            nodePath.removeNode()
 
     def removeAllSelected(self):
         self.selected.removeAll()
@@ -944,7 +941,7 @@ class DirectSession(DirectObject):
 
     def getAndSetName(self, nodePath):
         """ Prompt user for new node path name """
-        from tkSimpleDialog import askstring
+        from tkinter.simpledialog import askstring
         newName = askstring('Node Path: ' + nodePath.getName(),
                             'Enter new name:')
         if newName:
@@ -1034,7 +1031,7 @@ class DirectSession(DirectObject):
     def message(self, text):
         taskMgr.remove('hideDirectMessage')
         taskMgr.remove('hideDirectMessageLater')
-        self.directMessageReadout.reparentTo(aspect2d)
+        self.directMessageReadout.reparentTo(base.a2dTopLeft)
         self.directMessageReadout.setText(text)
         self.hideDirectMessageLater()
 

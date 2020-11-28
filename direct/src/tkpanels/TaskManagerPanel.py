@@ -3,9 +3,11 @@
 __all__ = ['TaskManagerPanel', 'TaskManagerWidget']
 
 from direct.tkwidgets.AppShell import *
-from Tkinter import *
 from direct.showbase.DirectObject import DirectObject
 import Pmw
+from tkinter import *
+from tkinter.messagebox import askokcancel
+
 
 class TaskManagerPanel(AppShell):
     # Override class variables here
@@ -188,7 +190,6 @@ class TaskManagerWidget(DirectObject):
                 (name == 'tkLoop') or
                 (name == 'eventManager') or
                 (name == 'igLoop')):
-                from tkMessageBox import askokcancel
                 ok = askokcancel('TaskManagerControls',
                                  'Remove: %s?' % name,
                                  parent = self.parent,
@@ -205,7 +206,6 @@ class TaskManagerWidget(DirectObject):
             (name == 'tkLoop') or
             (name == 'eventManager') or
             (name == 'igLoop')):
-            from tkMessageBox import askokcancel
             ok = askokcancel('TaskManagerControls',
                              'Remove tasks named: %s?' % name,
                              parent = self.parent,

@@ -1,4 +1,4 @@
-import LevelEditor
+from direct.leveleditor import LevelEditor
 
 if __name__ == '__main__':
     base.le = LevelEditor.LevelEditor()

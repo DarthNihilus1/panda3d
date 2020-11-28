@@ -1,16 +1,15 @@
-// Filename: cocoaPandaWindow.mm
-// Created by:  rdb (25May12)
-//
-////////////////////////////////////////////////////////////////////
-//
-// PANDA 3D SOFTWARE
-// Copyright (c) Carnegie Mellon University.  All rights reserved.
-//
-// All use of this software is subject to the terms of the revised BSD
-// license.  You should have received a copy of this license along
-// with this source code in a file named "LICENSE."
-//
-////////////////////////////////////////////////////////////////////
+/**
+ * PANDA 3D SOFTWARE
+ * Copyright (c) Carnegie Mellon University.  All rights reserved.
+ *
+ * All use of this software is subject to the terms of the revised BSD
+ * license.  You should have received a copy of this license along
+ * with this source code in a file named "LICENSE."
+ *
+ * @file cocoaPandaWindow.mm
+ * @author rdb
+ * @date 2012-05-25
+ */
 
 #import "cocoaPandaWindow.h"
 #import "cocoaPandaWindowDelegate.h"
@@ -29,9 +28,7 @@
     [self setDelegate:delegate];
     [self setOpaque:YES];
     [self setReleasedWhenClosed:YES];
-#if __MAC_OS_X_VERSION_MAX_ALLOWED >= 1060
     [self setAllowsConcurrentViewDrawing:YES];
-#endif
 
     // Necessary to be able to accept mouseMoved in the NSView
     [self setAcceptsMouseMovedEvents:YES];

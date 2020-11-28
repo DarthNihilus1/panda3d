@@ -1,4 +1,4 @@
-"""Undocumented Module"""
+"""Contains the Factory class."""
 
 __all__ = ['Factory']
 
@@ -25,7 +25,7 @@ class Factory:
                               (type, self._type2ctor[type], ctor))
         self._type2ctor[type] = ctor
     def _registerTypes(self, type2ctor):
-        for type, ctor in type2ctor.items():
+        for type, ctor in list(type2ctor.items()):
             self._registerType(type, ctor)
 
     def nullCtor(self, *args, **kwArgs):

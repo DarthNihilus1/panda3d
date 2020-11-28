@@ -1,9 +1,10 @@
-"""Undocumented Module"""
+"""ThreeUpShow is a variant of ShowBase that defines three cameras covering
+different parts of the window."""
 
 __all__ = ['ThreeUpShow']
 
 
-import ShowBase
+from . import ShowBase
 
 class ThreeUpShow(ShowBase.ShowBase):
     def __init__(self):

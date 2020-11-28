@@ -1,16 +1,15 @@
-// Filename: ObjToEggConverter.h
-// Created by:  drose (07Dec10)
-//
-////////////////////////////////////////////////////////////////////
-//
-// PANDA 3D SOFTWARE
-// Copyright (c) Carnegie Mellon University.  All rights reserved.
-//
-// All use of this software is subject to the terms of the revised BSD
-// license.  You should have received a copy of this license along
-// with this source code in a file named "LICENSE."
-//
-////////////////////////////////////////////////////////////////////
+/**
+ * PANDA 3D SOFTWARE
+ * Copyright (c) Carnegie Mellon University.  All rights reserved.
+ *
+ * All use of this software is subject to the terms of the revised BSD
+ * license.  You should have received a copy of this license along
+ * with this source code in a file named "LICENSE."
+ *
+ * @file objToEggConverter.h
+ * @author drose
+ * @date 2010-12-07
+ */
 
 #ifndef OBJTOEGGCONVERTER_H
 #define OBJTOEGGCONVERTER_H
@@ -28,10 +27,9 @@
 #include "pvector.h"
 #include "epvector.h"
 
-////////////////////////////////////////////////////////////////////
-//       Class : ObjToEggConverter
-// Description : Convert an Obj file to egg data.
-////////////////////////////////////////////////////////////////////
+/**
+ * Convert an Obj file to egg data.
+ */
 class ObjToEggConverter : public SomethingToEggConverter {
 public:
   ObjToEggConverter();
@@ -40,8 +38,8 @@ public:
 
   virtual SomethingToEggConverter *make_copy();
 
-  virtual string get_name() const;
-  virtual string get_extension() const;
+  virtual std::string get_name() const;
+  virtual std::string get_extension() const;
   virtual bool supports_compressed() const;
   virtual bool supports_convert_to_node(const LoaderOptions &options) const;
 
@@ -50,8 +48,8 @@ public:
 
 protected:
   bool process(const Filename &filename);
-  bool process_line(const string &line);
-  bool process_ref_plane_res(const string &line);
+  bool process_line(const std::string &line);
+  bool process_ref_plane_res(const std::string &line);
 
   bool process_v(vector_string &words);
   bool process_vt(vector_string &words);
@@ -61,11 +59,11 @@ protected:
   bool process_f(vector_string &words);
   bool process_g(vector_string &words);
 
-  EggVertex *get_face_vertex(const string &face_reference);
+  EggVertex *get_face_vertex(const std::string &face_reference);
   void generate_egg_points();
 
   bool process_node(const Filename &filename);
-  bool process_line_node(const string &line);
+  bool process_line_node(const std::string &line);
 
   bool process_f_node(vector_string &words);
   bool process_g_node(vector_string &words);
@@ -90,7 +88,7 @@ protected:
   bool _v4_given, _vt3_given;
   bool _f_given;
 
-  pset<string> _ignored_tags;
+  pset<std::string> _ignored_tags;
 
   // Structures filled when creating an egg file.
   PT(EggVertexPool) _vpool;
@@ -103,15 +101,14 @@ protected:
   class VertexEntry {
   public:
     VertexEntry();
-    VertexEntry(const ObjToEggConverter *converter, const string &obj_vertex);
+    VertexEntry(const ObjToEggConverter *converter, const std::string &obj_vertex);
 
     INLINE bool operator < (const VertexEntry &other) const;
     INLINE bool operator == (const VertexEntry &other) const;
     INLINE bool matches_except_normal(const VertexEntry &other) const;
 
-    // The 1-based vertex, texcoord, and normal index numbers
-    // appearing in the obj file for this vertex.  0 if the index
-    // number is not given.
+    // The 1-based vertex, texcoord, and normal index numbers appearing in the
+    // obj file for this vertex.  0 if the index number is not given.
     int _vi, _vti, _vni;
 
     // The 1-based index number to the synthesized normal, if needed.
@@ -122,7 +119,7 @@ protected:
 
   class VertexData {
   public:
-    VertexData(PandaNode *parent, const string &name);
+    VertexData(PandaNode *parent, const std::string &name);
 
     int add_vertex(const ObjToEggConverter *converter, const VertexEntry &entry);
     void add_triangle(const ObjToEggConverter *converter, const VertexEntry &v0,
@@ -131,7 +128,7 @@ protected:
     void close_geom(const ObjToEggConverter *converter);
 
     PT(PandaNode) _parent;
-    string _name;
+    std::string _name;
     PT(GeomNode) _geom_node;
 
     PT(GeomPrimitive) _prim;

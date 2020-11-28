@@ -1,16 +1,15 @@
-// Filename: geomVertexArrayFormat.h
-// Created by:  drose (06Mar05)
-//
-////////////////////////////////////////////////////////////////////
-//
-// PANDA 3D SOFTWARE
-// Copyright (c) Carnegie Mellon University.  All rights reserved.
-//
-// All use of this software is subject to the terms of the revised BSD
-// license.  You should have received a copy of this license along
-// with this source code in a file named "LICENSE."
-//
-////////////////////////////////////////////////////////////////////
+/**
+ * PANDA 3D SOFTWARE
+ * Copyright (c) Carnegie Mellon University.  All rights reserved.
+ *
+ * All use of this software is subject to the terms of the revised BSD
+ * license.  You should have received a copy of this license along
+ * with this source code in a file named "LICENSE."
+ *
+ * @file geomVertexArrayFormat.h
+ * @author drose
+ * @date 2005-03-06
+ */
 
 #ifndef GEOMVERTEXARRAYFORMAT_H
 #define GEOMVERTEXARRAYFORMAT_H
@@ -32,25 +31,20 @@ class FactoryParams;
 class BamWriter;
 class BamReader;
 
-////////////////////////////////////////////////////////////////////
-//       Class : GeomVertexArrayFormat
-// Description : This describes the structure of a single array within
-//               a Geom data.  See GeomVertexFormat for the parent
-//               class which collects together all of the individual
-//               GeomVertexArrayFormat objects.
-//
-//               A particular array may include any number of standard
-//               or user-defined columns.  All columns consist of a
-//               sequence of one or more numeric values, packed in any
-//               of a variety of formats; the semantic meaning of each
-//               column is defined in general with its contents
-//               member, and in particular by its name.  The standard
-//               array types used most often are named "vertex",
-//               "normal", "texcoord", and "color"; other kinds of
-//               data may be piggybacked into the data record simply
-//               by choosing a unique name.
-////////////////////////////////////////////////////////////////////
-class EXPCL_PANDA_GOBJ GeomVertexArrayFormat FINAL : public TypedWritableReferenceCount, public GeomEnums {
+/**
+ * This describes the structure of a single array within a Geom data.  See
+ * GeomVertexFormat for the parent class which collects together all of the
+ * individual GeomVertexArrayFormat objects.
+ *
+ * A particular array may include any number of standard or user-defined
+ * columns.  All columns consist of a sequence of one or more numeric values,
+ * packed in any of a variety of formats; the semantic meaning of each column
+ * is defined in general with its contents member, and in particular by its
+ * name.  The standard array types used most often are named "vertex",
+ * "normal", "texcoord", and "color"; other kinds of data may be piggybacked
+ * into the data record simply by choosing a unique name.
+ */
+class EXPCL_PANDA_GOBJ GeomVertexArrayFormat final : public TypedWritableReferenceCount, public GeomEnums {
 PUBLISHED:
   GeomVertexArrayFormat();
   GeomVertexArrayFormat(const GeomVertexArrayFormat &copy);
@@ -110,6 +104,7 @@ PUBLISHED:
   INLINE int get_num_columns() const;
   INLINE const GeomVertexColumn *get_column(int i) const;
   MAKE_SEQ(get_columns, get_num_columns, get_column);
+  MAKE_SEQ_PROPERTY(columns, get_num_columns, get_column);
 
   const GeomVertexColumn *get_column(const InternalName *name) const;
   const GeomVertexColumn *get_column(int start_byte, int num_bytes) const;
@@ -118,15 +113,17 @@ PUBLISHED:
   bool is_data_subset_of(const GeomVertexArrayFormat &other) const;
   int count_unused_space() const;
 
-  void output(ostream &out) const;
-  void write(ostream &out, int indent_level = 0) const;
-  void write_with_data(ostream &out, int indent_level,
+  void output(std::ostream &out) const;
+  void write(std::ostream &out, int indent_level = 0) const;
+  void write_with_data(std::ostream &out, int indent_level,
                        const GeomVertexArrayData *array_data) const;
 
-  string get_format_string(bool pad = true) const;
+  std::string get_format_string(bool pad = true) const;
 
 public:
   int compare_to(const GeomVertexArrayFormat &other) const;
+
+  static const GeomVertexArrayFormat *get_instance_array_format();
 
 private:
   class Registry;
@@ -197,7 +194,7 @@ private:
   friend class GeomVertexFormat;
 };
 
-INLINE ostream &operator << (ostream &out, const GeomVertexArrayFormat &obj);
+INLINE std::ostream &operator << (std::ostream &out, const GeomVertexArrayFormat &obj);
 
 #include "geomVertexArrayFormat.I"
 

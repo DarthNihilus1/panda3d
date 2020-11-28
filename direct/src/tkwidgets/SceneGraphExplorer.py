@@ -1,11 +1,13 @@
-"""Undocumented Module"""
+"""This module defines a widget used to display a graphical overview of the
+scene graph using the tkinter GUI system.
+
+Requires Pmw."""
 
 __all__ = ['SceneGraphExplorer', 'SceneGraphExplorerItem', 'explore']
 
 from direct.showbase.DirectObject import DirectObject
 from direct.showbase.TkGlobal import *
-from Tkinter import *
-from Tree import *
+from .Tree import *
 import Pmw
 
 # changing these strings requires changing DirectSession.py SGE_ strs too!

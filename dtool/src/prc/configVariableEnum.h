@@ -1,16 +1,15 @@
-// Filename: configVariableEnum.h
-// Created by:  drose (21Oct04)
-//
-////////////////////////////////////////////////////////////////////
-//
-// PANDA 3D SOFTWARE
-// Copyright (c) Carnegie Mellon University.  All rights reserved.
-//
-// All use of this software is subject to the terms of the revised BSD
-// license.  You should have received a copy of this license along
-// with this source code in a file named "LICENSE."
-//
-////////////////////////////////////////////////////////////////////
+/**
+ * PANDA 3D SOFTWARE
+ * Copyright (c) Carnegie Mellon University.  All rights reserved.
+ *
+ * All use of this software is subject to the terms of the revised BSD
+ * license.  You should have received a copy of this license along
+ * with this source code in a file named "LICENSE."
+ *
+ * @file configVariableEnum.h
+ * @author drose
+ * @date 2004-10-21
+ */
 
 #ifndef CONFIGVARIABLEENUM_H
 #define CONFIGVARIABLEENUM_H
@@ -18,27 +17,24 @@
 #include "dtoolbase.h"
 #include "configVariable.h"
 
-////////////////////////////////////////////////////////////////////
-//       Class : ConfigVariableEnum
-// Description : This class specializes ConfigVariable as an
-//               enumerated type.  It is a template class, so it
-//               cannot be easily published; it's not really necessary
-//               outside of C++ anyway.
-//
-//               This variable assumes that the enumerated type in
-//               question has input and output stream operators
-//               defined that do the right thing (outputting a
-//               sensible string for the type, and converting a string
-//               to the correct value).
-////////////////////////////////////////////////////////////////////
+/**
+ * This class specializes ConfigVariable as an enumerated type.  It is a
+ * template class, so it cannot be easily published; it's not really necessary
+ * outside of C++ anyway.
+ *
+ * This variable assumes that the enumerated type in question has input and
+ * output stream operators defined that do the right thing (outputting a
+ * sensible string for the type, and converting a string to the correct
+ * value).
+ */
 template<class EnumType>
 class ConfigVariableEnum : public ConfigVariable {
 public:
-  INLINE ConfigVariableEnum(const string &name, EnumType default_value, 
-                            const string &description = string(), 
+  INLINE ConfigVariableEnum(const std::string &name, EnumType default_value,
+                            const std::string &description = std::string(),
                             int flags = 0);
-  INLINE ConfigVariableEnum(const string &name, const string &default_value, 
-                            const string &description = string(), 
+  INLINE ConfigVariableEnum(const std::string &name, const std::string &default_value,
+                            const std::string &description = std::string(),
                             int flags = 0);
   INLINE ~ConfigVariableEnum();
 
@@ -58,8 +54,8 @@ public:
   INLINE void set_word(size_t n, EnumType value);
 
 private:
-  INLINE EnumType parse_string(const string &value) const;
-  INLINE string format_enum(EnumType value) const;
+  INLINE EnumType parse_string(const std::string &value) const;
+  INLINE std::string format_enum(EnumType value) const;
 
 private:
   bool _got_default_value;
@@ -72,4 +68,3 @@ private:
 #include "configVariableEnum.I"
 
 #endif
-

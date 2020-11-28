@@ -1,20 +1,18 @@
-// Filename: pnmFileTypeTGA.cxx
-// Created by:  drose (27Apr01)
-//
-////////////////////////////////////////////////////////////////////
-//
-// PANDA 3D SOFTWARE
-// Copyright (c) Carnegie Mellon University.  All rights reserved.
-//
-// All use of this software is subject to the terms of the revised BSD
-// license.  You should have received a copy of this license along
-// with this source code in a file named "LICENSE."
-//
-////////////////////////////////////////////////////////////////////
+/**
+ * PANDA 3D SOFTWARE
+ * Copyright (c) Carnegie Mellon University.  All rights reserved.
+ *
+ * All use of this software is subject to the terms of the revised BSD
+ * license.  You should have received a copy of this license along
+ * with this source code in a file named "LICENSE."
+ *
+ * @file pnmFileTypeTGA.cxx
+ * @author drose
+ * @date 2001-04-27
+ */
 
-
-// Much code in this file is borrowed from Netpbm, specifically tgatoppm.c
-// and ppmtotga.c.
+// Much code in this file is borrowed from Netpbm, specifically tgatoppm.c and
+// ppmtotga.c.
 
 /* tgatoppm.c - read a TrueVision Targa file and write a portable pixmap
 **
@@ -53,6 +51,10 @@
 #include "pnmimage_base.h"
 
 #include <string.h>
+
+using std::istream;
+using std::ostream;
+using std::string;
 
 static const char * const extensions_tga[] = {
   "tga"
@@ -102,81 +104,65 @@ typedef char ImageIDField[256];
 #define TGA_IL_Two 1
 #define TGA_IL_Four 2
 
-////////////////////////////////////////////////////////////////////
-//     Function: PNMFileTypeTGA::Constructor
-//       Access: Public
-//  Description:
-////////////////////////////////////////////////////////////////////
+/**
+ *
+ */
 PNMFileTypeTGA::
 PNMFileTypeTGA() {
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: PNMFileTypeTGA::get_name
-//       Access: Public, Virtual
-//  Description: Returns a few words describing the file type.
-////////////////////////////////////////////////////////////////////
+/**
+ * Returns a few words describing the file type.
+ */
 string PNMFileTypeTGA::
 get_name() const {
   return "Targa";
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: PNMFileTypeTGA::get_num_extensions
-//       Access: Public, Virtual
-//  Description: Returns the number of different possible filename
-//               extensions_tga associated with this particular file type.
-////////////////////////////////////////////////////////////////////
+/**
+ * Returns the number of different possible filename extensions_tga associated
+ * with this particular file type.
+ */
 int PNMFileTypeTGA::
 get_num_extensions() const {
   return num_extensions_tga;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: PNMFileTypeTGA::get_extension
-//       Access: Public, Virtual
-//  Description: Returns the nth possible filename extension
-//               associated with this particular file type, without a
-//               leading dot.
-////////////////////////////////////////////////////////////////////
+/**
+ * Returns the nth possible filename extension associated with this particular
+ * file type, without a leading dot.
+ */
 string PNMFileTypeTGA::
 get_extension(int n) const {
   nassertr(n >= 0 && n < num_extensions_tga, string());
   return extensions_tga[n];
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: PNMFileTypeTGA::get_suggested_extension
-//       Access: Public, Virtual
-//  Description: Returns a suitable filename extension (without a
-//               leading dot) to suggest for files of this type, or
-//               empty string if no suggestions are available.
-////////////////////////////////////////////////////////////////////
+/**
+ * Returns a suitable filename extension (without a leading dot) to suggest
+ * for files of this type, or empty string if no suggestions are available.
+ */
 string PNMFileTypeTGA::
 get_suggested_extension() const {
   return "tga";
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: PNMFileTypeTGA::make_reader
-//       Access: Public, Virtual
-//  Description: Allocates and returns a new PNMReader suitable for
-//               reading from this file type, if possible.  If reading
-//               from this file type is not supported, returns NULL.
-////////////////////////////////////////////////////////////////////
+/**
+ * Allocates and returns a new PNMReader suitable for reading from this file
+ * type, if possible.  If reading from this file type is not supported,
+ * returns NULL.
+ */
 PNMReader *PNMFileTypeTGA::
 make_reader(istream *file, bool owns_file, const string &magic_number) {
   init_pnm();
   return new Reader(this, file, owns_file, magic_number);
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: PNMFileTypeTGA::make_writer
-//       Access: Public, Virtual
-//  Description: Allocates and returns a new PNMWriter suitable for
-//               reading from this file type, if possible.  If writing
-//               files of this type is not supported, returns NULL.
-////////////////////////////////////////////////////////////////////
+/**
+ * Allocates and returns a new PNMWriter suitable for reading from this file
+ * type, if possible.  If writing files of this type is not supported, returns
+ * NULL.
+ */
 PNMWriter *PNMFileTypeTGA::
 make_writer(ostream *file, bool owns_file) {
   init_pnm();
@@ -184,11 +170,9 @@ make_writer(ostream *file, bool owns_file) {
 }
 
 
-////////////////////////////////////////////////////////////////////
-//     Function: PNMFileTypeTGA::Reader::Constructor
-//       Access: Public
-//  Description:
-////////////////////////////////////////////////////////////////////
+/**
+ *
+ */
 PNMFileTypeTGA::Reader::
 Reader(PNMFileType *type, istream *file, bool owns_file, string magic_number) :
   PNMReader(type, file, owns_file)
@@ -196,8 +180,8 @@ Reader(PNMFileType *type, istream *file, bool owns_file, string magic_number) :
   tga_head = new ImageHeader;
   RLE_count = 0;
   RLE_flag = 0;
-  ColorMap = NULL;
-  AlphaMap = NULL;
+  ColorMap = nullptr;
+  AlphaMap = nullptr;
 
   Red = 0;
   Grn = 0;
@@ -303,7 +287,7 @@ Reader(PNMFileType *type, istream *file, bool owns_file, string magic_number) :
         temp1 = tga_head->Index_lo + tga_head->Index_hi * 256;
         temp2 = tga_head->Length_lo + tga_head->Length_hi * 256;
         int num_colors = temp1 + temp2 + 1;
-        nassertv(ColorMap == NULL && AlphaMap == NULL);
+        nassertv(ColorMap == nullptr && AlphaMap == nullptr);
         ColorMap = (pixel *)PANDA_MALLOC_ARRAY(num_colors * sizeof(pixel));
         AlphaMap = (gray *)PANDA_MALLOC_ARRAY(num_colors * sizeof(gray));
         for ( unsigned int i = temp1; i < ( temp1 + temp2 ); ++i )
@@ -321,39 +305,33 @@ Reader(PNMFileType *type, istream *file, bool owns_file, string magic_number) :
 
     _x_size = cols;
     _y_size = rows;
-    //_num_channels = 3;
+    // _num_channels = 3;
 
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: PNMFileTypeTGA::Reader::Destructor
-//       Access: Public, Virtual
-//  Description:
-////////////////////////////////////////////////////////////////////
+/**
+ *
+ */
 PNMFileTypeTGA::Reader::
 ~Reader() {
   delete tga_head;
-  if (ColorMap != NULL) {
+  if (ColorMap != nullptr) {
     PANDA_FREE_ARRAY(ColorMap);
   }
-  if (AlphaMap != NULL) {
+  if (AlphaMap != nullptr) {
     PANDA_FREE_ARRAY(AlphaMap);
   }
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: PNMFileTypeTGA::Reader::read_data
-//       Access: Public, Virtual
-//  Description: Reads in an entire image all at once, storing it in
-//               the pre-allocated _x_size * _y_size array and alpha
-//               pointers.  (If the image type has no alpha channel,
-//               alpha is ignored.)  Returns the number of rows
-//               correctly read.
-//
-//               Derived classes need not override this if they
-//               instead provide supports_read_row() and read_row(),
-//               below.
-////////////////////////////////////////////////////////////////////
+/**
+ * Reads in an entire image all at once, storing it in the pre-allocated
+ * _x_size * _y_size array and alpha pointers.  (If the image type has no
+ * alpha channel, alpha is ignored.)  Returns the number of rows correctly
+ * read.
+ *
+ * Derived classes need not override this if they instead provide
+ * supports_read_row() and read_row(), below.
+ */
 int PNMFileTypeTGA::Reader::
 read_data(xel *array, xelval *alpha) {
     int truerow = 0;
@@ -381,67 +359,57 @@ read_data(xel *array, xelval *alpha) {
   return rows;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: PNMFileTypeTGA::Writer::Constructor
-//       Access: Public
-//  Description:
-////////////////////////////////////////////////////////////////////
+/**
+ *
+ */
 PNMFileTypeTGA::Writer::
 Writer(PNMFileType *type, ostream *file, bool owns_file) :
   PNMWriter(type, file, owns_file)
 {
   tgaHeader = new ImageHeader;
-  chv = (colorhist_vector)0;
-  cht = (colorhash_table)0;
-  runlength = (int*)0;
+  chv = nullptr;
+  cht = nullptr;
+  runlength = nullptr;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: PNMFileTypeTGA::Writer::Destructor
-//       Access: Public
-//  Description:
-////////////////////////////////////////////////////////////////////
+/**
+ *
+ */
 PNMFileTypeTGA::Writer::
 ~Writer() {
   delete tgaHeader;
 
-  if (chv != (colorhist_vector)0) {
+  if (chv != nullptr) {
     ppm_freecolorhist(chv);
   }
-  if (cht != (colorhash_table)0) {
+  if (cht != nullptr) {
     ppm_freecolorhash(cht);
   }
-  if (runlength != (int *)0) {
+  if (runlength != nullptr) {
     pm_freerow((char *)runlength);
   }
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: PNMFileTypeBMP::Writer::write_data
-//       Access: Public, Virtual
-//  Description: Writes out an entire image all at once, including the
-//               header, based on the image data stored in the given
-//               _x_size * _y_size array and alpha pointers.  (If the
-//               image type has no alpha channel, alpha is ignored.)
-//               Returns the number of rows correctly written.
-//
-//               It is the user's responsibility to fill in the header
-//               data via calls to set_x_size(), set_num_channels(),
-//               etc., or copy_header_from(), before calling
-//               write_data().
-//
-//               It is important to delete the PNMWriter class after
-//               successfully writing the data.  Failing to do this
-//               may result in some data not getting flushed!
-//
-//               Derived classes need not override this if they
-//               instead provide supports_streaming() and write_row(),
-//               below.
-////////////////////////////////////////////////////////////////////
+/**
+ * Writes out an entire image all at once, including the header, based on the
+ * image data stored in the given _x_size * _y_size array and alpha pointers.
+ * (If the image type has no alpha channel, alpha is ignored.) Returns the
+ * number of rows correctly written.
+ *
+ * It is the user's responsibility to fill in the header data via calls to
+ * set_x_size(), set_num_channels(), etc., or copy_header_from(), before
+ * calling write_data().
+ *
+ * It is important to delete the PNMWriter class after successfully writing
+ * the data.  Failing to do this may result in some data not getting flushed!
+ *
+ * Derived classes need not override this if they instead provide
+ * supports_streaming() and write_row(), below.
+ */
 int PNMFileTypeTGA::Writer::
 write_data(xel *array, xelval *) {
-  // We don't presently support writing 4-channel tga files (since
-  // ppmtotga doesn't support this).
+  // We don't presently support writing 4-channel tga files (since ppmtotga
+  // doesn't support this).
   rle_flag = tga_rle;
 
   int row, col;
@@ -468,7 +436,7 @@ write_data(xel *array, xelval *) {
       pnmimage_tga_cat.info()
         << "computing colormap...\n";
       chv = ppm_computecolorhist(&array, cols * rows, 1, TGA_MAXCOLORS, &ncolors );
-      if ( chv == (colorhist_vector) 0 ) {
+      if ( chv == nullptr ) {
         pnmimage_tga_cat.info()
           << "too many colors, writing RGB.\n";
       } else {
@@ -534,7 +502,7 @@ write_data(xel *array, xelval *) {
   tgaHeader->OrgBit = 0;
 
     /* Write out the Targa header. */
-  writetga( tgaHeader, (char*) 0 );
+  writetga( tgaHeader, nullptr );
 
   if ( tgaHeader->ImgType == TGA_Map || tgaHeader->ImgType == TGA_RLEMap )
     {
@@ -585,30 +553,23 @@ write_data(xel *array, xelval *) {
 
 
 
-////////////////////////////////////////////////////////////////////
-//     Function: PNMFileTypeTGA::register_with_read_factory
-//       Access: Public, Static
-//  Description: Registers the current object as something that can be
-//               read from a Bam file.
-////////////////////////////////////////////////////////////////////
+/**
+ * Registers the current object as something that can be read from a Bam file.
+ */
 void PNMFileTypeTGA::
 register_with_read_factory() {
   BamReader::get_factory()->
     register_factory(get_class_type(), make_PNMFileTypeTGA);
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: PNMFileTypeTGA::make_PNMFileTypeTGA
-//       Access: Protected, Static
-//  Description: This method is called by the BamReader when an object
-//               of this type is encountered in a Bam file; it should
-//               allocate and return a new object with all the data
-//               read.
-//
-//               In the case of the PNMFileType objects, since these
-//               objects are all shared, we just pull the object from
-//               the registry.
-////////////////////////////////////////////////////////////////////
+/**
+ * This method is called by the BamReader when an object of this type is
+ * encountered in a Bam file; it should allocate and return a new object with
+ * all the data read.
+ *
+ * In the case of the PNMFileType objects, since these objects are all shared,
+ * we just pull the object from the registry.
+ */
 TypedWritable *PNMFileTypeTGA::
 make_PNMFileTypeTGA(const FactoryParams &params) {
   return PNMFileTypeRegistry::get_global_ptr()->get_type_by_handle(get_class_type());
@@ -674,7 +635,7 @@ get_map_entry( istream *ifp, pixel *Value, int Size, gray *Alpha ) {
         r = g = b = getbyte( ifp );
         a = 0;
         break;
-        
+
       case 16:                        /* 5 bits each of red green and blue. */
       case 15:                        /* Watch for byte order. */
         j = getbyte( ifp );
@@ -695,7 +656,7 @@ get_map_entry( istream *ifp, pixel *Value, int Size, gray *Alpha ) {
         else
           a = 0;
         break;
-        
+
       default:
         pm_error( "unknown colormap pixel size (#2) - %d", Size );
       }
@@ -760,8 +721,8 @@ get_pixel( istream *ifp, pixel *dest, int Size, gray *alpha_p) {
         Red = getbyte( ifp );
         if ( Size == 32 )
             Alpha = getbyte( ifp );
-    else
-        Alpha = 0;
+        else
+            Alpha = 0;
         l = 0;
         break;
 
@@ -789,7 +750,7 @@ getbyte( istream *ifp ) {
     unsigned char c;
 
     c = ifp->get();
-    if (ifp->fail() || ifp->eof()) 
+    if (ifp->fail() || ifp->eof())
         pm_error( "EOF / read error" );
 
     return c;

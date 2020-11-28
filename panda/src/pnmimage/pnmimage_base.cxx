@@ -1,16 +1,15 @@
-// Filename: pnmimage_base.cxx
-// Created by:  drose (04Aug02)
-//
-////////////////////////////////////////////////////////////////////
-//
-// PANDA 3D SOFTWARE
-// Copyright (c) Carnegie Mellon University.  All rights reserved.
-//
-// All use of this software is subject to the terms of the revised BSD
-// license.  You should have received a copy of this license along
-// with this source code in a file named "LICENSE."
-//
-////////////////////////////////////////////////////////////////////
+/**
+ * PANDA 3D SOFTWARE
+ * Copyright (c) Carnegie Mellon University.  All rights reserved.
+ *
+ * All use of this software is subject to the terms of the revised BSD
+ * license.  You should have received a copy of this license along
+ * with this source code in a file named "LICENSE."
+ *
+ * @file pnmimage_base.cxx
+ * @author drose
+ * @date 2002-08-04
+ */
 
 #include "pnmimage_base.h"
 #include "streamReader.h"
@@ -20,12 +19,13 @@
 #include <stdarg.h>
 #include <stdio.h>   // for sprintf()
 
+using std::istream;
+using std::ostream;
 
-////////////////////////////////////////////////////////////////////
-//     Function: pm_message
-//  Description: Outputs the given printf-style message to the user
-//               and returns.
-////////////////////////////////////////////////////////////////////
+
+/**
+ * Outputs the given printf-style message to the user and returns.
+ */
 void
 pm_message(const char *format, ...) {
   va_list ap;
@@ -33,12 +33,8 @@ pm_message(const char *format, ...) {
 
   static const size_t buffer_size = 1024;
   char buffer[buffer_size];
-#if defined(WIN32_VC) || defined(WIN64_VC)
-  // Windows doesn't define vsnprintf().  Hope we don't overflow.
-  vsprintf(buffer, format, ap);
-#else
+
   vsnprintf(buffer, buffer_size, format, ap);
-#endif
   nassertv(strlen(buffer) < buffer_size);
 
   pnmimage_cat.info() << buffer << "\n";
@@ -46,12 +42,10 @@ pm_message(const char *format, ...) {
   va_end(ap);
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: pm_error
-//  Description: Outputs the given printf-style message to the user
-//               and terminates messily.  Minimize use of this
-//               function.
-////////////////////////////////////////////////////////////////////
+/**
+ * Outputs the given printf-style message to the user and terminates messily.
+ * Minimize use of this function.
+ */
 void
 pm_error(const char *format, ...) {
   va_list ap;
@@ -59,28 +53,22 @@ pm_error(const char *format, ...) {
 
   static const size_t buffer_size = 1024;
   char buffer[buffer_size];
-#if defined(WIN32_VC) || defined(WIN64_VC)
-  // Windows doesn't define vsnprintf().  Hope we don't overflow.
-  vsprintf(buffer, format, ap);
-#else
+
   vsnprintf(buffer, buffer_size, format, ap);
-#endif
   nassertv(strlen(buffer) < buffer_size);
 
   pnmimage_cat.error() << buffer << "\n";
 
   va_end(ap);
 
-  // Now we're supposed to exit.  Inconvenient if we were running
-  // Panda interactively, but that's the way it is.
+  // Now we're supposed to exit.  Inconvenient if we were running Panda
+  // interactively, but that's the way it is.
   exit(1);
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: pm_maxvaltobits
-//  Description: Returns the number of bits sufficient to hold the
-//               indicated maxval value.
-////////////////////////////////////////////////////////////////////
+/**
+ * Returns the number of bits sufficient to hold the indicated maxval value.
+ */
 int
 pm_maxvaltobits(int maxval) {
   int bits = 1;
@@ -91,29 +79,26 @@ pm_maxvaltobits(int maxval) {
   return bits;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: pm_bitstomaxval
-//  Description: Returns the highest maxval that can be represented in
-//               the indicated number of bits.
-////////////////////////////////////////////////////////////////////
+/**
+ * Returns the highest maxval that can be represented in the indicated number
+ * of bits.
+ */
 int
 pm_bitstomaxval(int bits) {
   return ( 1 << bits ) - 1;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: pm_allocrow
-//  Description: Allocates a row of cols * size bytes.
-////////////////////////////////////////////////////////////////////
+/**
+ * Allocates a row of cols * size bytes.
+ */
 char *
 pm_allocrow(int cols, int size) {
   return (char *)PANDA_MALLOC_ARRAY(cols * size);
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: pm_freerow
-//  Description: Frees the row previously allocated withm pm_allocrow().
-////////////////////////////////////////////////////////////////////
+/**
+ * Frees the row previously allocated withm pm_allocrow().
+ */
 void
 pm_freerow(char *itrow) {
   PANDA_FREE_ARRAY(itrow);
@@ -127,7 +112,7 @@ int
 pm_readbigshort(istream *in, short *sP) {
   StreamReader reader(in, false);
   *sP = reader.get_be_int16();
-  return (!in->eof() && !in->fail()) ? 0 : -1;
+  return (!in->fail()) ? 0 : -1;
 }
 
 int
@@ -141,7 +126,7 @@ int
 pm_readbiglong(istream *in, long *lP) {
   StreamReader reader(in, false);
   *lP = reader.get_be_int32();
-  return (!in->eof() && !in->fail()) ? 0 : -1;
+  return (!in->fail()) ? 0 : -1;
 }
 
 int
@@ -155,7 +140,7 @@ int
 pm_readlittleshort(istream *in, short *sP) {
   StreamReader reader(in, false);
   *sP = reader.get_int16();
-  return (!in->eof() && !in->fail()) ? 0 : -1;
+  return (!in->fail()) ? 0 : -1;
 }
 
 int
@@ -169,7 +154,7 @@ int
 pm_readlittlelong(istream *in, long *lP) {
   StreamReader reader(in, false);
   *lP = reader.get_int32();
-  return (!in->eof() && !in->fail()) ? 0 : -1;
+  return (!in->fail()) ? 0 : -1;
 }
 
 int

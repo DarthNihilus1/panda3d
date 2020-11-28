@@ -1,7 +1,6 @@
 from direct.showbase.DirectObject import DirectObject
 from direct.showbase.TkGlobal import *
-from Tkinter import *
-from Tree import *
+from .Tree import *
 import Pmw
 
 #--------------------------------------------------------------------------
@@ -285,7 +284,7 @@ class MemoryExplorerItem:
     def getNumChildren(self):
         return len(self.children)
 
-    def getChildrenAsList(self):
+    def getChildren(self):
         return self.children
 
     def getName(self):

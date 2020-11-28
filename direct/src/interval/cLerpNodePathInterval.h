@@ -1,16 +1,15 @@
-// Filename: cLerpNodePathInterval.h
-// Created by:  drose (27Aug02)
-//
-////////////////////////////////////////////////////////////////////
-//
-// PANDA 3D SOFTWARE
-// Copyright (c) Carnegie Mellon University.  All rights reserved.
-//
-// All use of this software is subject to the terms of the revised BSD
-// license.  You should have received a copy of this license along
-// with this source code in a file named "LICENSE."
-//
-////////////////////////////////////////////////////////////////////
+/**
+ * PANDA 3D SOFTWARE
+ * Copyright (c) Carnegie Mellon University.  All rights reserved.
+ *
+ * All use of this software is subject to the terms of the revised BSD
+ * license.  You should have received a copy of this license along
+ * with this source code in a file named "LICENSE."
+ *
+ * @file cLerpNodePathInterval.h
+ * @author drose
+ * @date 2002-08-27
+ */
 
 #ifndef CLERPNODEPATHINTERVAL_H
 #define CLERPNODEPATHINTERVAL_H
@@ -20,17 +19,16 @@
 #include "nodePath.h"
 #include "textureStage.h"
 
-////////////////////////////////////////////////////////////////////
-//       Class : CLerpNodePathInterval
-// Description : An interval that lerps one or more properties (like
-//               pos, hpr, etc.) on a NodePath over time.
-////////////////////////////////////////////////////////////////////
-class EXPCL_DIRECT CLerpNodePathInterval : public CLerpInterval {
+/**
+ * An interval that lerps one or more properties (like pos, hpr, etc.) on a
+ * NodePath over time.
+ */
+class EXPCL_DIRECT_INTERVAL CLerpNodePathInterval : public CLerpInterval {
 PUBLISHED:
-  CLerpNodePathInterval(const string &name, double duration, 
-                        BlendType blend_type, bool bake_in_start,
-                        bool fluid,
-                        const NodePath &node, const NodePath &other);
+  explicit CLerpNodePathInterval(const std::string &name, double duration,
+                                 BlendType blend_type, bool bake_in_start,
+                                 bool fluid,
+                                 const NodePath &node, const NodePath &other);
 
   INLINE const NodePath &get_node() const;
   INLINE const NodePath &get_other() const;
@@ -70,7 +68,7 @@ PUBLISHED:
   virtual void priv_reverse_initialize(double t);
   virtual void priv_reverse_instant();
 
-  virtual void output(ostream &out) const;
+  virtual void output(std::ostream &out) const;
 
 private:
   void setup_slerp();
@@ -103,10 +101,10 @@ private:
 
     F_fluid              = 0x10000000,
     F_bake_in_start      = 0x20000000,
-    
+
     F_slerp_setup        = 0x40000000,
   };
-  
+
   unsigned int _flags;
   LPoint3 _start_pos, _end_pos;
   LVecBase3 _start_hpr, _end_hpr;
@@ -132,7 +130,7 @@ private:
 
   // Define a pointer to one of the above three methods.
   void (CLerpNodePathInterval::*_slerp)(LQuaternion &result, PN_stdfloat t) const;
-  
+
 public:
   static TypeHandle get_class_type() {
     return _type_handle;
@@ -154,4 +152,3 @@ private:
 #include "cLerpNodePathInterval.I"
 
 #endif
-

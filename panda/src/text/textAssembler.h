@@ -1,16 +1,15 @@
-// Filename: textAssembler.h
-// Created by:  drose (06Apr04)
-//
-////////////////////////////////////////////////////////////////////
-//
-// PANDA 3D SOFTWARE
-// Copyright (c) Carnegie Mellon University.  All rights reserved.
-//
-// All use of this software is subject to the terms of the revised BSD
-// license.  You should have received a copy of this license along
-// with this source code in a file named "LICENSE."
-//
-////////////////////////////////////////////////////////////////////
+/**
+ * PANDA 3D SOFTWARE
+ * Copyright (c) Carnegie Mellon University.  All rights reserved.
+ *
+ * All use of this software is subject to the terms of the revised BSD
+ * license.  You should have received a copy of this license along
+ * with this source code in a file named "LICENSE."
+ *
+ * @file textAssembler.h
+ * @author drose
+ * @date 2004-04-06
+ */
 
 #ifndef TEXTASSEMBLER_H
 #define TEXTASSEMBLER_H
@@ -29,23 +28,21 @@
 
 #include "pmap.h"
 
+typedef struct hb_buffer_t hb_buffer_t;
 
 class TextEncoder;
 class TextGraphic;
 class TextAssembler;
 
-////////////////////////////////////////////////////////////////////
-//       Class : TextAssembler
-// Description : This class is not normally used directly by user
-//               code, but is used by the TextNode to lay out a block
-//               of text and convert it into rows of Geoms according
-//               to the TextProperties.  However, user code may take
-//               advantage of it, if desired, for very low-level text
-//               operations.
-////////////////////////////////////////////////////////////////////
+/**
+ * This class is not normally used directly by user code, but is used by the
+ * TextNode to lay out a block of text and convert it into rows of Geoms
+ * according to the TextProperties.  However, user code may take advantage of
+ * it, if desired, for very low-level text operations.
+ */
 class EXPCL_PANDA_TEXT TextAssembler {
 PUBLISHED:
-  TextAssembler(TextEncoder *encoder);
+  explicit TextAssembler(TextEncoder *encoder);
   TextAssembler(const TextAssembler &copy);
   void operator = (const TextAssembler &copy);
   ~TextAssembler();
@@ -67,13 +64,13 @@ PUBLISHED:
   INLINE void set_properties(const TextProperties &properties);
   INLINE const TextProperties &get_properties() const;
 
-  bool set_wtext(const wstring &wtext);
-  bool set_wsubstr(const wstring &wtext, int start, int count);
+  bool set_wtext(const std::wstring &wtext);
+  bool set_wsubstr(const std::wstring &wtext, int start, int count);
 
-  wstring get_plain_wtext() const;
-  wstring get_wordwrapped_plain_wtext() const;
-  wstring get_wtext() const;
-  wstring get_wordwrapped_wtext() const;
+  std::wstring get_plain_wtext() const;
+  std::wstring get_wordwrapped_plain_wtext() const;
+  std::wstring get_wtext() const;
+  std::wstring get_wordwrapped_wtext() const;
 
   bool calc_r_c(int &r, int &c, int n) const;
   INLINE int calc_r(int n) const;
@@ -118,32 +115,32 @@ private:
   class ComputedProperties : public ReferenceCount {
   public:
     INLINE ComputedProperties(const TextProperties &orig_properties);
-    INLINE ComputedProperties(ComputedProperties *based_on, 
-                              const wstring &wname, TextEncoder *encoder);
-    void append_delta(wstring &wtext, ComputedProperties *other);
+    INLINE ComputedProperties(ComputedProperties *based_on,
+                              const std::wstring &wname, TextEncoder *encoder);
+    void append_delta(std::wstring &wtext, ComputedProperties *other);
 
     PT(ComputedProperties) _based_on;
     int _depth;
-    wstring _wname;
+    std::wstring _wname;
     TextProperties _properties;
   };
 
   // These structures are built up and operated on by scan_wtext() and
-  // wordwrap_text().  It represents the unrolling of the embedded \1
-  // .. \2 sequences embedded in the string into a TextProperties
-  // pointer associated with each character.
+  // wordwrap_text().  It represents the unrolling of the embedded \1 .. \2
+  // sequences embedded in the string into a TextProperties pointer associated
+  // with each character.
   class TextCharacter {
   public:
     INLINE TextCharacter(wchar_t character, ComputedProperties *cprops);
-    INLINE TextCharacter(const TextGraphic *graphic, 
-                         const wstring &graphic_wname,
+    INLINE TextCharacter(const TextGraphic *graphic,
+                         const std::wstring &graphic_wname,
                          ComputedProperties *cprops);
     INLINE TextCharacter(const TextCharacter &copy);
     INLINE void operator = (const TextCharacter &copy);
 
     wchar_t _character;
     const TextGraphic *_graphic;
-    wstring _graphic_wname;
+    std::wstring _graphic_wname;
     PT(ComputedProperties) _cprops;
   };
   typedef pvector<TextCharacter> TextString;
@@ -172,8 +169,8 @@ private:
   TextBlock _text_block;
 
   void scan_wtext(TextString &output_string,
-                  wstring::const_iterator &si, 
-                  const wstring::const_iterator &send,
+                  std::wstring::const_iterator &si,
+                  const std::wstring::const_iterator &send,
                   ComputedProperties *current_cprops);
 
   bool wordwrap_text();
@@ -181,9 +178,8 @@ private:
   INLINE static PN_stdfloat calc_width(const TextCharacter &tch);
   static PN_stdfloat calc_hyphen_width(const TextCharacter &tch);
 
-  // These structures are built up by assemble_paragraph() and
-  // assemble_row().  They represent the actual Geoms as laid out in a
-  // paragraph.
+  // These structures are built up by assemble_paragraph() and assemble_row().
+  // They represent the actual Geoms as laid out in a paragraph.
 
   class GeomCollectorKey {
   public:
@@ -217,21 +213,6 @@ private:
   typedef pmap<GeomCollectorKey, GeomCollector> GeomCollectorMap;
 
   struct QuadDef {
-    // Copying this class is a performance hotspot, hence we define the
-    // move constructor.
-    ALWAYS_INLINE QuadDef() {}
-    ALWAYS_INLINE QuadDef(const QuadDef &copy) :
-      _dimensions(copy._dimensions), _uvs(copy._uvs),
-      _slantl(copy._slantl), _slanth(copy._slanth),
-      _glyph(copy._glyph) {}
-
-#ifdef USE_MOVE_SEMANTICS
-    ALWAYS_INLINE QuadDef(QuadDef &&from) NOEXCEPT :
-      _dimensions(from._dimensions), _uvs(from._uvs),
-      _slantl(from._slantl), _slanth(from._slanth),
-      _glyph(move(from._glyph)) {}
-#endif
-
     LVecBase4 _dimensions;
     LVecBase4 _uvs;
     PN_stdfloat _slantl, _slanth;
@@ -264,11 +245,14 @@ private:
   void assemble_paragraph(PlacedGlyphs &placed_glyphs);
   void assemble_row(TextRow &row,
                     PlacedGlyphs &row_placed_glyphs,
-                    PN_stdfloat &row_width, PN_stdfloat &line_height, 
+                    PN_stdfloat &row_width, PN_stdfloat &line_height,
                     TextProperties::Alignment &align, PN_stdfloat &wordwrap);
 
-  // These interfaces are for implementing cheesy accent marks and
-  // ligatures when the font doesn't support them.
+  void shape_buffer(hb_buffer_t *buf, PlacedGlyphs &glyphs, PN_stdfloat &xpos,
+                    const TextProperties &properties);
+
+  // These interfaces are for implementing cheesy accent marks and ligatures
+  // when the font doesn't support them.
   enum CheesyPosition {
     CP_above,
     CP_below,
@@ -298,7 +282,7 @@ private:
 
   static void
   draw_underscore(TextAssembler::PlacedGlyphs &row_placed_glyphs,
-                  PN_stdfloat underscore_start, PN_stdfloat underscore_end, 
+                  PN_stdfloat underscore_start, PN_stdfloat underscore_end,
                   const TextProperties *underscore_properties);
 
   static void
@@ -314,7 +298,7 @@ private:
                  const LPoint3 &min_vert, const LPoint3 &max_vert,
                  const LPoint3 &centroid,
                  const TextProperties *properties, GlyphPlacement &placement) const;
-  bool 
+  bool
   tack_on_accent(wchar_t accent_mark, CheesyPosition position,
                  CheesyTransform transform,
                  const LPoint3 &min_vert, const LPoint3 &max_vert,
@@ -337,4 +321,3 @@ private:
 #include "textAssembler.I"
 
 #endif
-

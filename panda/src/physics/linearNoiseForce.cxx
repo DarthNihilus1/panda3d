@@ -1,16 +1,15 @@
-// Filename: linearNoiseForce.cxx
-// Created by:  charles (13Jun00)
-//
-////////////////////////////////////////////////////////////////////
-//
-// PANDA 3D SOFTWARE
-// Copyright (c) Carnegie Mellon University.  All rights reserved.
-//
-// All use of this software is subject to the terms of the revised BSD
-// license.  You should have received a copy of this license along
-// with this source code in a file named "LICENSE."
-//
-////////////////////////////////////////////////////////////////////
+/**
+ * PANDA 3D SOFTWARE
+ * Copyright (c) Carnegie Mellon University.  All rights reserved.
+ *
+ * All use of this software is subject to the terms of the revised BSD
+ * license.  You should have received a copy of this license along
+ * with this source code in a file named "LICENSE."
+ *
+ * @file linearNoiseForce.cxx
+ * @author charles
+ * @date 2000-06-13
+ */
 
 #include <stdlib.h>
 #include <math.h>
@@ -28,16 +27,13 @@ LVector3 LinearNoiseForce::_gradient_table[256];
 
 TypeHandle LinearNoiseForce::_type_handle;
 
-////////////////////////////////////////////////////////////////////
-//     Function : InitNoiseTables
-//       Access : Public
-//  Description : One-time config function, sets up the PRN
-//                lattice.
-////////////////////////////////////////////////////////////////////
+/**
+ * One-time config function, sets up the PRN lattice.
+ */
 void LinearNoiseForce::
 init_noise_tables() {
-  // since this is a repeatable noise function, we always want
-  // to init with the same seed.
+  // since this is a repeatable noise function, we always want to init with
+  // the same seed.
   srand(_random_seed);
 
   LVector3 *gtable = _gradient_table;
@@ -50,11 +46,9 @@ init_noise_tables() {
   }
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function : LinearNoiseForce
-//       Access : Public
-//  Description : constructor
-////////////////////////////////////////////////////////////////////
+/**
+ * constructor
+ */
 LinearNoiseForce::
 LinearNoiseForce(PN_stdfloat a, bool mass) :
   LinearRandomForce(a, mass) {
@@ -64,57 +58,43 @@ LinearNoiseForce(PN_stdfloat a, bool mass) :
   }
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function : LinearNoiseForce
-//       Access : Public
-//  Description : copy constructor
-////////////////////////////////////////////////////////////////////
+/**
+ * copy constructor
+ */
 LinearNoiseForce::
 LinearNoiseForce(const LinearNoiseForce &copy) :
   LinearRandomForce(copy) {
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function : ~LinearNoiseForce
-//       Access : Public
-//  Description : destructor
-////////////////////////////////////////////////////////////////////
+/**
+ * destructor
+ */
 LinearNoiseForce::
 ~LinearNoiseForce() {
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function : make_copy
-//       Access : Public
-//  Description : copier
-////////////////////////////////////////////////////////////////////
+/**
+ * copier
+ */
 LinearForce *LinearNoiseForce::
 make_copy() {
   return new LinearNoiseForce(*this);
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function : get_child_vector
-//       Access : Public
-//  Description : Returns the noise value based on the object's
-//                position.
-////////////////////////////////////////////////////////////////////
+/**
+ * Returns the noise value based on the object's position.
+ */
 LVector3 LinearNoiseForce::
 get_child_vector(const PhysicsObject *po) {
   LPoint3 p = po->get_position();
 
   // get all of the components
-  int int_x, int_y, int_z;
+  PN_stdfloat int_x, int_y, int_z;
   PN_stdfloat frac_x, frac_y, frac_z;
 
-  int_x = (int) p[0];
-  frac_x = p[0] - int_x;
-
-  int_y = (int) p[1];
-  frac_y = p[1] - int_y;
-
-  int_z = (int) p[2];
-  frac_z = p[2] - int_z;
+  frac_x = std::modf(p[0], &int_x);
+  frac_y = std::modf(p[1], &int_y);
+  frac_z = std::modf(p[2], &int_z);
 
   // apply the cubic smoother to the fractional values
   PN_stdfloat cubic_x, cubic_y, cubic_z;
@@ -147,27 +127,21 @@ get_child_vector(const PhysicsObject *po) {
   return vlerp(cubic_y, temp0, temp1);
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function : output
-//       Access : Public
-//  Description : Write a string representation of this instance to
-//                <out>.
-////////////////////////////////////////////////////////////////////
+/**
+ * Write a string representation of this instance to <out>.
+ */
 void LinearNoiseForce::
-output(ostream &out) const {
+output(std::ostream &out) const {
   #ifndef NDEBUG //[
   out<<""<<"LinearNoiseForce";
   #endif //] NDEBUG
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function : write
-//       Access : Public
-//  Description : Write a string representation of this instance to
-//                <out>.
-////////////////////////////////////////////////////////////////////
+/**
+ * Write a string representation of this instance to <out>.
+ */
 void LinearNoiseForce::
-write(ostream &out, unsigned int indent) const {
+write(std::ostream &out, int indent) const {
   #ifndef NDEBUG //[
   out.width(indent);
   out<<""<<"LinearNoiseForce:";

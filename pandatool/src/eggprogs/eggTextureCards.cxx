@@ -1,16 +1,15 @@
-// Filename: eggTextureCards.cxx
-// Created by:  drose (21Feb01)
-//
-////////////////////////////////////////////////////////////////////
-//
-// PANDA 3D SOFTWARE
-// Copyright (c) Carnegie Mellon University.  All rights reserved.
-//
-// All use of this software is subject to the terms of the revised BSD
-// license.  You should have received a copy of this license along
-// with this source code in a file named "LICENSE."
-//
-////////////////////////////////////////////////////////////////////
+/**
+ * PANDA 3D SOFTWARE
+ * Copyright (c) Carnegie Mellon University.  All rights reserved.
+ *
+ * All use of this software is subject to the terms of the revised BSD
+ * license.  You should have received a copy of this license along
+ * with this source code in a file named "LICENSE."
+ *
+ * @file eggTextureCards.cxx
+ * @author drose
+ * @date 2001-02-21
+ */
 
 #include "eggTextureCards.h"
 
@@ -20,15 +19,14 @@
 #include "eggTexture.h"
 #include "eggPolygon.h"
 #include "pnmImageHeader.h"
-#include "pystub.h"
 
 #include <algorithm>
 
-////////////////////////////////////////////////////////////////////
-//     Function: EggTextureCards::Constructor
-//       Access: Public
-//  Description:
-////////////////////////////////////////////////////////////////////
+using std::string;
+
+/**
+ *
+ */
 EggTextureCards::
 EggTextureCards() : EggWriter(true, true) {
   set_program_brief("generate an .egg file containing texture cards");
@@ -53,7 +51,7 @@ EggTextureCards() : EggWriter(true, true) {
      "centered on the origin: -0.5,0.5,-0.5,0.5.  Polygons are always created "
      "on the X-Y plane.  If -p is not also specified, all polygons will be "
      "the same size and shape.",
-     &EggTextureCards::dispatch_double_quad, NULL, &_polygon_geometry[0]);
+     &EggTextureCards::dispatch_double_quad, nullptr, &_polygon_geometry[0]);
 
   add_option
     ("p", "xpixels,ypixels", 0,
@@ -74,44 +72,44 @@ EggTextureCards() : EggWriter(true, true) {
      "This option specifies an ignorable suffix in the texture filename(s); "
      "if this suffix is present, it is not included in the polygon's name.  "
      "This option may be repeated multiple times.",
-     &EggTextureCards::dispatch_vector_string, NULL, &_suffixes);
+     &EggTextureCards::dispatch_vector_string, nullptr, &_suffixes);
 
   add_option
     ("c", "r,g,b[,a]", 0,
      "Specifies the color of each polygon.  The default is white: 1,1,1,1.",
-     &EggTextureCards::dispatch_color, NULL, &_polygon_color[0]);
+     &EggTextureCards::dispatch_color, nullptr, &_polygon_color[0]);
 
   add_option
     ("wm", "wrap", 0,
      "Indicates the wrap mode of the texture: \"repeat\", \"clamp\", "
      "or any of the other modes supported by egg syntax.  "
      "The default is to leave this unspecified.",
-     &EggTextureCards::dispatch_wrap_mode, NULL, &_wrap_mode);
+     &EggTextureCards::dispatch_wrap_mode, nullptr, &_wrap_mode);
 
   add_option
     ("wmu", "wrap_u", 0,
      "Indicates the wrap mode of the texture in the U direction.  This "
      "overrides -wm, if specified.",
-     &EggTextureCards::dispatch_wrap_mode, NULL, &_wrap_u);
+     &EggTextureCards::dispatch_wrap_mode, nullptr, &_wrap_u);
 
   add_option
     ("wmv", "wrap_v", 0,
      "Indicates the wrap mode of the texture in the V direction.  This "
      "overrides -wm, if specified.",
-     &EggTextureCards::dispatch_wrap_mode, NULL, &_wrap_v);
+     &EggTextureCards::dispatch_wrap_mode, nullptr, &_wrap_v);
 
   add_option
     ("minf", "filter", 0,
      "Indicates the minfilter mode of the texture: \"linear\", \"mipmap\", "
      "or any of the other modes supported by egg syntax.  "
      "The default is to leave this unspecified.",
-     &EggTextureCards::dispatch_filter_type, NULL, &_minfilter);
+     &EggTextureCards::dispatch_filter_type, nullptr, &_minfilter);
 
   add_option
     ("magf", "filter", 0,
      "Indicates the magfilter mode of the texture: \"linear\" or \"nearest\".  "
      "The default is to leave this unspecified.",
-     &EggTextureCards::dispatch_filter_type, NULL, &_magfilter);
+     &EggTextureCards::dispatch_filter_type, nullptr, &_magfilter);
 
   add_option
     ("aniso", "degree", 0,
@@ -123,37 +121,37 @@ EggTextureCards() : EggWriter(true, true) {
     ("ql", "[default | fastest | normal | best]", 0,
      "Specifies the quality level of the texture.  This mainly affects "
      "the tinydisplay software renderer.",
-     &EggTextureCards::dispatch_quality_level, NULL, &_quality_level);
+     &EggTextureCards::dispatch_quality_level, nullptr, &_quality_level);
 
   add_option
     ("f", "format", 0,
      "Indicates the format for all textures: typical choices are \"rgba12\" "
      "or \"rgb5\" or \"alpha\".  The default is to leave this unspecified.",
-     &EggTextureCards::dispatch_format, NULL, &_format);
+     &EggTextureCards::dispatch_format, nullptr, &_format);
 
   add_option
     ("f1", "format", 0,
      "Indicates the format for one-channel textures only.  If specified, this "
      "overrides the format specified by -f.",
-     &EggTextureCards::dispatch_format, NULL, &_format_1);
+     &EggTextureCards::dispatch_format, nullptr, &_format_1);
 
   add_option
     ("f2", "format", 0,
      "Indicates the format for two-channel textures only.  If specified, this "
      "overrides the format specified by -f.",
-     &EggTextureCards::dispatch_format, NULL, &_format_2);
+     &EggTextureCards::dispatch_format, nullptr, &_format_2);
 
   add_option
     ("f3", "format", 0,
      "Indicates the format for three-channel textures only.  If specified, this "
      "overrides the format specified by -f.",
-     &EggTextureCards::dispatch_format, NULL, &_format_3);
+     &EggTextureCards::dispatch_format, nullptr, &_format_3);
 
   add_option
     ("f4", "format", 0,
      "Indicates the format for four-channel textures only.  If specified, this "
      "overrides the format specified by -f.",
-     &EggTextureCards::dispatch_format, NULL, &_format_4);
+     &EggTextureCards::dispatch_format, nullptr, &_format_4);
 
   add_option
     ("b", "", 0,
@@ -168,7 +166,7 @@ EggTextureCards() : EggWriter(true, true) {
      "nice side-effect of creating an automatic texture flip that can be "
      "used directly by applications; use this parameter to specify the "
      "frame rate of that texture flip.",
-     &EggTextureCards::dispatch_double, NULL, &_frame_rate);
+     &EggTextureCards::dispatch_double, nullptr, &_frame_rate);
 
   add_option
     ("noexist", "", 0,
@@ -195,14 +193,11 @@ EggTextureCards() : EggWriter(true, true) {
   _frame_rate = 2.0;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: EggTextureCards::handle_args
-//       Access: Protected, Virtual
-//  Description: Does something with the additional arguments on the
-//               command line (after all the -options have been
-//               parsed).  Returns true if the arguments are good,
-//               false otherwise.
-////////////////////////////////////////////////////////////////////
+/**
+ * Does something with the additional arguments on the command line (after all
+ * the -options have been parsed).  Returns true if the arguments are good,
+ * false otherwise.
+ */
 bool EggTextureCards::
 handle_args(ProgramBase::Args &args) {
   if (!check_last_arg(args, 0)) {
@@ -222,14 +217,11 @@ handle_args(ProgramBase::Args &args) {
   return true;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: EggTextureCards::dispatch_wrap_mode
-//       Access: Protected, Static
-//  Description: Standard dispatch function for an option that takes
-//               one parameter, which is to be interpreted as a
-//               WrapMode string.  The data pointer is to a WrapMode
-//               enum variable.
-////////////////////////////////////////////////////////////////////
+/**
+ * Standard dispatch function for an option that takes one parameter, which is
+ * to be interpreted as a WrapMode string.  The data pointer is to a WrapMode
+ * enum variable.
+ */
 bool EggTextureCards::
 dispatch_wrap_mode(const string &opt, const string &arg, void *var) {
   EggTexture::WrapMode *wmp = (EggTexture::WrapMode *)var;
@@ -251,14 +243,11 @@ dispatch_wrap_mode(const string &opt, const string &arg, void *var) {
   return true;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: EggTextureCards::dispatch_filter_type
-//       Access: Protected, Static
-//  Description: Standard dispatch function for an option that takes
-//               one parameter, which is to be interpreted as a
-//               FilterType string.  The data pointer is to a
-//               FilterType enum variable.
-////////////////////////////////////////////////////////////////////
+/**
+ * Standard dispatch function for an option that takes one parameter, which is
+ * to be interpreted as a FilterType string.  The data pointer is to a
+ * FilterType enum variable.
+ */
 bool EggTextureCards::
 dispatch_filter_type(const string &opt, const string &arg, void *var) {
   EggTexture::FilterType *ftp = (EggTexture::FilterType *)var;
@@ -274,14 +263,11 @@ dispatch_filter_type(const string &opt, const string &arg, void *var) {
   return true;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: EggTextureCards::dispatch_quality_level
-//       Access: Protected, Static
-//  Description: Standard dispatch function for an option that takes
-//               one parameter, which is to be interpreted as a
-//               QualityLevel string.  The data pointer is to a
-//               QualityLevel enum variable.
-////////////////////////////////////////////////////////////////////
+/**
+ * Standard dispatch function for an option that takes one parameter, which is
+ * to be interpreted as a QualityLevel string.  The data pointer is to a
+ * QualityLevel enum variable.
+ */
 bool EggTextureCards::
 dispatch_quality_level(const string &opt, const string &arg, void *var) {
   EggTexture::QualityLevel *qlp = (EggTexture::QualityLevel *)var;
@@ -296,14 +282,11 @@ dispatch_quality_level(const string &opt, const string &arg, void *var) {
   return true;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: EggTextureCards::dispatch_format
-//       Access: Protected, Static
-//  Description: Standard dispatch function for an option that takes
-//               one parameter, which is to be interpreted as a
-//               Format string.  The data pointer is to a Format
-//               enum variable.
-////////////////////////////////////////////////////////////////////
+/**
+ * Standard dispatch function for an option that takes one parameter, which is
+ * to be interpreted as a Format string.  The data pointer is to a Format enum
+ * variable.
+ */
 bool EggTextureCards::
 dispatch_format(const string &opt, const string &arg, void *var) {
   EggTexture::Format *fp = (EggTexture::Format *)var;
@@ -319,17 +302,13 @@ dispatch_format(const string &opt, const string &arg, void *var) {
 }
 
 
-////////////////////////////////////////////////////////////////////
-//     Function: EggTextureCards::scan_texture
-//       Access: Private
-//  Description: Reads the texture image header to determine its size,
-//               and based on this size, computes the appropriate
-//               left,right,bottom,top geometry of the card that
-//               correspond to this texture.
-//
-//               Returns true if successful, or false if the texture
-//               cannot be read.
-////////////////////////////////////////////////////////////////////
+/**
+ * Reads the texture image header to determine its size, and based on this
+ * size, computes the appropriate left,right,bottom,top geometry of the card
+ * that correspond to this texture.
+ *
+ * Returns true if successful, or false if the texture cannot be read.
+ */
 bool EggTextureCards::
 scan_texture(const Filename &filename, LVecBase4d &geometry,
              int &num_channels) {
@@ -351,21 +330,14 @@ scan_texture(const Filename &filename, LVecBase4d &geometry,
   return true;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: EggTextureCards::make_vertices
-//       Access: Private
-//  Description: Creates a set of four vertices for the polygon
-//               according to the left,right,bottom,top geometry.
-////////////////////////////////////////////////////////////////////
+/**
+ * Creates a set of four vertices for the polygon according to the
+ * left,right,bottom,top geometry.
+ */
 void EggTextureCards::
 make_vertices(const LPoint4d &geometry, EggVertexPool *vpool,
               EggVertex *&v1, EggVertex *&v2, EggVertex *&v3, EggVertex *&v4) {
-  //
-  //   1     4
-  //
-  //
-  //   2     3
-  //
+  // 1     4 2     3
 
   v1 = vpool->make_new_vertex
     (LPoint3d(geometry[0], geometry[3], 0.0));
@@ -382,23 +354,21 @@ make_vertices(const LPoint4d &geometry, EggVertexPool *vpool,
   v4->set_uv(LTexCoordd(1.0, 1.0));
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: EggTextureCards::run
-//       Access: Public
-//  Description:
-////////////////////////////////////////////////////////////////////
+/**
+ *
+ */
 void EggTextureCards::
 run() {
-  // First, create an enclosing group and a vertex pool with four
-  // vertices.  We can use the same four vertices on all polygons.
+  // First, create an enclosing group and a vertex pool with four vertices.
+  // We can use the same four vertices on all polygons.
   bool all_ok = true;
 
   EggGroup *group = new EggGroup();
   _data->add_child(group);
 
   // If we have more than one tile, make the group a sequence, as a
-  // convenience.  If we view the egg file directly we can see all the
-  // tiles one at a time.
+  // convenience.  If we view the egg file directly we can see all the tiles
+  // one at a time.
   if (_texture_names.size() > 1) {
     group->set_switch_flag(true);
     group->set_switch_fps(_frame_rate);
@@ -410,9 +380,8 @@ run() {
   EggVertex *v1, *v2, *v3, *v4;
 
   if (!_got_pixel_scale) {
-    // If we don't have a per-texture pixel scale, all the polygons
-    // will be the same size, and hence may all share the same four
-    // vertices.
+    // If we don't have a per-texture pixel scale, all the polygons will be
+    // the same size, and hence may all share the same four vertices.
     make_vertices(_polygon_geometry, vpool, v1, v2, v3, v4);
   }
 
@@ -486,8 +455,8 @@ run() {
 
     group->add_child(tref);
 
-    // Each polygon gets placed in its own sub-group.  This will make
-    // pulling them out by name at runtime possible.
+    // Each polygon gets placed in its own sub-group.  This will make pulling
+    // them out by name at runtime possible.
     EggGroup *sub_group = new EggGroup(name);
     group->add_child(sub_group);
     EggPolygon *poly = new EggPolygon();
@@ -515,9 +484,6 @@ run() {
 
 
 int main(int argc, char *argv[]) {
-  // A call to pystub() to force libpystub.so to be linked in.
-  pystub();
-
   EggTextureCards prog;
   prog.parse_command_line(argc, argv);
   prog.run();

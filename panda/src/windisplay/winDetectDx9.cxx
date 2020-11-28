@@ -1,16 +1,15 @@
-// Filename: winDetectDx9.cxx
-// Created by:  aignacio (18Jan07)
-//
-////////////////////////////////////////////////////////////////////
-//
-// PANDA 3D SOFTWARE
-// Copyright (c) Carnegie Mellon University.  All rights reserved.
-//
-// All use of this software is subject to the terms of the revised BSD
-// license.  You should have received a copy of this license along
-// with this source code in a file named "LICENSE."
-//
-////////////////////////////////////////////////////////////////////
+/**
+ * PANDA 3D SOFTWARE
+ * Copyright (c) Carnegie Mellon University.  All rights reserved.
+ *
+ * All use of this software is subject to the terms of the revised BSD
+ * license.  You should have received a copy of this license along
+ * with this source code in a file named "LICENSE."
+ *
+ * @file winDetectDx9.cxx
+ * @author aignacio
+ * @date 2007-01-18
+ */
 
 #include "pandabase.h"
 
@@ -19,6 +18,7 @@
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN 1
 #endif
+#undef Configure
 #include <d3d9.h>
 #include "graphicsStateGuardian.h"
 #include "graphicsPipe.h"

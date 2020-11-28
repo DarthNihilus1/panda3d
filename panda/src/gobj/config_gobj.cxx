@@ -1,31 +1,34 @@
-// Filename: config_gobj.cxx
-// Created by:  drose (01Oct99)
-//
-////////////////////////////////////////////////////////////////////
-//
-// PANDA 3D SOFTWARE
-// Copyright (c) Carnegie Mellon University.  All rights reserved.
-//
-// All use of this software is subject to the terms of the revised BSD
-// license.  You should have received a copy of this license along
-// with this source code in a file named "LICENSE."
-//
-////////////////////////////////////////////////////////////////////
+/**
+ * PANDA 3D SOFTWARE
+ * Copyright (c) Carnegie Mellon University.  All rights reserved.
+ *
+ * All use of this software is subject to the terms of the revised BSD
+ * license.  You should have received a copy of this license along
+ * with this source code in a file named "LICENSE."
+ *
+ * @file config_gobj.cxx
+ * @author drose
+ * @date 1999-10-01
+ */
 
 #include "animateVerticesRequest.h"
 #include "bufferContext.h"
-#include "config_util.h"
+#include "config_putil.h"
 #include "config_gobj.h"
 #include "geom.h"
 #include "geomCacheEntry.h"
 #include "geomMunger.h"
 #include "geomPrimitive.h"
 #include "geomTriangles.h"
+#include "geomTrianglesAdjacency.h"
 #include "geomTristrips.h"
+#include "geomTristripsAdjacency.h"
 #include "geomTrifans.h"
 #include "geomPatches.h"
 #include "geomLines.h"
+#include "geomLinesAdjacency.h"
 #include "geomLinestrips.h"
+#include "geomLinestripsAdjacency.h"
 #include "geomPoints.h"
 #include "geomVertexArrayData.h"
 #include "geomVertexArrayFormat.h"
@@ -66,6 +69,10 @@
 
 #include "dconfig.h"
 #include "string_utils.h"
+
+#if !defined(CPPPARSER) && !defined(LINK_ALL_STATIC) && !defined(BUILDING_PANDA_GOBJ)
+  #error Buildsystem error: BUILDING_PANDA_GOBJ not defined
+#endif
 
 Configure(config_gobj);
 NotifyCategoryDef(gobj, "");
@@ -112,13 +119,6 @@ ConfigVariableBool keep_texture_ram
           "explicitly released from the GSG, without having to reread the "
           "texture image from disk; but it will consume memory somewhat "
           "wastefully."));
-
-ConfigVariableBool compressed_textures
-("compressed-textures", false,
- PRC_DESC("Set this to true to compress textures as they are loaded into "
-          "texture memory, if the driver supports this.  Specifically, this "
-          "changes the meaning of set_compression(Texture::CM_default) to "
-          "Texture::CM_on."));
 
 ConfigVariableBool driver_compress_textures
 ("driver-compress-textures", false,
@@ -260,18 +260,6 @@ ConfigVariableBool cache_generated_shaders
  PRC_DESC("Set this true to cause all generated shaders to be cached in "
           "memory.  This is useful to prevent unnecessary recompilation."));
 
-ConfigVariableBool enforce_attrib_lock
-("enforce-attrib-lock", true,
- PRC_DESC("When a MaterialAttrib, TextureAttrib, or LightAttrib is "
-          "constructed, the corresponding Material, Texture, or Light "
-          "is 'attrib locked.'  The attrib lock prevents qualitative "
-          "changes to the object.  This makes it possible to hardwire "
-          "information about material, light, and texture properties "
-          "into generated shaders.  This config variable can disable "
-          "the attrib lock.  Disabling the lock will break the shader "
-          "generator, but doing so may be necessary for backward "
-          "compatibility with old code."));
-
 ConfigVariableBool vertices_float64
 ("vertices-float64", false,
  PRC_DESC("When this is true, the default float format for vertices "
@@ -361,23 +349,6 @@ ConfigVariableDouble simple_image_threshold
           "simple-image-size.  Larger numbers will result in smaller "
           "simple images.  Generally the value should be considerably "
           "less than 1."));
-
-ConfigVariableEnum<ShaderUtilization> shader_utilization
-("shader-utilization", SUT_none,
- PRC_DESC("At times, panda may generate shaders.  This variable controls what "
-          "kinds of shaders can be generated.  If you set it to SUT_none, "
-          "shader generation will be be disabled.  If you set it to SUT_basic, "
-          "then DX9 shaders may be generated, if you set it to SUT_advanced, "
-          "then DX10 shaders may be generated."));
-
-ConfigVariableBool shader_auto_utilization
-("shader-auto-utilization", false,
- PRC_DESC("If this is true, then panda will wait until you open a window, "
-          "and then ask the window if it supports basic or advanced shaders. "
-          "If so, then the config variable shader-utilization will "
-          "automatically be adusted.  The pitfall of doing this is that if "
-          "you then open a second window that doesn't support the same "
-          "capabilities, it will have no choice but to print an error message."));
 
 ConfigVariableInt geom_cache_size
 ("geom-cache-size", 5000,
@@ -540,6 +511,15 @@ ConfigVariableBool stereo_lens_old_convergence
           "old, incorrect behavior, this may be set to 'true' to switch "
           "back to the old calculation."));
 
+ConfigVariableBool basic_shaders_only
+("basic-shaders-only", false,
+ PRC_DESC("Set this to true if you aren't interested in shader model three "
+          "and beyond.  Setting this flag will cause panda to disable "
+          "bleeding-edge shader functionality which tends to be unreliable "
+          "or broken.  At some point, when functionality that is currently "
+          "flaky becomes reliable, we may expand the definition of what "
+          "constitutes 'basic' shaders."));
+
 ConfigVariableString cg_glsl_version
 ("cg-glsl-version", "",
  PRC_DESC("If this is set, it forces the Cg compiler to generate GLSL "
@@ -571,14 +551,18 @@ ConfigureFn(config_gobj) {
   GeomPipelineReader::init_type();
   GeomContext::init_type();
   GeomLines::init_type();
+  GeomLinesAdjacency::init_type();
   GeomLinestrips::init_type();
+  GeomLinestripsAdjacency::init_type();
   GeomMunger::init_type();
   GeomPoints::init_type();
   GeomPrimitive::init_type();
   GeomPrimitivePipelineReader::init_type();
   GeomTriangles::init_type();
+  GeomTrianglesAdjacency::init_type();
   GeomTrifans::init_type();
   GeomTristrips::init_type();
+  GeomTristripsAdjacency::init_type();
   GeomPatches::init_type();
   GeomVertexArrayData::init_type();
   GeomVertexArrayDataHandle::init_type();
@@ -597,6 +581,7 @@ ConfigureFn(config_gobj) {
   ParamTextureImage::init_type();
   ParamTextureSampler::init_type();
   PerspectiveLens::init_type();
+  PreparedGraphicsObjects::EnqueuedObject::init_type();
   QueryContext::init_type();
   SamplerContext::init_type();
   SamplerState::init_type();
@@ -621,15 +606,19 @@ ConfigureFn(config_gobj) {
   VertexTransform::init_type();
   VideoTexture::init_type();
 
-  //Registration of writeable object's creation
-  //functions with BamReader's factory
+  // Registration of writeable object's creation functions with BamReader's
+  // factory
   Geom::register_with_read_factory();
   GeomLines::register_with_read_factory();
+  GeomLinesAdjacency::register_with_read_factory();
   GeomLinestrips::register_with_read_factory();
+  GeomLinestripsAdjacency::register_with_read_factory();
   GeomPoints::register_with_read_factory();
   GeomTriangles::register_with_read_factory();
+  GeomTrianglesAdjacency::register_with_read_factory();
   GeomTrifans::register_with_read_factory();
   GeomTristrips::register_with_read_factory();
+  GeomTristripsAdjacency::register_with_read_factory();
   GeomPatches::register_with_read_factory();
   GeomVertexArrayData::register_with_read_factory();
   GeomVertexArrayFormat::register_with_read_factory();
@@ -650,51 +639,4 @@ ConfigureFn(config_gobj) {
   TransformTable::register_with_read_factory();
   UserVertexSlider::register_with_read_factory();
   UserVertexTransform::register_with_read_factory();
-}
-
-ostream &
-operator << (ostream &out, ShaderUtilization sgc) {
-  switch (sgc) {
-  case SUT_none:
-    return out << "none";
-
-  case SUT_basic:
-    return out << "basic";
-
-  case SUT_advanced:
-    return out << "advanced";
-
-  case SUT_unspecified:
-    return out << "unspecified";
-  }
-
-  return out << "**invalid ShaderUtilization (" << (int)sgc << ")**";
-}
-
-istream &
-operator >> (istream &in, ShaderUtilization &sgc) {
-  string word;
-  in >> word;
-
-  if (cmp_nocase(word, "none") == 0 ||
-      cmp_nocase(word, "0") == 0 ||
-      cmp_nocase(word, "#f") == 0 ||
-      (!word.empty() && tolower(word[0]) == 'f')) {
-    sgc = SUT_none;
-
-  } else if (cmp_nocase(word, "basic") == 0 ||
-             cmp_nocase(word, "1") == 0 ||
-             cmp_nocase(word, "#t") == 0 ||
-             (!word.empty() && tolower(word[0]) == 't')) {
-    sgc = SUT_basic;
-
-  } else if (cmp_nocase(word, "advanced") == 0) {
-    sgc = SUT_advanced;
-
-  } else {
-    gobj_cat->error() << "Invalid ShaderUtilization value: " << word << "\n";
-    sgc = SUT_none;
-  }
-
-  return in;
 }

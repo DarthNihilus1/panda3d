@@ -1,42 +1,42 @@
-// Filename: daeMaterials.cxx
-// Created by:  pro-rsoft (03Oct08)
-//
-////////////////////////////////////////////////////////////////////
-//
-// PANDA 3D SOFTWARE
-// Copyright (c) Carnegie Mellon University.  All rights reserved.
-//
-// All use of this software is subject to the terms of the revised BSD
-// license.  You should have received a copy of this license along
-// with this source code in a file named "LICENSE."
-//
-////////////////////////////////////////////////////////////////////
+/**
+ * PANDA 3D SOFTWARE
+ * Copyright (c) Carnegie Mellon University.  All rights reserved.
+ *
+ * All use of this software is subject to the terms of the revised BSD
+ * license.  You should have received a copy of this license along
+ * with this source code in a file named "LICENSE."
+ *
+ * @file daeMaterials.cxx
+ * @author rdb
+ * @date 2008-10-03
+ */
 
 #include "daeMaterials.h"
 #include "config_daeegg.h"
 #include "fcollada_utils.h"
 
-#include "FCDocument/FCDocument.h"
-#include "FCDocument/FCDMaterial.h"
-#include "FCDocument/FCDEffect.h"
-#include "FCDocument/FCDTexture.h"
-#include "FCDocument/FCDEffectParameterSampler.h"
-#include "FCDocument/FCDImage.h"
+#include <FCDocument/FCDocument.h>
+#include <FCDocument/FCDMaterial.h>
+#include <FCDocument/FCDEffect.h>
+#include <FCDocument/FCDTexture.h>
+#include <FCDocument/FCDEffectParameterSampler.h>
+#include <FCDocument/FCDImage.h>
 
 #include "filename.h"
 #include "string_utils.h"
 
+using std::endl;
+using std::string;
+
 TypeHandle DaeMaterials::_type_handle;
 
-// luminance function, based on the ISO/CIE color standards
-// see ITU-R Recommendation BT.709-4
+// luminance function, based on the ISOCIE color standards see ITU-R
+// Recommendation BT.709-4
 #define luminance(c) ((c[0] * 0.212671 + c[1] * 0.715160 + c[2] * 0.072169))
 
-////////////////////////////////////////////////////////////////////
-//     Function: DaeMaterials::Constructor
-//       Access: Public
-//  Description:
-////////////////////////////////////////////////////////////////////
+/**
+ *
+ */
 DaeMaterials::
 DaeMaterials(const FCDGeometryInstance* geometry_instance) {
   for (size_t mi = 0; mi < geometry_instance->GetMaterialInstanceCount(); ++mi) {
@@ -44,14 +44,11 @@ DaeMaterials(const FCDGeometryInstance* geometry_instance) {
   }
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: DaeMaterials::add_material_instance
-//       Access: Public
-//  Description: Adds a material instance. Normally automatically
-//               done by constructor.
-////////////////////////////////////////////////////////////////////
+/**
+ * Adds a material instance.  Normally automatically done by constructor.
+ */
 void DaeMaterials::add_material_instance(const FCDMaterialInstance* instance) {
-  nassertv(instance != NULL);
+  nassertv(instance != nullptr);
   const string semantic (FROM_FSTRING(instance->GetSemantic()));
   if (_materials.count(semantic) > 0) {
     daeegg_cat.warning() << "Ignoring duplicate material with semantic " << semantic << endl;
@@ -62,7 +59,7 @@ void DaeMaterials::add_material_instance(const FCDMaterialInstance* instance) {
   // Load in the uvsets
   for (size_t vib = 0; vib < instance->GetVertexInputBindingCount(); ++vib) {
     const FCDMaterialInstanceBindVertexInput* mivib = instance->GetVertexInputBinding(vib);
-    assert(mivib != NULL);
+    assert(mivib != nullptr);
     PT(DaeVertexInputBinding) bvi = new DaeVertexInputBinding();
     bvi->_input_set = mivib->inputSet;
 #if FCOLLADA_VERSION >= 0x00030005
@@ -76,26 +73,32 @@ void DaeMaterials::add_material_instance(const FCDMaterialInstance* instance) {
   }
 
   // Handle the material stuff
-  daeegg_cat.spam() << "Trying to process material with semantic " << semantic << endl;
+  if (daeegg_cat.is_spam()) {
+    daeegg_cat.spam() << "Trying to process material with semantic " << semantic << endl;
+  }
   PT_EggMaterial egg_material = new EggMaterial(semantic);
   pvector<PT_EggTexture> egg_textures;
   const FCDEffect* effect = instance->GetMaterial()->GetEffect();
-  if (effect == NULL) {
-    daeegg_cat.debug() << "Ignoring material (semantic: " << semantic << ") without assigned effect" << endl;
+  if (effect == nullptr) {
+    if (daeegg_cat.is_debug()) {
+      daeegg_cat.debug() << "Ignoring material (semantic: " << semantic << ") without assigned effect" << endl;
+    }
   } else {
     // Grab the common profile effect
     const FCDEffectStandard* effect_common = (FCDEffectStandard *)effect->FindProfile(FUDaeProfileType::COMMON);
-    if (effect_common == NULL) {
+    if (effect_common == nullptr) {
       daeegg_cat.info() << "Ignoring effect referenced by material with semantic " << semantic
                          << " because it has no common profile" << endl;
     } else {
-      daeegg_cat.spam() << "Processing effect, material semantic is " << semantic << endl;
+      if (daeegg_cat.is_spam()) {
+        daeegg_cat.spam() << "Processing effect, material semantic is " << semantic << endl;
+      }
       // Set the material parameters
       egg_material->set_amb(TO_COLOR(effect_common->GetAmbientColor()));
-      ////We already process transparency using blend modes
-      //LVecBase4 diffuse = TO_COLOR(effect_common->GetDiffuseColor());
-      //diffuse.set_w(diffuse.get_w() * (1.0f - effect_common->GetOpacity()));
-      //egg_material->set_diff(diffuse);
+      // We already process transparency using blend modes LVecBase4 diffuse =
+      // TO_COLOR(effect_common->GetDiffuseColor());
+      // diffuse.set_w(diffuse.get_w() * (1.0f -
+      // effect_common->GetOpacity())); egg_material->set_diff(diffuse);
       egg_material->set_diff(TO_COLOR(effect_common->GetDiffuseColor()));
       egg_material->set_emit(TO_COLOR(effect_common->GetEmissionColor()) * effect_common->GetEmissionFactor());
       egg_material->set_shininess(effect_common->GetShininess());
@@ -118,25 +121,25 @@ void DaeMaterials::add_material_instance(const FCDMaterialInstance* instance) {
     // Find an <extra> tag to support some extra stuff from extensions
     process_extra(semantic, effect->GetExtra());
   }
-  daeegg_cat.spam() << "Found " << egg_textures.size() << " textures in material" << endl;
+  if (daeegg_cat.is_spam()) {
+    daeegg_cat.spam() << "Found " << egg_textures.size() << " textures in material" << endl;
+  }
   _materials[semantic]->_egg_material = egg_material;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: DaeMaterials::process_texture_bucket
-//       Access: Private
-//  Description: Processes the given texture bucket and gives
-//               the textures in it the given envtype and format.
-////////////////////////////////////////////////////////////////////
+/**
+ * Processes the given texture bucket and gives the textures in it the given
+ * envtype and format.
+ */
 void DaeMaterials::
 process_texture_bucket(const string semantic, const FCDEffectStandard* effect_common, FUDaeTextureChannel::Channel bucket, EggTexture::EnvType envtype, EggTexture::Format format) {
   for (size_t tx = 0; tx < effect_common->GetTextureCount(bucket); ++tx) {
     const FCDImage* image = effect_common->GetTexture(bucket, tx)->GetImage();
-    if (image == NULL) {
+    if (image == nullptr) {
       daeegg_cat.warning() << "Texture references a nonexisting image!" << endl;
     } else {
       const FCDEffectParameterSampler* sampler = effect_common->GetTexture(bucket, tx)->GetSampler();
-      // FCollada only supplies absolute paths. We need to grab the document
+      // FCollada only supplies absolute paths.  We need to grab the document
       // location ourselves and make the image path absolute.
       Filename texpath;
       if (image->GetDocument()) {
@@ -145,7 +148,9 @@ process_texture_bucket(const string semantic, const FCDEffectStandard* effect_co
         texpath = Filename::from_os_specific(FROM_FSTRING(image->GetFilename()));
         texpath.make_canonical();
         texpath.make_relative_to(docpath.get_dirname(), true);
-        daeegg_cat.debug() << "Found texture with path " << texpath << endl;
+        if (daeegg_cat.is_debug()) {
+          daeegg_cat.debug() << "Found texture with path " << texpath << endl;
+        }
       } else {
         // Never mind.
         texpath = Filename::from_os_specific(FROM_FSTRING(image->GetFilename()));
@@ -153,8 +158,10 @@ process_texture_bucket(const string semantic, const FCDEffectStandard* effect_co
       PT_EggTexture egg_texture = new EggTexture(FROM_FSTRING(image->GetDaeId()), texpath.to_os_generic());
       // Find a set of UV coordinates
       const FCDEffectParameterInt* uvset = effect_common->GetTexture(bucket, tx)->GetSet();
-      if (uvset != NULL) {
-        daeegg_cat.debug() << "Texture has uv name '" << FROM_FSTRING(uvset->GetSemantic()) << "'\n";
+      if (uvset != nullptr) {
+        if (daeegg_cat.is_debug()) {
+          daeegg_cat.debug() << "Texture has uv name '" << FROM_FSTRING(uvset->GetSemantic()) << "'\n";
+        }
         string uvset_semantic (FROM_FSTRING(uvset->GetSemantic()));
 
         // Only set the UV name if this UV set actually exists.
@@ -166,7 +173,7 @@ process_texture_bucket(const string semantic, const FCDEffectStandard* effect_co
         }
       }
       // Apply sampler stuff
-      if (sampler != NULL) {
+      if (sampler != nullptr) {
         egg_texture->set_texture_type(convert_texture_type(sampler->GetSamplerType()));
         egg_texture->set_wrap_u(convert_wrap_mode(sampler->GetWrapS()));
         if (sampler->GetSamplerType() != FCDEffectParameterSampler::SAMPLER1D) {
@@ -189,21 +196,18 @@ process_texture_bucket(const string semantic, const FCDEffectStandard* effect_co
   }
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: DaeMaterials::process_extra
-//       Access: Private
-//  Description: Processes the extra data in the given <extra> tag.
-//               If the given element is NULL, it just silently
-//               returns.
-////////////////////////////////////////////////////////////////////
+/**
+ * Processes the extra data in the given <extra> tag.  If the given element is
+ * NULL, it just silently returns.
+ */
 void DaeMaterials::
 process_extra(const string semantic, const FCDExtra* extra) {
-  if (extra == NULL) return;
+  if (extra == nullptr) return;
   const FCDEType* etype = extra->GetDefaultType();
-  if (etype == NULL) return;
+  if (etype == nullptr) return;
   for (size_t et = 0; et < etype->GetTechniqueCount(); ++et) {
     const FCDENode* enode = ((const FCDENode*)(etype->GetTechnique(et)))->FindChildNode("double_sided");
-    if (enode != NULL) {
+    if (enode != nullptr) {
       string content = trim(enode->GetContent());
       if (content == "1" || content == "true") {
         _materials[semantic]->_double_sided = true;
@@ -216,28 +220,26 @@ process_extra(const string semantic, const FCDExtra* extra) {
   }
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: DaeMaterials::apply_to
-//       Access: Public
-//  Description: Applies the stuff to the given EggPrimitive.
-////////////////////////////////////////////////////////////////////
+/**
+ * Applies the stuff to the given EggPrimitive.
+ */
 void DaeMaterials::
 apply_to_primitive(const string semantic, const PT(EggPrimitive) to) {
   if (_materials.count(semantic) > 0) {
     to->set_material(_materials[semantic]->_egg_material);
     for (pvector<PT_EggTexture>::iterator it = _materials[semantic]->_egg_textures.begin(); it != _materials[semantic]->_egg_textures.end(); ++it) {
-      daeegg_cat.spam() << "Applying texture " << (*it)->get_name() << " from material with semantic " << semantic << endl;
+      if (daeegg_cat.is_spam()) {
+        daeegg_cat.spam() << "Applying texture " << (*it)->get_name() << " from material with semantic " << semantic << endl;
+      }
       to->add_texture(*it);
     }
     to->set_bface_flag(_materials[semantic]->_double_sided);
   }
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: DaeMaterials::apply_to
-//       Access: Public
-//  Description: Applies the colorblend stuff to the given EggGroup.
-////////////////////////////////////////////////////////////////////
+/**
+ * Applies the colorblend stuff to the given EggGroup.
+ */
 void DaeMaterials::
 apply_to_group(const string semantic, const PT(EggGroup) to, bool invert_transparency) {
   if (_materials.count(semantic) > 0) {
@@ -261,13 +263,10 @@ apply_to_group(const string semantic, const PT(EggGroup) to, bool invert_transpa
   }
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: DaeMaterials::get_uvset_name
-//       Access: Public
-//  Description: Returns the semantic of the uvset with the
-//               specified input set, or an empty string if the
-//               given material has no input set.
-////////////////////////////////////////////////////////////////////
+/**
+ * Returns the semantic of the uvset with the specified input set, or an empty
+ * string if the given material has no input set.
+ */
 const string DaeMaterials::
 get_uvset_name(const string semantic, FUDaeGeometryInput::Semantic input_semantic, int32 input_set) {
   if (_materials.count(semantic) > 0) {
@@ -281,27 +280,29 @@ get_uvset_name(const string semantic, FUDaeGeometryInput::Semantic input_semanti
         }
       }
       // If we can't find it, let's look again, but don't care for the
-      // input_semantic this time. The reason for this is that some tools
+      // input_semantic this time.  The reason for this is that some tools
       // export textangents and texbinormals bound to a uvset with input
       // semantic TEXCOORD.
       for (size_t i = 0; i < _materials[semantic]->_uvsets.size(); ++i) {
         if (_materials[semantic]->_uvsets[i]->_input_set == input_set) {
-          daeegg_cat.debug() << "Using uv set with non-matching input semantic " << _materials[semantic]->_uvsets[i]->_semantic << "\n";
+          if (daeegg_cat.is_debug()) {
+            daeegg_cat.debug() << "Using uv set with non-matching input semantic " << _materials[semantic]->_uvsets[i]->_semantic << "\n";
+          }
           return _materials[semantic]->_uvsets[i]->_semantic;
         }
       }
-      daeegg_cat.debug() << "No uv set binding found for input set " << input_set << "\n";
+      if (daeegg_cat.is_debug()) {
+        daeegg_cat.debug() << "No uv set binding found for input set " << input_set << "\n";
+      }
     }
   }
   return "";
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: DaeMaterials::convert_texture_type
-//       Access: Public, Static
-//  Description: Converts an FCollada sampler type to the EggTexture
-//               texture type equivalent.
-////////////////////////////////////////////////////////////////////
+/**
+ * Converts an FCollada sampler type to the EggTexture texture type
+ * equivalent.
+ */
 EggTexture::TextureType DaeMaterials::
 convert_texture_type(const FCDEffectParameterSampler::SamplerType orig_type) {
   switch (orig_type) {
@@ -319,17 +320,14 @@ convert_texture_type(const FCDEffectParameterSampler::SamplerType orig_type) {
   return EggTexture::TT_unspecified;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: DaeMaterials::convert_wrap_mode
-//       Access: Public, Static
-//  Description: Converts an FCollada wrap mode to the
-//               EggTexture wrap mode equivalent.
-////////////////////////////////////////////////////////////////////
+/**
+ * Converts an FCollada wrap mode to the EggTexture wrap mode equivalent.
+ */
 EggTexture::WrapMode DaeMaterials::
 convert_wrap_mode(const FUDaeTextureWrapMode::WrapMode orig_mode) {
   switch (orig_mode) {
     case FUDaeTextureWrapMode::NONE:
-      //FIXME: this shouldnt be unspecified
+      // FIXME: this shouldnt be unspecified
       return EggTexture::WM_unspecified;
     case FUDaeTextureWrapMode::WRAP:
       return EggTexture::WM_repeat;
@@ -347,17 +345,15 @@ convert_wrap_mode(const FUDaeTextureWrapMode::WrapMode orig_mode) {
   return EggTexture::WM_unspecified;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: DaeMaterials::convert_filter_type
-//       Access: Public, Static
-//  Description: Converts an FCollada filter function to the
-//               EggTexture wrap type equivalent.
-////////////////////////////////////////////////////////////////////
+/**
+ * Converts an FCollada filter function to the EggTexture wrap type
+ * equivalent.
+ */
 EggTexture::FilterType DaeMaterials::
 convert_filter_type(const FUDaeTextureFilterFunction::FilterFunction orig_type) {
   switch (orig_type) {
     case FUDaeTextureFilterFunction::NONE:
-      //FIXME: this shouldnt be unspecified
+      // FIXME: this shouldnt be unspecified
       return EggTexture::FT_unspecified;
     case FUDaeTextureFilterFunction::NEAREST:
       return EggTexture::FT_nearest;
@@ -379,11 +375,9 @@ convert_filter_type(const FUDaeTextureFilterFunction::FilterFunction orig_type) 
   return EggTexture::FT_unspecified;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: DaeMaterials::convert_blend
-//       Access: Private, Static
-//  Description: Converts collada blend attribs to Panda's equivalents.
-////////////////////////////////////////////////////////////////////
+/**
+ * Converts collada blend attribs to Panda's equivalents.
+ */
 PT(DaeMaterials::DaeBlendSettings) DaeMaterials::
 convert_blend(FCDEffectStandard::TransparencyMode mode, const LColor &transparent, double transparency) {
   // Create the DaeBlendSettings and fill it with some defaults.

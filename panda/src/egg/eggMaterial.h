@@ -1,16 +1,15 @@
-// Filename: eggMaterial.h
-// Created by:  drose (29Jan99)
-//
-////////////////////////////////////////////////////////////////////
-//
-// PANDA 3D SOFTWARE
-// Copyright (c) Carnegie Mellon University.  All rights reserved.
-//
-// All use of this software is subject to the terms of the revised BSD
-// license.  You should have received a copy of this license along
-// with this source code in a file named "LICENSE."
-//
-////////////////////////////////////////////////////////////////////
+/**
+ * PANDA 3D SOFTWARE
+ * Copyright (c) Carnegie Mellon University.  All rights reserved.
+ *
+ * All use of this software is subject to the terms of the revised BSD
+ * license.  You should have received a copy of this license along
+ * with this source code in a file named "LICENSE."
+ *
+ * @file eggMaterial.h
+ * @author drose
+ * @date 1999-01-29
+ */
 
 #ifndef EGGMATERIAL_H
 #define EGGMATERIAL_H
@@ -21,16 +20,15 @@
 
 #include "luse.h"
 
-////////////////////////////////////////////////////////////////////
-//       Class : EggMaterial
-// Description :
-////////////////////////////////////////////////////////////////////
-class EXPCL_PANDAEGG EggMaterial : public EggNode {
+/**
+ *
+ */
+class EXPCL_PANDA_EGG EggMaterial : public EggNode {
 PUBLISHED:
-  EggMaterial(const string &mref_name);
+  explicit EggMaterial(const std::string &mref_name);
   EggMaterial(const EggMaterial &copy);
 
-  virtual void write(ostream &out, int indent_level) const;
+  virtual void write(std::ostream &out, int indent_level) const;
 
   enum Equivalence {
     E_attributes           = 0x001,
@@ -148,14 +146,12 @@ private:
   static TypeHandle _type_handle;
 };
 
-////////////////////////////////////////////////////////////////////
-//       Class : UniqueEggMaterials
-// Description : An STL function object for sorting materials into
-//               order by properties.  Returns true if the two
-//               referenced EggMaterial pointers are in sorted order,
-//               false otherwise.
-////////////////////////////////////////////////////////////////////
-class EXPCL_PANDAEGG UniqueEggMaterials {
+/**
+ * An STL function object for sorting materials into order by properties.
+ * Returns true if the two referenced EggMaterial pointers are in sorted
+ * order, false otherwise.
+ */
+class EXPCL_PANDA_EGG UniqueEggMaterials {
 public:
   INLINE UniqueEggMaterials(int eq = ~0);
   INLINE bool operator ()(const EggMaterial *t1, const EggMaterial *t2) const;

@@ -1,16 +1,15 @@
-// Filename: test_pgraph.cxx
-// Created by:  drose (21Feb02)
-//
-////////////////////////////////////////////////////////////////////
-//
-// PANDA 3D SOFTWARE
-// Copyright (c) Carnegie Mellon University.  All rights reserved.
-//
-// All use of this software is subject to the terms of the revised BSD
-// license.  You should have received a copy of this license along
-// with this source code in a file named "LICENSE."
-//
-////////////////////////////////////////////////////////////////////
+/**
+ * PANDA 3D SOFTWARE
+ * Copyright (c) Carnegie Mellon University.  All rights reserved.
+ *
+ * All use of this software is subject to the terms of the revised BSD
+ * license.  You should have received a copy of this license along
+ * with this source code in a file named "LICENSE."
+ *
+ * @file test_pgraph.cxx
+ * @author drose
+ * @date 2002-02-21
+ */
 
 #include "pandaNode.h"
 #include "nodePath.h"
@@ -18,13 +17,15 @@
 #include "findApproxLevelEntry.h"
 #include "clockObject.h"
 
+using std::cerr;
+
 NodePath
-build_tree(const string &name, int depth) {
+build_tree(const std::string &name, int depth) {
   NodePath node(name);
   if (depth > 1) {
     for (int i = 0; i < 3; i++) {
       char letter = 'a' + i;
-      string child_name = name + string(1, letter);
+      std::string child_name = name + std::string(1, letter);
       NodePath child = build_tree(child_name, depth - 1);
       child.reparent_to(node);
     }
@@ -33,11 +34,11 @@ build_tree(const string &name, int depth) {
   return node;
 }
 
-int 
+int
 main(int argc, char *argv[]) {
 
-  // Build up a tree of height 6.  Each level has three children, so
-  // that there are 3^5 + 3^4 + 3^3 + 3^2 + 3^1 + 3^0 = 364 total nodes.
+  // Build up a tree of height 6.  Each level has three children, so that
+  // there are 3^5 + 3^4 + 3^3 + 3^2 + 3^1 + 3^0 = 364 total nodes.
 
   NodePath root = build_tree("a", 6);
 

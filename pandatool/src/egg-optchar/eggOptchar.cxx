@@ -1,16 +1,15 @@
-// Filename: eggOptchar.cxx
-// Created by:  drose (18Jul03)
-//
-////////////////////////////////////////////////////////////////////
-//
-// PANDA 3D SOFTWARE
-// Copyright (c) Carnegie Mellon University.  All rights reserved.
-//
-// All use of this software is subject to the terms of the revised BSD
-// license.  You should have received a copy of this license along
-// with this source code in a file named "LICENSE."
-//
-////////////////////////////////////////////////////////////////////
+/**
+ * PANDA 3D SOFTWARE
+ * Copyright (c) Carnegie Mellon University.  All rights reserved.
+ *
+ * All use of this software is subject to the terms of the revised BSD
+ * license.  You should have received a copy of this license along
+ * with this source code in a file named "LICENSE."
+ *
+ * @file eggOptchar.cxx
+ * @author drose
+ * @date 2003-07-18
+ */
 
 #include "eggOptchar.h"
 #include "eggOptcharUserData.h"
@@ -32,15 +31,16 @@
 #include "pset.h"
 #include "compose_matrix.h"
 #include "fftCompressor.h"
-#include "pystub.h"
 
 #include <algorithm>
 
-////////////////////////////////////////////////////////////////////
-//     Function: EggOptchar::Constructor
-//       Access: Public
-//  Description:
-////////////////////////////////////////////////////////////////////
+using std::cout;
+using std::setw;
+using std::string;
+
+/**
+ *
+ */
 EggOptchar::
 EggOptchar() {
   add_path_replace_options();
@@ -78,19 +78,19 @@ EggOptchar() {
     ("keep", "joint[,joint...]", 0,
      "Keep the named joints (or sliders) in the character, even if they do "
      "not appear to be needed by the animation.",
-     &EggOptchar::dispatch_vector_string_comma, NULL, &_keep_components);
+     &EggOptchar::dispatch_vector_string_comma, nullptr, &_keep_components);
 
   add_option
     ("drop", "joint[,joint...]", 0,
      "Removes the named joints or sliders, even if they appear to be needed.",
-     &EggOptchar::dispatch_vector_string_comma, NULL, &_drop_components);
+     &EggOptchar::dispatch_vector_string_comma, nullptr, &_drop_components);
 
   add_option
     ("expose", "joint[,joint...]", 0,
      "Expose the named joints by flagging them with a DCS attribute, so "
      "each one can be found in the scene graph when the character is loaded, "
      "and objects can be parented to it.  This implies -keep.",
-     &EggOptchar::dispatch_vector_string_comma, NULL, &_expose_components);
+     &EggOptchar::dispatch_vector_string_comma, nullptr, &_expose_components);
 
   add_option
     ("suppress", "joint[,joint...]", 0,
@@ -99,7 +99,7 @@ EggOptchar() {
      "rigid geometry.  The default is to create an implicit node for any "
      "joint that contains rigid geometry, to take advantage of display "
      "list and/or vertex buffer caching.  This does not imply -keep.",
-     &EggOptchar::dispatch_vector_string_comma, NULL, &_suppress_components);
+     &EggOptchar::dispatch_vector_string_comma, nullptr, &_suppress_components);
 
   add_option
     ("flag", "node[,node...][=name]", 0,
@@ -111,7 +111,7 @@ EggOptchar() {
      "joints; the revealed node can be hidden or its attributes changed "
      "at runtime, but it will be animated by its vertices, not the node, so "
      "objects parented to this node will not inherit its animation.",
-     &EggOptchar::dispatch_flag_groups, NULL, &_flag_groups);
+     &EggOptchar::dispatch_flag_groups, nullptr, &_flag_groups);
 
   add_option
     ("defpose", "anim.egg,frame", 0,
@@ -121,7 +121,7 @@ EggOptchar() {
      "pose will be held by the model in "
      "the absence of any animation, and need not be the same "
      "pose in which the model was originally skinned.",
-     &EggOptchar::dispatch_string, NULL, &_defpose);
+     &EggOptchar::dispatch_string, nullptr, &_defpose);
 
   add_option
     ("preload", "", 0,
@@ -136,32 +136,32 @@ EggOptchar() {
      "a subset of the component letters hprxyzijkabc is included, the "
      "operation is restricted to just those components; otherwise the "
      "entire transform is cleared.",
-     &EggOptchar::dispatch_name_components, NULL, &_zero_channels);
+     &EggOptchar::dispatch_name_components, nullptr, &_zero_channels);
 
   add_option
     ("keepall", "", 0,
      "Keep all joints and sliders in the character, except those named "
      "explicitly by -drop.",
      &EggOptchar::dispatch_none, &_keep_all);
-  
+
   add_option
     ("p", "joint,parent", 0,
      "Moves the named joint under the named parent joint.  Use "
      "\"-p joint,\" to reparent a joint to the root.  The joint transform "
      "is recomputed appropriately under its new parent so that the animation "
      "is not affected (the effect is similar to NodePath::wrt_reparent_to).",
-     &EggOptchar::dispatch_vector_string_pair, NULL, &_reparent_joints);
-  
+     &EggOptchar::dispatch_vector_string_pair, nullptr, &_reparent_joints);
+
   add_option
     ("new", "joint,source", 0,
      "Creates a new joint under the named parent joint.  The new "
      "joint will inherit the same net transform as its parent.",
-     &EggOptchar::dispatch_vector_string_pair, NULL, &_new_joints);
+     &EggOptchar::dispatch_vector_string_pair, nullptr, &_new_joints);
 
   add_option
     ("rename", "joint,newjoint", 0,
      "Renames the indicated joint, if present, to the given name.",
-     &EggOptchar::dispatch_vector_string_pair, NULL, &_rename_joints);
+     &EggOptchar::dispatch_vector_string_pair, nullptr, &_rename_joints);
 
   if (FFTCompressor::is_compression_available()) {
     add_option
@@ -186,7 +186,7 @@ EggOptchar() {
      "benefit for eliminating small differences in joint memberships "
      "between neighboring vertices.  The default is 0.01; specifying "
      "0 means to preserve the original values.",
-     &EggOptchar::dispatch_double, NULL, &_vref_quantum);
+     &EggOptchar::dispatch_double, nullptr, &_vref_quantum);
 
   add_option
     ("qa", "quantum[,hprxyzijkabc]", 0,
@@ -197,32 +197,30 @@ EggOptchar() {
      "animation.  However, sometimes it is a useful tool for animation "
      "analysis and comparison.  This option may be repeated several times "
      "to quantize different channels by a different amount.",
-     &EggOptchar::dispatch_double_components, NULL, &_quantize_anims);
+     &EggOptchar::dispatch_double_components, nullptr, &_quantize_anims);
 
   add_option
     ("dart", "[default, sync, nosync, or structured]", 0,
      "change the dart value in the given eggs",
-     &EggOptchar::dispatch_string, NULL, &_dart_type);
+     &EggOptchar::dispatch_string, nullptr, &_dart_type);
 
 
   _optimal_hierarchy = false;
   _vref_quantum = 0.01;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: EggOptchar::run
-//       Access: Public
-//  Description:
-////////////////////////////////////////////////////////////////////
+/**
+ *
+ */
 void EggOptchar::
 run() {
-  // We have to apply the user-specified reparent requests first,
-  // before we even analyze the joints.  This is because reparenting
-  // the joints may change their properties.
+  // We have to apply the user-specified reparent requests first, before we
+  // even analyze the joints.  This is because reparenting the joints may
+  // change their properties.
   if (apply_user_reparents()) {
     nout << "Reparenting hierarchy.\n";
-    // So we'll have to call do_reparent() twice.  It seems wasteful,
-    // but it really is necessary, and it's not that bad.
+    // So we'll have to call do_reparent() twice.  It seems wasteful, but it
+    // really is necessary, and it's not that bad.
     do_reparent();
   }
 
@@ -261,24 +259,23 @@ run() {
     }
 
   } else {
-    // The meat of the program: determine which joints are to be
-    // removed, and then actually remove them.
+    // The meat of the program: determine which joints are to be removed, and
+    // then actually remove them.
     determine_removed_components();
     move_vertices();
     if (process_joints()) {
       do_reparent();
     }
 
-    // We currently do not implement optimizing morph sliders.  Need
-    // to add this at some point; it's quite easy.  Identity and empty
-    // morph sliders can simply be removed, while static sliders need
-    // to be applied to the vertices and then removed.
+    // We currently do not implement optimizing morph sliders.  Need to add
+    // this at some point; it's quite easy.  Identity and empty morph sliders
+    // can simply be removed, while static sliders need to be applied to the
+    // vertices and then removed.
 
     rename_joints();
 
-    // Quantize the vertex memberships.  We call this even if
-    // _vref_quantum is 0, because this also normalizes the vertex
-    // memberships.
+    // Quantize the vertex memberships.  We call this even if _vref_quantum is
+    // 0, because this also normalizes the vertex memberships.
     quantize_vertices();
 
     // Also quantize the animation channels, if the user so requested.
@@ -298,9 +295,8 @@ run() {
     }
 
 
-    // Finally, set the default poses.  It's important not to do this
-    // until after we have adjusted all of the transforms for the
-    // various joints.
+    // Finally, set the default poses.  It's important not to do this until
+    // after we have adjusted all of the transforms for the various joints.
     if (!_defpose.empty()) {
       do_defpose();
     }
@@ -316,14 +312,11 @@ run() {
   }
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: EggOptchar::handle_args
-//       Access: Protected, Virtual
-//  Description: Does something with the additional arguments on the
-//               command line (after all the -options have been
-//               parsed).  Returns true if the arguments are good,
-//               false otherwise.
-////////////////////////////////////////////////////////////////////
+/**
+ * Does something with the additional arguments on the command line (after all
+ * the -options have been parsed).  Returns true if the arguments are good,
+ * false otherwise.
+ */
 bool EggOptchar::
 handle_args(ProgramBase::Args &args) {
   if (_list_hierarchy || _list_hierarchy_v || _list_hierarchy_p) {
@@ -333,14 +326,11 @@ handle_args(ProgramBase::Args &args) {
   return EggCharacterFilter::handle_args(args);
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: ProgramBase::dispatch_vector_string_pair
-//       Access: Protected, Static
-//  Description: Standard dispatch function for an option that takes
-//               a pair of string parameters.  The data pointer is to
-//               StringPairs vector; the pair will be pushed onto the
-//               end of the vector.
-////////////////////////////////////////////////////////////////////
+/**
+ * Standard dispatch function for an option that takes a pair of string
+ * parameters.  The data pointer is to StringPairs vector; the pair will be
+ * pushed onto the end of the vector.
+ */
 bool EggOptchar::
 dispatch_vector_string_pair(const string &opt, const string &arg, void *var) {
   StringPairs *ip = (StringPairs *)var;
@@ -363,15 +353,13 @@ dispatch_vector_string_pair(const string &opt, const string &arg, void *var) {
   return true;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: ProgramBase::dispatch_name_components
-//       Access: Protected, Static
-//  Description: Accepts a name optionally followed by a comma and some
-//               of the nine standard component letters,
-//
-//               The data pointer is to StringPairs vector; the pair
-//               will be pushed onto the end of the vector.
-////////////////////////////////////////////////////////////////////
+/**
+ * Accepts a name optionally followed by a comma and some of the nine standard
+ * component letters,
+ *
+ * The data pointer is to StringPairs vector; the pair will be pushed onto the
+ * end of the vector.
+ */
 bool EggOptchar::
 dispatch_name_components(const string &opt, const string &arg, void *var) {
   StringPairs *ip = (StringPairs *)var;
@@ -397,10 +385,10 @@ dispatch_name_components(const string &opt, const string &arg, void *var) {
     sp._b = matrix_component_letters;
   } else {
     for (string::const_iterator si = sp._b.begin(); si != sp._b.end(); ++si) {
-      if (strchr(matrix_component_letters, *si) == NULL) {
+      if (strchr(matrix_component_letters, *si) == nullptr) {
         nout << "Not a standard matrix component: \"" << *si << "\"\n"
              << "-" << opt << " requires a joint name followed by a set "
-             << "of component names.  The standard component names are \"" 
+             << "of component names.  The standard component names are \""
              << matrix_component_letters << "\".\n";
         return false;
       }
@@ -412,15 +400,13 @@ dispatch_name_components(const string &opt, const string &arg, void *var) {
   return true;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: ProgramBase::dispatch_double_components
-//       Access: Protected, Static
-//  Description: Accepts a double value optionally followed by a comma
-//               and some of the nine standard component letters,
-//
-//               The data pointer is to a DoubleStrings vector; the
-//               pair will be pushed onto the end of the vector.
-////////////////////////////////////////////////////////////////////
+/**
+ * Accepts a double value optionally followed by a comma and some of the nine
+ * standard component letters,
+ *
+ * The data pointer is to a DoubleStrings vector; the pair will be pushed onto
+ * the end of the vector.
+ */
 bool EggOptchar::
 dispatch_double_components(const string &opt, const string &arg, void *var) {
   DoubleStrings *ip = (DoubleStrings *)var;
@@ -454,10 +440,10 @@ dispatch_double_components(const string &opt, const string &arg, void *var) {
     sp._b = matrix_component_letters;
   } else {
     for (string::const_iterator si = sp._b.begin(); si != sp._b.end(); ++si) {
-      if (strchr(matrix_component_letters, *si) == NULL) {
+      if (strchr(matrix_component_letters, *si) == nullptr) {
         nout << "Not a standard matrix component: \"" << *si << "\"\n"
              << "-" << opt << " requires a joint name followed by a set "
-             << "of component names.  The standard component names are \"" 
+             << "of component names.  The standard component names are \""
              << matrix_component_letters << "\".\n";
         return false;
       }
@@ -469,14 +455,12 @@ dispatch_double_components(const string &opt, const string &arg, void *var) {
   return true;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: ProgramBase::dispatch_flag_groups
-//       Access: Protected, Static
-//  Description: Accepts a set of comma-delimited group names followed
-//               by an optional name separated with an equal sign.
-//
-//               The data pointer is to a FlagGroups object.
-////////////////////////////////////////////////////////////////////
+/**
+ * Accepts a set of comma-delimited group names followed by an optional name
+ * separated with an equal sign.
+ *
+ * The data pointer is to a FlagGroups object.
+ */
 bool EggOptchar::
 dispatch_flag_groups(const string &opt, const string &arg, void *var) {
   FlagGroups *ip = (FlagGroups *)var;
@@ -493,8 +477,7 @@ dispatch_flag_groups(const string &opt, const string &arg, void *var) {
 
   FlagGroupsEntry entry;
 
-  // Check for an equal sign in the last word.  This marks the name to
-  // assign.
+  // Check for an equal sign in the last word.  This marks the name to assign.
   string &last_word = words.back();
   size_t equals = last_word.rfind('=');
   if (equals != string::npos) {
@@ -502,9 +485,8 @@ dispatch_flag_groups(const string &opt, const string &arg, void *var) {
     last_word = last_word.substr(0, equals);
 
   } else {
-    // If there's no equal sign, the default is to name all groups
-    // after the group itself.  We leave the name empty to indicate
-    // that.
+    // If there's no equal sign, the default is to name all groups after the
+    // group itself.  We leave the name empty to indicate that.
   }
 
   // Convert the words to GlobPatterns.
@@ -519,12 +501,10 @@ dispatch_flag_groups(const string &opt, const string &arg, void *var) {
   return true;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: EggOptchar::determine_removed_components
-//       Access: Private
-//  Description: Flag all joints and sliders that should be removed
-//               for optimization purposes.
-////////////////////////////////////////////////////////////////////
+/**
+ * Flag all joints and sliders that should be removed for optimization
+ * purposes.
+ */
 void EggOptchar::
 determine_removed_components() {
   typedef pset<string> Names;
@@ -559,11 +539,11 @@ determine_removed_components() {
     nout << char_data->get_name() << " has " << num_components << " components.\n";
     for (int i = 0; i < num_components; i++) {
       EggComponentData *comp_data = char_data->get_component(i);
-      nassertv(comp_data != (EggComponentData *)NULL);
+      nassertv(comp_data != nullptr);
 
-      EggOptcharUserData *user_data = 
+      EggOptcharUserData *user_data =
         DCAST(EggOptcharUserData, comp_data->get_user_data());
-      nassertv(user_data != (EggOptcharUserData *)NULL);
+      nassertv(user_data != nullptr);
 
       const string &name = comp_data->get_name();
       if (suppress_names.find(name) != suppress_names.end()) {
@@ -591,16 +571,15 @@ determine_removed_components() {
         // Remove this component if it's unanimated or empty.
         if ((user_data->_flags & (EggOptcharUserData::F_static | EggOptcharUserData::F_empty)) != 0) {
           if ((user_data->_flags & (EggOptcharUserData::F_top | EggOptcharUserData::F_empty)) == EggOptcharUserData::F_top) {
-            // Actually, we can't remove it if it's a top joint,
-            // unless it's also empty.  That's because vertices that
-            // are partially assigned to this joint would then have no
-            // joint to represent the same partial assignment, and
-            // they would then appear to be wholly assigned to their
-            // other joint, which would be incorrect.
+            // Actually, we can't remove it if it's a top joint, unless it's
+            // also empty.  That's because vertices that are partially
+            // assigned to this joint would then have no joint to represent
+            // the same partial assignment, and they would then appear to be
+            // wholly assigned to their other joint, which would be incorrect.
 
           } else {
-            // But joints that aren't top joints (or that are empty)
-            // are o.k. to remove.
+            // But joints that aren't top joints (or that are empty) are o.k.
+            // to remove.
             user_data->_flags |= EggOptcharUserData::F_remove;
           }
         }
@@ -608,8 +587,8 @@ determine_removed_components() {
     }
   }
 
-  // Go back and tell the user about component names we didn't use,
-  // just to be helpful.
+  // Go back and tell the user about component names we didn't use, just to be
+  // helpful.
   for (si = _keep_components.begin(); si != _keep_components.end(); ++si) {
     const string &name = (*si);
     if (names_used.find(name) == names_used.end()) {
@@ -636,36 +615,33 @@ determine_removed_components() {
   }
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: EggOptchar::move_vertices
-//       Access: Private
-//  Description: Moves the vertices from joints that are about to be
-//               removed into the first suitable parent.  This might
-//               result in fewer joints being removed (because
-//               the parent might suddenly no longer be empty).
-////////////////////////////////////////////////////////////////////
+/**
+ * Moves the vertices from joints that are about to be removed into the first
+ * suitable parent.  This might result in fewer joints being removed (because
+ * the parent might suddenly no longer be empty).
+ */
 void EggOptchar::
 move_vertices() {
   int num_characters = _collection->get_num_characters();
   for (int ci = 0; ci < num_characters; ci++) {
     EggCharacterData *char_data = _collection->get_character(ci);
     int num_joints = char_data->get_num_joints();
-    
+
     for (int i = 0; i < num_joints; i++) {
       EggJointData *joint_data = char_data->get_joint(i);
-      EggOptcharUserData *user_data = 
+      EggOptcharUserData *user_data =
         DCAST(EggOptcharUserData, joint_data->get_user_data());
 
       if ((user_data->_flags & EggOptcharUserData::F_empty) == 0 &&
           (user_data->_flags & EggOptcharUserData::F_remove) != 0) {
-        // This joint has vertices, but is scheduled to be removed;
-        // find a suitable home for its vertices.
+        // This joint has vertices, but is scheduled to be removed; find a
+        // suitable home for its vertices.
         EggJointData *best_joint = find_best_vertex_joint(joint_data->get_parent());
         joint_data->move_vertices_to(best_joint);
 
         // Now we can't remove the joint.
-        if (best_joint != (EggJointData *)NULL) {
-          EggOptcharUserData *best_user_data = 
+        if (best_joint != nullptr) {
+          EggOptcharUserData *best_user_data =
             DCAST(EggOptcharUserData, best_joint->get_user_data());
           best_user_data->_flags &= ~(EggOptcharUserData::F_empty | EggOptcharUserData::F_remove);
         }
@@ -673,16 +649,13 @@ move_vertices() {
     }
   }
 }
-      
 
-////////////////////////////////////////////////////////////////////
-//     Function: EggOptchar::process_joints
-//       Access: Private
-//  Description: Effects the actual removal of joints flagged for
-//               removal by reparenting the hierarchy appropriately.
-//               Returns true if any joints are removed, false
-//               otherwise.
-////////////////////////////////////////////////////////////////////
+
+/**
+ * Effects the actual removal of joints flagged for removal by reparenting the
+ * hierarchy appropriately.  Returns true if any joints are removed, false
+ * otherwise.
+ */
 bool EggOptchar::
 process_joints() {
   bool removed_any = false;
@@ -690,24 +663,24 @@ process_joints() {
   for (int ci = 0; ci < num_characters; ci++) {
     EggCharacterData *char_data = _collection->get_character(ci);
     int num_joints = char_data->get_num_joints();
-    
+
     int num_static = 0;
     int num_empty = 0;
     int num_identity = 0;
     int num_other = 0;
     int num_kept = 0;
-    
+
     for (int i = 0; i < num_joints; i++) {
       EggJointData *joint_data = char_data->get_joint(i);
-      EggOptcharUserData *user_data = 
+      EggOptcharUserData *user_data =
         DCAST(EggOptcharUserData, joint_data->get_user_data());
-      
+
       if ((user_data->_flags & EggOptcharUserData::F_remove) != 0) {
         // This joint will be removed, so reparent it to nothing.
-        joint_data->reparent_to((EggJointData *)NULL);
-        
-        // Determine what kind of node it is we're removing, for the
-        // user's information.
+        joint_data->reparent_to(nullptr);
+
+        // Determine what kind of node it is we're removing, for the user's
+        // information.
         if ((user_data->_flags & EggOptcharUserData::F_identity) != 0) {
           num_identity++;
         } else if ((user_data->_flags & EggOptcharUserData::F_static) != 0) {
@@ -720,8 +693,7 @@ process_joints() {
         removed_any = true;
 
       } else {
-        // This joint will be preserved, but maybe its parent will
-        // change.
+        // This joint will be preserved, but maybe its parent will change.
         EggJointData *best_parent = find_best_parent(joint_data->get_parent());
         joint_data->reparent_to(best_parent);
         if ((user_data->_flags & EggOptcharUserData::F_expose) != 0) {
@@ -752,7 +724,7 @@ process_joints() {
       if (num_other != 0) {
         nout << setw(5) << num_other << " other joints\n";
       }
-      nout << " ----\n" 
+      nout << " ----\n"
            << setw(5) << num_kept << " joints remaining\n\n";
     }
   }
@@ -760,22 +732,19 @@ process_joints() {
   return removed_any;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: EggOptchar::find_best_parent
-//       Access: Private
-//  Description: Searches for the first joint at this level or above
-//               that is not scheduled to be removed.  This is the
-//               joint that the first child of this joint should be
-//               reparented to.
-////////////////////////////////////////////////////////////////////
+/**
+ * Searches for the first joint at this level or above that is not scheduled
+ * to be removed.  This is the joint that the first child of this joint should
+ * be reparented to.
+ */
 EggJointData *EggOptchar::
 find_best_parent(EggJointData *joint_data) const {
-  EggOptcharUserData *user_data = 
+  EggOptcharUserData *user_data =
     DCAST(EggOptcharUserData, joint_data->get_user_data());
 
   if ((user_data->_flags & EggOptcharUserData::F_remove) != 0) {
     // Keep going.
-    if (joint_data->get_parent() != (EggJointData *)NULL) {
+    if (joint_data->get_parent() != nullptr) {
       return find_best_parent(joint_data->get_parent());
     }
   }
@@ -784,20 +753,17 @@ find_best_parent(EggJointData *joint_data) const {
   return joint_data;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: EggOptchar::find_best_vertex_joint
-//       Access: Private
-//  Description: Searches for the first joint at this level or above
-//               that is not static.  This is the joint that the
-//               vertices of this joint should be moved into.
-////////////////////////////////////////////////////////////////////
+/**
+ * Searches for the first joint at this level or above that is not static.
+ * This is the joint that the vertices of this joint should be moved into.
+ */
 EggJointData *EggOptchar::
 find_best_vertex_joint(EggJointData *joint_data) const {
-  if (joint_data == (EggJointData *)NULL) {
-    return NULL;
+  if (joint_data == nullptr) {
+    return nullptr;
   }
 
-  EggOptcharUserData *user_data = 
+  EggOptcharUserData *user_data =
     DCAST(EggOptcharUserData, joint_data->get_user_data());
 
   if ((user_data->_flags & EggOptcharUserData::F_static) != 0) {
@@ -809,13 +775,10 @@ find_best_vertex_joint(EggJointData *joint_data) const {
   return joint_data;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: EggOptchar::apply_user_reparents
-//       Access: Private
-//  Description: Reparents all the joints that the user suggested on
-//               the command line.  Returns true if any operations
-//               were performed, false otherwise.
-////////////////////////////////////////////////////////////////////
+/**
+ * Reparents all the joints that the user suggested on the command line.
+ * Returns true if any operations were performed, false otherwise.
+ */
 bool EggOptchar::
 apply_user_reparents() {
   bool did_anything = false;
@@ -835,14 +798,14 @@ apply_user_reparents() {
         node_b = char_data->find_joint(p._b);
       }
 
-      if (node_b == (EggJointData *)NULL) {
+      if (node_b == nullptr) {
         nout << "No joint named " << p._b << " in " << char_data->get_name()
              << ".\n";
 
-      } else if (node_a != (EggJointData *)NULL) {
-        nout << "Joint " << p._a << " already exists in " 
+      } else if (node_a != nullptr) {
+        nout << "Joint " << p._a << " already exists in "
              << char_data->get_name() << ".\n";
-        
+
       } else {
         nout << "Creating new joint " << p._a << " in "
              << char_data->get_name() << ".\n";
@@ -864,10 +827,10 @@ apply_user_reparents() {
         node_b = char_data->find_joint(p._b);
       }
 
-      if (node_b == (EggJointData *)NULL) {
+      if (node_b == nullptr) {
         nout << "No joint named " << p._b << " in " << char_data->get_name()
              << ".\n";
-      } else if (node_a == (EggJointData *)NULL) {
+      } else if (node_a == nullptr) {
         nout << "No joint named " << p._a << " in " << char_data->get_name()
              << ".\n";
       } else {
@@ -892,15 +855,11 @@ apply_user_reparents() {
   return did_anything;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: EggOptchar::zero_channels
-//       Access: Private
-//  Description: Zeroes out the channels specified by the user on the
-//               command line.
-//
-//               Returns true if any operation was performed, false
-//               otherwise.
-////////////////////////////////////////////////////////////////////
+/**
+ * Zeroes out the channels specified by the user on the command line.
+ *
+ * Returns true if any operation was performed, false otherwise.
+ */
 bool EggOptchar::
 zero_channels() {
   bool did_anything = false;
@@ -914,7 +873,7 @@ zero_channels() {
       EggCharacterData *char_data = _collection->get_character(ci);
       EggJointData *joint_data = char_data->find_joint(p._a);
 
-      if (joint_data == (EggJointData *)NULL) {
+      if (joint_data == nullptr) {
         nout << "No joint named " << p._a << " in " << char_data->get_name()
              << ".\n";
       } else {
@@ -927,15 +886,11 @@ zero_channels() {
   return did_anything;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: EggOptchar::quantize_channels
-//       Access: Private
-//  Description: Quantizes the channels specified by the user on the
-//               command line.
-//
-//               Returns true if any operation was performed, false
-//               otherwise.
-////////////////////////////////////////////////////////////////////
+/**
+ * Quantizes the channels specified by the user on the command line.
+ *
+ * Returns true if any operation was performed, false otherwise.
+ */
 bool EggOptchar::
 quantize_channels() {
   bool did_anything = false;
@@ -949,7 +904,7 @@ quantize_channels() {
       EggCharacterData *char_data = _collection->get_character(ci);
       EggJointData *joint_data = char_data->get_root_joint();
 
-      if (joint_data != (EggJointData *)NULL) {
+      if (joint_data != nullptr) {
         joint_data->quantize_channels(p._b, p._a);
         did_anything = true;
       }
@@ -959,28 +914,25 @@ quantize_channels() {
   return did_anything;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: EggOptchar::analyze_joints
-//       Access: Private
-//  Description: Recursively walks the joint hierarchy for a
-//               particular character, indentifying properties of each
-//               joint.
-////////////////////////////////////////////////////////////////////
+/**
+ * Recursively walks the joint hierarchy for a particular character,
+ * indentifying properties of each joint.
+ */
 void EggOptchar::
 analyze_joints(EggJointData *joint_data, int level) {
   PT(EggOptcharUserData) user_data = new EggOptcharUserData;
   joint_data->set_user_data(user_data);
 
   if (level == 1) {
-    // The child joints of the root joint are deemed "top" joints.
-    // These may not be removed unless they are empty (because their
-    // vertices have no joint to be moved into).
+    // The child joints of the root joint are deemed "top" joints.  These may
+    // not be removed unless they are empty (because their vertices have no
+    // joint to be moved into).
     user_data->_flags |= EggOptcharUserData::F_top;
   }
 
-  // Analyze the table of matrices for this joint, checking to see if
-  // they're all the same across all frames, or if any of them are
-  // different; also look for empty joints (that control no vertices).
+  // Analyze the table of matrices for this joint, checking to see if they're
+  // all the same across all frames, or if any of them are different; also
+  // look for empty joints (that control no vertices).
   int num_mats = 0;
   bool different_mat = false;
   bool has_vertices = false;
@@ -1019,7 +971,7 @@ analyze_joints(EggJointData *joint_data, int level) {
     // All the mats are the same for this joint.
     user_data->_flags |= EggOptcharUserData::F_static;
 
-    if (num_mats == 0 || 
+    if (num_mats == 0 ||
         user_data->_static_mat.almost_equal(LMatrix4d::ident_mat(), 0.0001)) {
       // It's not only static, but it's the identity matrix.
       user_data->_flags |= EggOptcharUserData::F_identity;
@@ -1037,12 +989,10 @@ analyze_joints(EggJointData *joint_data, int level) {
   }
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: EggOptchar::analyze_sliders
-//       Access: Private
-//  Description: Linearly walks the slider list for a particular
-//               character, indentifying properties of each slider.
-////////////////////////////////////////////////////////////////////
+/**
+ * Linearly walks the slider list for a particular character, indentifying
+ * properties of each slider.
+ */
 void EggOptchar::
 analyze_sliders(EggCharacterData *char_data) {
   int num_sliders = char_data->get_num_sliders();
@@ -1052,9 +1002,9 @@ analyze_sliders(EggCharacterData *char_data) {
     PT(EggOptcharUserData) user_data = new EggOptcharUserData;
     slider_data->set_user_data(user_data);
 
-    // Analyze the table of values for this slider, checking to see if
-    // they're all the same across all frames, or if any of them are
-    // different; also look for empty sliders (that control no vertices).
+    // Analyze the table of values for this slider, checking to see if they're
+    // all the same across all frames, or if any of them are different; also
+    // look for empty sliders (that control no vertices).
     int num_values = 0;
     bool different_value = false;
     bool has_vertices = false;
@@ -1066,9 +1016,9 @@ analyze_sliders(EggCharacterData *char_data) {
         if (model->has_vertices()) {
           has_vertices = true;
         }
-        
+
         int num_frames = slider_data->get_num_frames(i);
-        
+
         int f;
         for (f = 0; f < num_frames && !different_value; f++) {
           double value = slider_data->get_frame(i, f);
@@ -1076,7 +1026,7 @@ analyze_sliders(EggCharacterData *char_data) {
           if (num_values == 1) {
             // This is the first value.
             user_data->_static_value = value;
-            
+
           } else {
             // This is a second or later value.
             if (!IS_THRESHOLD_EQUAL(value, user_data->_static_value, 0.0001)) {
@@ -1087,17 +1037,17 @@ analyze_sliders(EggCharacterData *char_data) {
         }
       }
     }
-    
+
     if (!different_value) {
       // All the values are the same for this slider.
       user_data->_flags |= EggOptcharUserData::F_static;
-      
+
       if (num_values == 0 || IS_THRESHOLD_ZERO(user_data->_static_value, 0.0001)) {
         // It's not only static, but it's the identity value.
         user_data->_flags |= EggOptcharUserData::F_identity;
       }
     }
-    
+
     if (!has_vertices) {
       // There are no vertices in this slider.
       user_data->_flags |= EggOptcharUserData::F_empty;
@@ -1105,16 +1055,13 @@ analyze_sliders(EggCharacterData *char_data) {
   }
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: EggOptchar::list_joints
-//       Access: Private
-//  Description: Outputs a list of the joint hierarchy.
-////////////////////////////////////////////////////////////////////
+/**
+ * Outputs a list of the joint hierarchy.
+ */
 void EggOptchar::
 list_joints(EggJointData *joint_data, int indent_level, bool verbose) {
   // Don't list the root joint, which is artificially created when the
-  // character is loaded.  Instead, list each child as it is
-  // encountered.
+  // character is loaded.  Instead, list each child as it is encountered.
 
   int num_children = joint_data->get_num_children();
   for (int i = 0; i < num_children; i++) {
@@ -1125,12 +1072,10 @@ list_joints(EggJointData *joint_data, int indent_level, bool verbose) {
   }
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: EggOptchar::list_joints_p
-//       Access: Private
-//  Description: Outputs a list of the joint hierarchy as a series of
-//               -p joint,parent commands.
-////////////////////////////////////////////////////////////////////
+/**
+ * Outputs a list of the joint hierarchy as a series of -p joint,parent
+ * commands.
+ */
 void EggOptchar::
 list_joints_p(EggJointData *joint_data, int &col) {
   // As above, don't list the root joint.
@@ -1140,11 +1085,10 @@ list_joints_p(EggJointData *joint_data, int &col) {
 
   for (int i = 0; i < num_children; i++) {
     EggJointData *child_data = joint_data->get_child(i);
-    // We send output to cout instead of nout to avoid the
-    // word-wrapping, and also to allow the user to redirect this
-    // easily to a file.
+    // We send output to cout instead of nout to avoid the word-wrapping, and
+    // also to allow the user to redirect this easily to a file.
 
-    string text = string(" -p ") + child_data->get_name() + 
+    string text = string(" -p ") + child_data->get_name() +
       string(",") + joint_data->get_name();
     if (col == 0) {
       cout << "    " << text;
@@ -1163,11 +1107,9 @@ list_joints_p(EggJointData *joint_data, int &col) {
   }
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: EggOptchar::list_scalars
-//       Access: Private
-//  Description: Outputs a list of the scalars.
-////////////////////////////////////////////////////////////////////
+/**
+ * Outputs a list of the scalars.
+ */
 void EggOptchar::
 list_scalars(EggCharacterData *char_data, bool verbose) {
   int num_sliders = char_data->get_num_sliders();
@@ -1177,21 +1119,19 @@ list_scalars(EggCharacterData *char_data, bool verbose) {
   }
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: EggOptchar::describe_component
-//       Access: Private
-//  Description: Describes one particular slider or joint.
-////////////////////////////////////////////////////////////////////
+/**
+ * Describes one particular slider or joint.
+ */
 void EggOptchar::
 describe_component(EggComponentData *comp_data, int indent_level,
                    bool verbose) {
-  // We use cout instead of nout so the user can easily redirect this
-  // to a file.
+  // We use cout instead of nout so the user can easily redirect this to a
+  // file.
   indent(cout, indent_level)
     << comp_data->get_name();
 
   if (verbose) {
-    EggOptcharUserData *user_data = 
+    EggOptcharUserData *user_data =
       DCAST(EggOptcharUserData, comp_data->get_user_data());
     if (user_data->is_identity()) {
       cout << " (identity)";
@@ -1208,11 +1148,9 @@ describe_component(EggComponentData *comp_data, int indent_level,
   cout << "\n";
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: EggOptchar::do_reparent
-//       Access: Private
-//  Description: Performs all of the queued up reparenting operations.
-////////////////////////////////////////////////////////////////////
+/**
+ * Performs all of the queued up reparenting operations.
+ */
 void EggOptchar::
 do_reparent() {
   bool all_ok = true;
@@ -1230,13 +1168,10 @@ do_reparent() {
   }
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: EggOptchar::quantize_vertices
-//       Access: Private
-//  Description: Walks through all of the loaded egg files, looking
-//               for vertices whose joint memberships are then
-//               quantized according to _vref_quantum.
-////////////////////////////////////////////////////////////////////
+/**
+ * Walks through all of the loaded egg files, looking for vertices whose joint
+ * memberships are then quantized according to _vref_quantum.
+ */
 void EggOptchar::
 quantize_vertices() {
   Eggs::iterator ei;
@@ -1245,14 +1180,10 @@ quantize_vertices() {
   }
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: EggOptchar::quantize_vertices
-//       Access: Private
-//  Description: Recursively walks through the indicated egg
-//               hierarchy, looking for vertices whose joint
-//               memberships are then quantized according to
-//               _vref_quantum.
-////////////////////////////////////////////////////////////////////
+/**
+ * Recursively walks through the indicated egg hierarchy, looking for vertices
+ * whose joint memberships are then quantized according to _vref_quantum.
+ */
 void EggOptchar::
 quantize_vertices(EggNode *egg_node) {
   if (egg_node->is_of_type(EggVertexPool::get_class_type())) {
@@ -1261,7 +1192,7 @@ quantize_vertices(EggNode *egg_node) {
     for (vi = vpool->begin(); vi != vpool->end(); ++vi) {
       quantize_vertex(*vi);
     }
-    
+
   } else if (egg_node->is_of_type(EggGroupNode::get_class_type())) {
     EggGroupNode *group = DCAST(EggGroupNode, egg_node);
     EggGroupNode::iterator ci;
@@ -1271,11 +1202,9 @@ quantize_vertices(EggNode *egg_node) {
   }
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: EggOptchar::quantize_vertex
-//       Access: Private
-//  Description: Quantizes the indicated vertex's joint membership.
-////////////////////////////////////////////////////////////////////
+/**
+ * Quantizes the indicated vertex's joint membership.
+ */
 void EggOptchar::
 quantize_vertex(EggVertex *egg_vertex) {
   if (egg_vertex->gref_size() == 0) {
@@ -1295,8 +1224,8 @@ quantize_vertex(EggVertex *egg_vertex) {
   }
   nassertv(net_membership != 0.0);
 
-  // Now normalize all the memberships so the net membership is 1.0,
-  // and then quantize the result (if the user so requested).
+  // Now normalize all the memberships so the net membership is 1.0, and then
+  // quantize the result (if the user so requested).
   double factor = 1.0 / net_membership;
   net_membership = 0.0;
   VertexMemberships::iterator mi;
@@ -1304,8 +1233,8 @@ quantize_vertex(EggVertex *egg_vertex) {
 
   for (mi = memberships.begin(); mi != memberships.end(); ++mi) {
     if ((*largest) < (*mi)) {
-      // Remember the largest membership value, so we can readjust it
-      // at the end.
+      // Remember the largest membership value, so we can readjust it at the
+      // end.
       largest = mi;
     }
 
@@ -1318,36 +1247,33 @@ quantize_vertex(EggVertex *egg_vertex) {
     net_membership += value;
   }
 
-  // The the largest membership value gets corrected again by the
-  // roundoff error.
+  // The the largest membership value gets corrected again by the roundoff
+  // error.
   (*largest)._membership += 1.0 - net_membership;
 
-  // Finally, walk back through and apply these computed values to the
-  // vertex.
+  // Finally, walk back through and apply these computed values to the vertex.
   for (mi = memberships.begin(); mi != memberships.end(); ++mi) {
     (*mi)._group->set_vertex_membership(egg_vertex, (*mi)._membership);
   }
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: EggOptchar::do_flag_groups
-//       Access: Private
-//  Description: Recursively walks the indicated egg hierarchy,
-//               looking for groups that match one of the group names
-//               in _flag_groups, and renaming geometry appropriately.
-////////////////////////////////////////////////////////////////////
+/**
+ * Recursively walks the indicated egg hierarchy, looking for groups that
+ * match one of the group names in _flag_groups, and renaming geometry
+ * appropriately.
+ */
 void EggOptchar::
 do_flag_groups(EggGroupNode *egg_group) {
   bool matched = false;
   string name;
   FlagGroups::const_iterator fi;
-  for (fi = _flag_groups.begin(); 
-       fi != _flag_groups.end() && !matched; 
+  for (fi = _flag_groups.begin();
+       fi != _flag_groups.end() && !matched;
        ++fi) {
     const FlagGroupsEntry &entry = (*fi);
     Globs::const_iterator si;
-    for (si = entry._groups.begin(); 
-         si != entry._groups.end() && !matched; 
+    for (si = entry._groups.begin();
+         si != entry._groups.end() && !matched;
          ++si) {
       if ((*si).matches(egg_group->get_name())) {
         matched = true;
@@ -1361,10 +1287,9 @@ do_flag_groups(EggGroupNode *egg_group) {
   }
 
   if (matched) {
-    // Ok, this group matched one of the user's command-line renames.
-    // Rename all the primitives in this group and below to the
-    // indicated name; this will expose the primitives through the
-    // character loader.
+    // Ok, this group matched one of the user's command-line renames.  Rename
+    // all the primitives in this group and below to the indicated name; this
+    // will expose the primitives through the character loader.
     rename_primitives(egg_group, name);
   }
 
@@ -1379,12 +1304,9 @@ do_flag_groups(EggGroupNode *egg_group) {
   }
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: EggOptchar::rename_joints
-//       Access: Private
-//  Description: Rename all the joints named with the -rename
-//               command-line option.
-////////////////////////////////////////////////////////////////////
+/**
+ * Rename all the joints named with the -rename command-line option.
+ */
 void EggOptchar::
 rename_joints() {
   for (StringPairs::iterator spi = _rename_joints.begin();
@@ -1396,7 +1318,7 @@ rename_joints() {
     for (ci = 0; ci < num_characters; ++ci) {
       EggCharacterData *char_data = _collection->get_character(ci);
       EggJointData *joint = char_data->find_joint(sp._a);
-      if (joint != (EggJointData *)NULL) {
+      if (joint != nullptr) {
         nout << "Renaming joint " << sp._a << " to " << sp._b << "\n";
         joint->set_name(sp._b);
 
@@ -1415,12 +1337,10 @@ rename_joints() {
   }
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: EggOptchar::change_dart_type
-//       Access: Private
-//  Description: Recursively walks the indicated egg hierarchy,
-//               renaming geometry to the indicated name.
-////////////////////////////////////////////////////////////////////
+/**
+ * Recursively walks the indicated egg hierarchy, renaming geometry to the
+ * indicated name.
+ */
 void EggOptchar::
 change_dart_type(EggGroupNode *egg_group, const string &new_dart_type) {
   EggGroupNode::iterator gi;
@@ -1433,7 +1353,7 @@ change_dart_type(EggGroupNode *egg_group, const string &new_dart_type) {
         EggGroup::DartType dt = gr->get_dart_type();
         if(dt != EggGroup::DT_none) {
           EggGroup::DartType newDt = gr->string_dart_type(new_dart_type);
-          gr->set_dart_type(newDt);          
+          gr->set_dart_type(newDt);
         }
       }
       change_dart_type(group, new_dart_type);
@@ -1442,12 +1362,10 @@ change_dart_type(EggGroupNode *egg_group, const string &new_dart_type) {
 }
 
 
-////////////////////////////////////////////////////////////////////
-//     Function: EggOptchar::rename_primitives
-//       Access: Private
-//  Description: Recursively walks the indicated egg hierarchy,
-//               renaming geometry to the indicated name.
-////////////////////////////////////////////////////////////////////
+/**
+ * Recursively walks the indicated egg hierarchy, renaming geometry to the
+ * indicated name.
+ */
 void EggOptchar::
 rename_primitives(EggGroupNode *egg_group, const string &name) {
   EggGroupNode::iterator gi;
@@ -1464,15 +1382,13 @@ rename_primitives(EggGroupNode *egg_group, const string &name) {
   }
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: EggOptchar::do_preload
-//       Access: Private
-//  Description: Generates the preload tables for each model.
-////////////////////////////////////////////////////////////////////
+/**
+ * Generates the preload tables for each model.
+ */
 void EggOptchar::
 do_preload() {
-  // First, build up the list of AnimPreload entries, one for each
-  // animation file.
+  // First, build up the list of AnimPreload entries, one for each animation
+  // file.
   PT(EggGroup) anim_group = new EggGroup("preload");
 
   int num_characters = _collection->get_num_characters();
@@ -1495,14 +1411,14 @@ do_preload() {
         if (frame_rate != 0.0) {
           anim_preload->set_fps(frame_rate);
         }
-        
+
         anim_group->add_child(anim_preload);
       }
     }
   }
 
-  // Now go back through and copy the preload tables into each of the
-  // model files.
+  // Now go back through and copy the preload tables into each of the model
+  // files.
   for (ci = 0; ci < num_characters; ++ci) {
     EggCharacterData *char_data = _collection->get_character(ci);
 
@@ -1523,11 +1439,9 @@ do_preload() {
   }
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: EggOptchar::do_defpose
-//       Access: Private
-//  Description: Sets the initial pose for the character(s).
-////////////////////////////////////////////////////////////////////
+/**
+ * Sets the initial pose for the character(s).
+ */
 void EggOptchar::
 do_defpose() {
   // Split out the defpose parameter.
@@ -1597,13 +1511,10 @@ do_defpose() {
   nassertv(anim_index != -1);
 
   // Now we can recursively apply the default pose to the hierarchy.
-  ch->get_root_joint()->apply_default_pose(anim_index, frame);
+  root_joint->apply_default_pose(anim_index, frame);
 }
 
 int main(int argc, char *argv[]) {
-  // A call to pystub() to force libpystub.so to be linked in.
-  pystub();
-
   EggOptchar prog;
   prog.parse_command_line(argc, argv);
   prog.run();

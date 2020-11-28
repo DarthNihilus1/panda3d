@@ -1,20 +1,17 @@
-// Filename: pnm-image-filter-core.cxx
-// Created by:  
-//
-////////////////////////////////////////////////////////////////////
-//
-// PANDA 3D SOFTWARE
-// Copyright (c) Carnegie Mellon University.  All rights reserved.
-//
-// All use of this software is subject to the terms of the revised BSD
-// license.  You should have received a copy of this license along
-// with this source code in a file named "LICENSE."
-//
-////////////////////////////////////////////////////////////////////
+/**
+ * PANDA 3D SOFTWARE
+ * Copyright (c) Carnegie Mellon University.  All rights reserved.
+ *
+ * All use of this software is subject to the terms of the revised BSD
+ * license.  You should have received a copy of this license along
+ * with this source code in a file named "LICENSE."
+ *
+ * @file pnm-image-filter-core.cxx
+ */
 
-// We map X and Y to A and B, because we might change our minds about which
-// is dominant, and we map get/set functions for the channel in question to
-// GETVAL/SETVAL.
+// We map X and Y to A and B, because we might change our minds about which is
+// dominant, and we map getset functions for the channel in question to
+// GETVALSETVAL.
 
 
 static void
@@ -28,7 +25,6 @@ FUNCTION_NAME(IMAGETYPE &dest, const IMAGETYPE &source,
   // the image xelvals scaled in the A direction only.  This will hold the
   // adjusted xel data from our first pass.
 
-  typedef StoreType *StoreTypeP;
   StoreType **matrix = (StoreType **)PANDA_MALLOC_ARRAY(dest.ASIZE() * sizeof(StoreType *));
 
   int a, b;
@@ -47,8 +43,9 @@ FUNCTION_NAME(IMAGETYPE &dest, const IMAGETYPE &source,
 
   WorkType *filter;
   float filter_width;
+  int actual_width;
 
-  make_filter(scale, width, filter, filter_width);
+  make_filter(scale, width, filter, filter_width, actual_width);
 
   for (b = 0; b < source.BSIZE(); b++) {
     for (a = 0; a < source.ASIZE(); a++) {
@@ -58,7 +55,7 @@ FUNCTION_NAME(IMAGETYPE &dest, const IMAGETYPE &source,
     filter_row(temp_dest, dest.ASIZE(),
                temp_source, source.ASIZE(),
                scale,
-               filter, filter_width);
+               filter, filter_width, actual_width);
 
     for (a = 0; a < dest.ASIZE(); a++) {
       matrix[a][b] = temp_dest[a];
@@ -73,13 +70,13 @@ FUNCTION_NAME(IMAGETYPE &dest, const IMAGETYPE &source,
   scale = (float)dest.BSIZE() / (float)source.BSIZE();
   temp_dest = (StoreType *)PANDA_MALLOC_ARRAY(dest.BSIZE() * sizeof(StoreType));
 
-  make_filter(scale, width, filter, filter_width);
+  make_filter(scale, width, filter, filter_width, actual_width);
 
   for (a = 0; a < dest.ASIZE(); a++) {
     filter_row(temp_dest, dest.BSIZE(),
                matrix[a], source.BSIZE(),
                scale,
-               filter, filter_width);
+               filter, filter_width, actual_width);
 
     for (b = 0; b < dest.BSIZE(); b++) {
       dest.SETVAL(a, b, channel, (float)temp_dest[b]/(float)source_max);
@@ -96,4 +93,3 @@ FUNCTION_NAME(IMAGETYPE &dest, const IMAGETYPE &source,
   }
   PANDA_FREE_ARRAY(matrix);
 }
-

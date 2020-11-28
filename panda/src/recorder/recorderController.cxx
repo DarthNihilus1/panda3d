@@ -1,16 +1,15 @@
-// Filename: recorderController.cxx
-// Created by:  drose (24Jan04)
-//
-////////////////////////////////////////////////////////////////////
-//
-// PANDA 3D SOFTWARE
-// Copyright (c) Carnegie Mellon University.  All rights reserved.
-//
-// All use of this software is subject to the terms of the revised BSD
-// license.  You should have received a copy of this license along
-// with this source code in a file named "LICENSE."
-//
-////////////////////////////////////////////////////////////////////
+/**
+ * PANDA 3D SOFTWARE
+ * Copyright (c) Carnegie Mellon University.  All rights reserved.
+ *
+ * All use of this software is subject to the terms of the revised BSD
+ * license.  You should have received a copy of this license along
+ * with this source code in a file named "LICENSE."
+ *
+ * @file recorderController.cxx
+ * @author drose
+ * @date 2004-01-24
+ */
 
 #include "recorderController.h"
 #include "recorderFrame.h"
@@ -21,45 +20,38 @@
 #include "clockObject.h"
 
 TypeHandle RecorderController::_type_handle;
-RecorderController::RecorderFactory *RecorderController::_factory = NULL;
+RecorderController::RecorderFactory *RecorderController::_factory = nullptr;
 
-////////////////////////////////////////////////////////////////////
-//     Function: RecorderController::Constructor
-//       Access: Published
-//  Description:
-////////////////////////////////////////////////////////////////////
+/**
+ *
+ */
 RecorderController::
 RecorderController() {
   _clock_offset = 0.0;
   _frame_offset = 0;
-  _writer = (BamWriter *)NULL;
-  _reader = (BamReader *)NULL;
+  _writer = nullptr;
+  _reader = nullptr;
   _frame_tie = true;
   _user_table = new RecorderTable;
   _user_table_modified = false;
-  _file_table = NULL;
-  _active_table = NULL;
+  _file_table = nullptr;
+  _active_table = nullptr;
   _eof = false;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: RecorderController::Destructor
-//       Access: Published
-//  Description:
-////////////////////////////////////////////////////////////////////
+/**
+ *
+ */
 RecorderController::
 ~RecorderController() {
   close();
   delete _user_table;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: RecorderController::begin_record
-//       Access: Published
-//  Description: Begins recording data to the indicated filename.  All
-//               of the recorders in use should already have been
-//               added.
-////////////////////////////////////////////////////////////////////
+/**
+ * Begins recording data to the indicated filename.  All of the recorders in
+ * use should already have been added.
+ */
 bool RecorderController::
 begin_record(const Filename &filename) {
   close();
@@ -101,17 +93,13 @@ begin_record(const Filename &filename) {
   return true;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: RecorderController::begin_playback
-//       Access: Published
-//  Description: Begins playing back data from the indicated filename.
-//               All of the recorders in use should already have been
-//               added, although this may define additional recorders
-//               if they are present in the file (these new recorders
-//               will not be used).  This may also undefine recorders
-//               that were previously added but are not present in the
-//               file.
-////////////////////////////////////////////////////////////////////
+/**
+ * Begins playing back data from the indicated filename.  All of the recorders
+ * in use should already have been added, although this may define additional
+ * recorders if they are present in the file (these new recorders will not be
+ * used).  This may also undefine recorders that were previously added but are
+ * not present in the file.
+ */
 bool RecorderController::
 begin_playback(const Filename &filename) {
   close();
@@ -125,7 +113,7 @@ begin_playback(const Filename &filename) {
     return false;
   }
 
-  string head;
+  std::string head;
   if (!_din.read_header(head, _bam_header.size()) || head != _bam_header) {
     recorder_cat.error() << "Unable to read " << _filename << "\n";
     return false;
@@ -144,7 +132,7 @@ begin_playback(const Filename &filename) {
   // Start out by reading the RecorderHeader.
   TypedWritable *object = _reader->read_object();
 
-  if (object == (TypedWritable *)NULL ||
+  if (object == nullptr ||
       !object->is_of_type(RecorderHeader::get_class_type())) {
     recorder_cat.error()
       << _filename << " does not contain a recorded session.\n";
@@ -163,7 +151,7 @@ begin_playback(const Filename &filename) {
 
   // Now read the first frame.
   _next_frame = read_frame();
-  if (_next_frame == (RecorderFrame *)NULL) {
+  if (_next_frame == nullptr) {
     recorder_cat.error()
       << _filename << " does not contain any frames.\n";
     close();
@@ -176,23 +164,21 @@ begin_playback(const Filename &filename) {
   return true;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: RecorderController::close
-//       Access: Published
-//  Description: Finishes recording data to the indicated filename.
-////////////////////////////////////////////////////////////////////
+/**
+ * Finishes recording data to the indicated filename.
+ */
 void RecorderController::
 close() {
-  if (_writer != (BamWriter *)NULL) {
+  if (_writer != nullptr) {
     delete _writer;
-    _writer = NULL;
+    _writer = nullptr;
 
     // Tell all of our recorders that they're no longer recording.
     _user_table->clear_flags(RecorderBase::F_recording);
   }
-  if (_reader != (BamReader *)NULL) {
+  if (_reader != nullptr) {
     delete _reader;
-    _reader = NULL;
+    _reader = nullptr;
 
     // Tell all of our recorders that they're no longer playing.
     _active_table->clear_flags(RecorderBase::F_playing);
@@ -200,23 +186,21 @@ close() {
   _dout.close();
   _din.close();
 
-  if (_file_table != (RecorderTable *)NULL) {
+  if (_file_table != nullptr) {
     delete _file_table;
-    _file_table = (RecorderTable *)NULL;
+    _file_table = nullptr;
   }
 
-  if (_active_table != (RecorderTable *)NULL) {
+  if (_active_table != nullptr) {
     delete _active_table;
-    _active_table = (RecorderTable *)NULL;
+    _active_table = nullptr;
   }
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: RecorderController::record_frame
-//       Access: Published
-//  Description: Gets the next frame of data from all of the active
-//               recorders and adds it to the output file.
-////////////////////////////////////////////////////////////////////
+/**
+ * Gets the next frame of data from all of the active recorders and adds it to
+ * the output file.
+ */
 void RecorderController::
 record_frame() {
   if (is_recording()) {
@@ -231,12 +215,10 @@ record_frame() {
   }
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: RecorderController::play_frame
-//       Access: Published
-//  Description: Gets the next frame of data from all of the active
-//               recorders and adds it to the output file.
-////////////////////////////////////////////////////////////////////
+/**
+ * Gets the next frame of data from all of the active recorders and adds it to
+ * the output file.
+ */
 void RecorderController::
 play_frame() {
   if (is_playing()) {
@@ -249,17 +231,18 @@ play_frame() {
     double now = global_clock->get_frame_time() - _clock_offset;
     int frame = global_clock->get_frame_count() - _frame_offset;
 
-    while (_next_frame != (RecorderFrame *)NULL) {
+    while (_next_frame != nullptr) {
       if (_frame_tie) {
         if (frame < _next_frame->_frame) {
           // We haven't reached the next frame yet.
           return;
         }
 
-        // Insist that the clock runs at the same rate as it did in
-        // the previous session.
-        //global_clock->set_frame_time(_next_frame->_timestamp + _clock_offset);
-        //global_clock->set_real_time(_next_frame->_timestamp + _clock_offset);
+        // Insist that the clock runs at the same rate as it did in the
+        // previous session.
+        // global_clock->set_frame_time(_next_frame->_timestamp +
+        // _clock_offset); global_clock->set_real_time(_next_frame->_timestamp
+        // + _clock_offset);
 
         // Hmm, that's crummy.  Just keep the clock offset up-to-date.
         _clock_offset = global_clock->get_frame_time() - _next_frame->_timestamp;
@@ -280,16 +263,15 @@ play_frame() {
       }
 
       if (_next_frame->_table_changed || _user_table_modified) {
-        // We're about to change the active table.  Temporarily
-        // disable the playing flag on the currently-active recorders.
+        // We're about to change the active table.  Temporarily disable the
+        // playing flag on the currently-active recorders.
         _active_table->clear_flags(RecorderBase::F_playing);
         delete _active_table;
         _active_table = new RecorderTable(*_file_table);
         _active_table->merge_from(*_user_table);
         _user_table_modified = false;
 
-        // Now reenable the playing flag on the newly-active
-        // recorders.
+        // Now reenable the playing flag on the newly-active recorders.
         _active_table->set_flags(RecorderBase::F_playing);
       }
 
@@ -312,20 +294,17 @@ play_frame() {
 }
 
 
-////////////////////////////////////////////////////////////////////
-//     Function: RecorderController::read_frame
-//       Access: Private
-//  Description: Loads the next frame data from the playback session
-//               file.  Returns the frame data pointer on success, or
-//               NULL on failure.
-////////////////////////////////////////////////////////////////////
+/**
+ * Loads the next frame data from the playback session file.  Returns the
+ * frame data pointer on success, or NULL on failure.
+ */
 RecorderFrame *RecorderController::
 read_frame() {
   TypedWritable *object = _reader->read_object();
 
-  if (object == (TypedWritable *)NULL ||
+  if (object == nullptr ||
       !object->is_of_type(RecorderFrame::get_class_type())) {
-    return NULL;
+    return nullptr;
   }
 
   if (!_reader->resolve()) {

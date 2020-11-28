@@ -1,7 +1,8 @@
-// Filename: panda.cxx
-// Created by:  drose (15May00)
-// 
-////////////////////////////////////////////////////////////////////
+/**
+ * @file panda.cxx
+ * @author drose
+ * @date 2000-05-15
+ */
 
 #include "panda.h"
 
@@ -10,23 +11,19 @@
 #include "config_display.h"
 #include "config_pgraph.h"
 #ifdef DO_PSTATS
-#include "config_pstats.h"
+#include "config_pstatclient.h"
 #endif
 
-// By including checkPandaVersion.h, we guarantee that runtime
-// attempts to load libpanda.so/.dll will fail if they inadvertently
-// link with the wrong version of libdtool.so/.dll.
+#if !defined(CPPPARSER) && !defined(LINK_ALL_STATIC) && !defined(BUILDING_LIBPANDA)
+  #error Buildsystem error: BUILDING_LIBPANDA not defined
+#endif
 
-#include "checkPandaVersion.h"
-
-////////////////////////////////////////////////////////////////////
-//     Function: init_libpanda
-//  Description: Initializes the library.  This must be called at
-//               least once before any of the functions or classes in
-//               this library can be used.  Normally it will be
-//               called by the static initializers and need not be
-//               called explicitly, but special cases exist.
-////////////////////////////////////////////////////////////////////
+/**
+ * Initializes the library.  This must be called at least once before any of
+ * the functions or classes in this library can be used.  Normally it will be
+ * called by the static initializers and need not be called explicitly, but
+ * special cases exist.
+ */
 void
 init_libpanda() {
   init_libpnmimagetypes();

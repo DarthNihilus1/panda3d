@@ -1,18 +1,18 @@
-// Filename: config_event.cxx
-// Created by:  drose (14Dec99)
-//
-////////////////////////////////////////////////////////////////////
-//
-// PANDA 3D SOFTWARE
-// Copyright (c) Carnegie Mellon University.  All rights reserved.
-//
-// All use of this software is subject to the terms of the revised BSD
-// license.  You should have received a copy of this license along
-// with this source code in a file named "LICENSE."
-//
-////////////////////////////////////////////////////////////////////
+/**
+ * PANDA 3D SOFTWARE
+ * Copyright (c) Carnegie Mellon University.  All rights reserved.
+ *
+ * All use of this software is subject to the terms of the revised BSD
+ * license.  You should have received a copy of this license along
+ * with this source code in a file named "LICENSE."
+ *
+ * @file config_event.cxx
+ * @author drose
+ * @date 1999-12-14
+ */
 
 #include "config_event.h"
+#include "asyncFuture.h"
 #include "asyncTask.h"
 #include "asyncTaskChain.h"
 #include "asyncTaskManager.h"
@@ -27,11 +27,17 @@
 
 #include "dconfig.h"
 
+#if !defined(CPPPARSER) && !defined(LINK_ALL_STATIC) && !defined(BUILDING_PANDA_EVENT)
+  #error Buildsystem error: BUILDING_PANDA_EVENT not defined
+#endif
+
 Configure(config_event);
 NotifyCategoryDef(event, "");
 NotifyCategoryDef(task, "");
 
 ConfigureFn(config_event) {
+  AsyncFuture::init_type();
+  AsyncGatheringFuture::init_type();
   AsyncTask::init_type();
   AsyncTaskChain::init_type();
   AsyncTaskManager::init_type();

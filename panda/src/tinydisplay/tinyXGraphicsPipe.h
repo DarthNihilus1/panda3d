@@ -1,16 +1,15 @@
-// Filename: tinyXGraphicsPipe.h
-// Created by:  drose (03May08)
-//
-////////////////////////////////////////////////////////////////////
-//
-// PANDA 3D SOFTWARE
-// Copyright (c) Carnegie Mellon University.  All rights reserved.
-//
-// All use of this software is subject to the terms of the revised BSD
-// license.  You should have received a copy of this license along
-// with this source code in a file named "LICENSE."
-//
-////////////////////////////////////////////////////////////////////
+/**
+ * PANDA 3D SOFTWARE
+ * Copyright (c) Carnegie Mellon University.  All rights reserved.
+ *
+ * All use of this software is subject to the terms of the revised BSD
+ * license.  You should have received a copy of this license along
+ * with this source code in a file named "LICENSE."
+ *
+ * @file tinyXGraphicsPipe.h
+ * @author drose
+ * @date 2008-05-03
+ */
 
 #ifndef TINYXGRAPHICSPIPE_H
 #define TINYXGRAPHICSPIPE_H
@@ -25,22 +24,20 @@
 #include "lightMutex.h"
 #include "lightReMutex.h"
 
-////////////////////////////////////////////////////////////////////
-//       Class : TinyXGraphicsPipe
-// Description : This graphics pipe represents the interface for
-//               creating TinyPanda graphics windows on an X11-based
-//               (e.g. Unix) client.
-////////////////////////////////////////////////////////////////////
+/**
+ * This graphics pipe represents the interface for creating TinyPanda graphics
+ * windows on an X11-based (e.g.  Unix) client.
+ */
 class EXPCL_TINYDISPLAY TinyXGraphicsPipe : public x11GraphicsPipe {
 public:
-  TinyXGraphicsPipe(const string &display = string());
+  TinyXGraphicsPipe(const std::string &display = std::string());
   virtual ~TinyXGraphicsPipe();
 
-  virtual string get_interface_name() const;
+  virtual std::string get_interface_name() const;
   static PT(GraphicsPipe) pipe_constructor();
 
 protected:
-  virtual PT(GraphicsOutput) make_output(const string &name,
+  virtual PT(GraphicsOutput) make_output(const std::string &name,
                                          const FrameBufferProperties &fb_prop,
                                          const WindowProperties &win_prop,
                                          int flags,

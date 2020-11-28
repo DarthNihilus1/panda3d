@@ -1,18 +1,20 @@
-// Filename: eglGraphicsPixmap.cxx
-// Created by:  rdb (13Jun09)
-//
-////////////////////////////////////////////////////////////////////
-//
-// PANDA 3D SOFTWARE
-// Copyright (c) Carnegie Mellon University.  All rights reserved.
-//
-// All use of this software is subject to the terms of the revised BSD
-// license.  You should have received a copy of this license along
-// with this source code in a file named "LICENSE."
-//
-////////////////////////////////////////////////////////////////////
+/**
+ * PANDA 3D SOFTWARE
+ * Copyright (c) Carnegie Mellon University.  All rights reserved.
+ *
+ * All use of this software is subject to the terms of the revised BSD
+ * license.  You should have received a copy of this license along
+ * with this source code in a file named "LICENSE."
+ *
+ * @file eglGraphicsPixmap.cxx
+ * @author rdb
+ * @date 2009-06-13
+ */
 
 #include "eglGraphicsPixmap.h"
+
+#ifdef HAVE_X11
+
 #include "eglGraphicsWindow.h"
 #include "eglGraphicsStateGuardian.h"
 #include "config_egldisplay.h"
@@ -23,14 +25,12 @@
 
 TypeHandle eglGraphicsPixmap::_type_handle;
 
-////////////////////////////////////////////////////////////////////
-//     Function: eglGraphicsPixmap::Constructor
-//       Access: Public
-//  Description:
-////////////////////////////////////////////////////////////////////
+/**
+ *
+ */
 eglGraphicsPixmap::
 eglGraphicsPixmap(GraphicsEngine *engine, GraphicsPipe *pipe,
-                  const string &name,
+                  const std::string &name,
                   const FrameBufferProperties &fb_prop,
                   const WindowProperties &win_prop,
                   int flags,
@@ -40,42 +40,36 @@ eglGraphicsPixmap(GraphicsEngine *engine, GraphicsPipe *pipe,
 {
   eglGraphicsPipe *egl_pipe;
   DCAST_INTO_V(egl_pipe, _pipe);
-  _display = egl_pipe->get_display();
-  _egl_display = egl_pipe->_egl_display;
+  _egl_display = egl_pipe->get_egl_display();
   _drawable = None;
   _x_pixmap = None;
   _egl_surface = EGL_NO_SURFACE;
 
-  // Since the pixmap never gets flipped, we get screenshots from the
-  // same pixmap we draw into.
+  // Since the pixmap never gets flipped, we get screenshots from the same
+  // pixmap we draw into.
   _screenshot_buffer_type = _draw_buffer_type;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: eglGraphicsPixmap::Destructor
-//       Access: Public, Virtual
-//  Description:
-////////////////////////////////////////////////////////////////////
+/**
+ *
+ */
 eglGraphicsPixmap::
 ~eglGraphicsPixmap() {
   nassertv(_x_pixmap == None && _egl_surface == EGL_NO_SURFACE);
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: eglGraphicsPixmap::begin_frame
-//       Access: Public, Virtual
-//  Description: This function will be called within the draw thread
-//               before beginning rendering for a given frame.  It
-//               should do whatever setup is required, and return true
-//               if the frame should be rendered, or false if it
-//               should be skipped.
-////////////////////////////////////////////////////////////////////
+/**
+ * This function will be called within the draw thread before beginning
+ * rendering for a given frame.  It should do whatever setup is required, and
+ * return true if the frame should be rendered, or false if it should be
+ * skipped.
+ */
 bool eglGraphicsPixmap::
 begin_frame(FrameMode mode, Thread *current_thread) {
   PStatTimer timer(_make_current_pcollector, current_thread);
 
   begin_frame_spam(mode);
-  if (_gsg == (GraphicsStateGuardian *)NULL) {
+  if (_gsg == nullptr) {
     return false;
   }
 
@@ -86,10 +80,10 @@ begin_frame(FrameMode mode, Thread *current_thread) {
       << get_egl_error_string(eglGetError()) << "\n";
   }
 
-  // Now that we have made the context current to a window, we can
-  // reset the GSG state if this is the first time it has been used.
-  // (We can't just call reset() when we construct the GSG, because
-  // reset() requires having a current context.)
+  // Now that we have made the context current to a window, we can reset the
+  // GSG state if this is the first time it has been used.  (We can't just
+  // call reset() when we construct the GSG, because reset() requires having a
+  // current context.)
   eglgsg->reset_if_new();
 
   if (mode == FM_render) {
@@ -110,17 +104,15 @@ begin_frame(FrameMode mode, Thread *current_thread) {
   return _gsg->begin_frame(current_thread);
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: eglGraphicsPixmap::end_frame
-//       Access: Public, Virtual
-//  Description: This function will be called within the draw thread
-//               after rendering is completed for a given frame.  It
-//               should do whatever finalization is required.
-////////////////////////////////////////////////////////////////////
+/**
+ * This function will be called within the draw thread after rendering is
+ * completed for a given frame.  It should do whatever finalization is
+ * required.
+ */
 void eglGraphicsPixmap::
 end_frame(FrameMode mode, Thread *current_thread) {
   end_frame_spam(mode);
-  nassertv(_gsg != (GraphicsStateGuardian *)NULL);
+  nassertv(_gsg != nullptr);
 
   if (mode == FM_render) {
     copy_to_textures();
@@ -134,15 +126,12 @@ end_frame(FrameMode mode, Thread *current_thread) {
   }
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: eglGraphicsPixmap::close_buffer
-//       Access: Protected, Virtual
-//  Description: Closes the pixmap right now.  Called from the window
-//               thread.
-////////////////////////////////////////////////////////////////////
+/**
+ * Closes the pixmap right now.  Called from the window thread.
+ */
 void eglGraphicsPixmap::
 close_buffer() {
-  if (_gsg != (GraphicsStateGuardian *)NULL) {
+  if (_gsg != nullptr) {
     if (!eglMakeCurrent(_egl_display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT)) {
       egldisplay_cat.error() << "Failed to call eglMakeCurrent: "
         << get_egl_error_string(eglGetError()) << "\n";
@@ -166,52 +155,50 @@ close_buffer() {
   _is_valid = false;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: eglGraphicsPixmap::open_buffer
-//       Access: Protected, Virtual
-//  Description: Opens the pixmap right now.  Called from the window
-//               thread.  Returns true if the pixmap is successfully
-//               opened, or false if there was a problem.
-////////////////////////////////////////////////////////////////////
+/**
+ * Opens the pixmap right now.  Called from the window thread.  Returns true
+ * if the pixmap is successfully opened, or false if there was a problem.
+ */
 bool eglGraphicsPixmap::
 open_buffer() {
   eglGraphicsPipe *egl_pipe;
   DCAST_INTO_R(egl_pipe, _pipe, false);
 
-  // GSG Creation/Initialization
+  // GSG CreationInitialization
   eglGraphicsStateGuardian *eglgsg;
   if (_gsg == 0) {
     // There is no old gsg.  Create a new one.
-    eglgsg = new eglGraphicsStateGuardian(_engine, _pipe, NULL);
-    eglgsg->choose_pixel_format(_fb_properties, _display, egl_pipe->get_screen(), false, true);
+    eglgsg = new eglGraphicsStateGuardian(_engine, _pipe, nullptr);
+    eglgsg->choose_pixel_format(_fb_properties, egl_pipe, false, false, true);
     _gsg = eglgsg;
   } else {
-    // If the old gsg has the wrong pixel format, create a
-    // new one that shares with the old gsg.
+    // If the old gsg has the wrong pixel format, create a new one that shares
+    // with the old gsg.
     DCAST_INTO_R(eglgsg, _gsg, false);
     if (!eglgsg->get_fb_properties().subsumes(_fb_properties)) {
       eglgsg = new eglGraphicsStateGuardian(_engine, _pipe, eglgsg);
-      eglgsg->choose_pixel_format(_fb_properties, _display, egl_pipe->get_screen(), false, true);
+      eglgsg->choose_pixel_format(_fb_properties, egl_pipe, false, false, true);
       _gsg = eglgsg;
     }
   }
 
   if (eglgsg->_fbconfig == None) {
-    // If we didn't use an fbconfig to create the GSG, we can't create
-    // a PBuffer.
+    // If we didn't use an fbconfig to create the GSG, we can't create a
+    // PBuffer.
     return false;
   }
 
   XVisualInfo *visual_info = eglgsg->_visual;
-  if (visual_info == NULL) {
+  if (visual_info == nullptr) {
     // No X visual for this fbconfig; how can we create the pixmap?
     egldisplay_cat.error()
       << "No X visual: cannot create pixmap.\n";
     return false;
   }
 
+  _display = egl_pipe->get_display();
   _drawable = egl_pipe->get_root();
-  if (_host != NULL) {
+  if (_host != nullptr) {
     if (_host->is_of_type(eglGraphicsWindow::get_class_type())) {
       eglGraphicsWindow *win = DCAST(eglGraphicsWindow, _host);
       _drawable = win->get_xwindow();
@@ -231,7 +218,7 @@ open_buffer() {
   }
 
   nassertr(eglgsg->_fbconfig, false);
-  _egl_surface = eglCreatePixmapSurface(_egl_display, eglgsg->_fbconfig, (NativePixmapType) _x_pixmap, NULL);
+  _egl_surface = eglCreatePixmapSurface(_egl_display, eglgsg->_fbconfig, (NativePixmapType) _x_pixmap, nullptr);
 
   if (_egl_surface == EGL_NO_SURFACE) {
     egldisplay_cat.error()
@@ -257,3 +244,5 @@ open_buffer() {
   _is_valid = true;
   return true;
 }
+
+#endif  // HAVE_X11

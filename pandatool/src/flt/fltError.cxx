@@ -1,21 +1,20 @@
-// Filename: fltError.cxx
-// Created by:  drose (24Aug00)
-//
-////////////////////////////////////////////////////////////////////
-//
-// PANDA 3D SOFTWARE
-// Copyright (c) Carnegie Mellon University.  All rights reserved.
-//
-// All use of this software is subject to the terms of the revised BSD
-// license.  You should have received a copy of this license along
-// with this source code in a file named "LICENSE."
-//
-////////////////////////////////////////////////////////////////////
+/**
+ * PANDA 3D SOFTWARE
+ * Copyright (c) Carnegie Mellon University.  All rights reserved.
+ *
+ * All use of this software is subject to the terms of the revised BSD
+ * license.  You should have received a copy of this license along
+ * with this source code in a file named "LICENSE."
+ *
+ * @file fltError.cxx
+ * @author drose
+ * @date 2000-08-24
+ */
 
 #include "fltError.h"
 
-ostream &
-operator << (ostream &out, FltError error) {
+std::ostream &
+operator << (std::ostream &out, FltError error) {
   switch (error) {
   case FE_ok:
     return out << "no error";

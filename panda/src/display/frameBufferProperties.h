@@ -1,16 +1,15 @@
-// Filename: frameBufferProperties.h
-// Created by:  drose (27Jan03)
-//
-////////////////////////////////////////////////////////////////////
-//
-// PANDA 3D SOFTWARE
-// Copyright (c) Carnegie Mellon University.  All rights reserved.
-//
-// All use of this software is subject to the terms of the revised BSD
-// license.  You should have received a copy of this license along
-// with this source code in a file named "LICENSE."
-//
-////////////////////////////////////////////////////////////////////
+/**
+ * PANDA 3D SOFTWARE
+ * Copyright (c) Carnegie Mellon University.  All rights reserved.
+ *
+ * All use of this software is subject to the terms of the revised BSD
+ * license.  You should have received a copy of this license along
+ * with this source code in a file named "LICENSE."
+ *
+ * @file frameBufferProperties.h
+ * @author drose
+ * @date 2003-01-27
+ */
 
 #ifndef FRAMEBUFFERPROPERTIES_H
 #define FRAMEBUFFERPROPERTIES_H
@@ -20,12 +19,10 @@
 
 class Texture;
 
-////////////////////////////////////////////////////////////////////
-//       Class : FrameBufferProperties
-// Description : A container for the various kinds of properties we
-//               might ask to have on a graphics frameBuffer before we
-//               create a GSG.
-////////////////////////////////////////////////////////////////////
+/**
+ * A container for the various kinds of properties we might ask to have on a
+ * graphics frameBuffer before we create a GSG.
+ */
 class EXPCL_PANDA_DISPLAY FrameBufferProperties {
 
 private:
@@ -66,11 +63,11 @@ private:
     FBF_all            = 0x100-1,
   };
 
-  int _property[FBP_COUNT];
-  int _specified;
+  int _property[FBP_COUNT] = {0};
+  int _specified = 0;
 
-  int _flags;
-  int _flags_specified;
+  int _flags = 0;
+  int _flags_specified = 0;
 
 PUBLISHED:
 
@@ -148,10 +145,8 @@ PUBLISHED:
 
   // Other.
 
-  FrameBufferProperties();
-  INLINE FrameBufferProperties(const FrameBufferProperties &copy);
-  INLINE ~FrameBufferProperties();
-  void operator = (const FrameBufferProperties &copy);
+  constexpr FrameBufferProperties() = default;
+
   static const FrameBufferProperties &get_default();
   bool operator == (const FrameBufferProperties &other) const;
   INLINE bool operator != (const FrameBufferProperties &other) const;
@@ -160,7 +155,7 @@ PUBLISHED:
   void set_all_specified();
   bool subsumes(const FrameBufferProperties &other) const;
   void add_properties(const FrameBufferProperties &other);
-  void output(ostream &out) const;
+  void output(std::ostream &out) const;
   void set_one_bit_per_channel();
 
   INLINE bool is_stereo() const;
@@ -170,13 +165,13 @@ PUBLISHED:
   bool is_basic() const;
   int get_aux_mask() const;
   int get_buffer_mask() const;
-  bool verify_hardware_software(const FrameBufferProperties &props, const string &renderer) const;
+  bool verify_hardware_software(const FrameBufferProperties &props, const std::string &renderer) const;
 
   bool setup_color_texture(Texture *tex) const;
   bool setup_depth_texture(Texture *tex) const;
 };
 
-INLINE ostream &operator << (ostream &out, const FrameBufferProperties &properties);
+INLINE std::ostream &operator << (std::ostream &out, const FrameBufferProperties &properties);
 
 #include "frameBufferProperties.I"
 

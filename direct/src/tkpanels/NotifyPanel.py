@@ -1,4 +1,4 @@
-"""Undocumented Module"""
+"""Contains the NotifyPanel class."""
 
 __all__ = ['NotifyPanel']
 
@@ -131,7 +131,7 @@ class NotifyPanel:
     def _getPandaCategoriesAsList(self, pc, list):
         import types
         for item in pc:
-            if type(item) == types.ListType:
+            if type(item) == list:
                 self._getPandaCategoriesAsList(item, list)
             else:
                 list.append(item)

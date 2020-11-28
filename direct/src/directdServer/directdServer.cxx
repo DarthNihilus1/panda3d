@@ -1,18 +1,21 @@
-// Filename: directdServer.cxx
-// Created by:  skyler 2002.04.08
-//
-////////////////////////////////////////////////////////////////////
-//
-// PANDA 3D SOFTWARE
-// Copyright (c) Carnegie Mellon University.  All rights reserved.
-//
-// All use of this software is subject to the terms of the revised BSD
-// license.  You should have received a copy of this license along
-// with this source code in a file named "LICENSE."
-//
-////////////////////////////////////////////////////////////////////
+/**
+ * PANDA 3D SOFTWARE
+ * Copyright (c) Carnegie Mellon University.  All rights reserved.
+ *
+ * All use of this software is subject to the terms of the revised BSD
+ * license.  You should have received a copy of this license along
+ * with this source code in a file named "LICENSE."
+ *
+ * @file directdServer.cxx
+ * @author skyler
+ * @date 2002-04-08
+ */
 
 #include "directdServer.h"
+
+using std::cerr;
+using std::endl;
+using std::string;
 
 DirectDServer::DirectDServer() {
 }
@@ -47,7 +50,7 @@ DirectDServer::handle_command(const string& cmd) {
       break;
     case '!': {
       string c=cmd.substr(1, string::npos);
-      //read_command(c);
+      // read_command(c);
       start_app(c);
       }
       break;
@@ -62,8 +65,8 @@ void
 DirectDServer::read_command(string& cmd) {
   try {
     pifstream f;
-    f.open("directdCommand", ios::in | ios::binary);
-    stringstream ss;
+    f.open("directdCommand", std::ios::in | std::ios::binary);
+    std::stringstream ss;
     const int buf_size=512;
     char buf[buf_size];
     f.getline(buf, buf_size);
@@ -73,8 +76,8 @@ DirectDServer::read_command(string& cmd) {
     }
     f.close();
   } catch (...) {
-    // This could be bad, I suppose.  But we're going to throw out
-    // any exceptions that happen during the above read.
+    // This could be bad, I suppose.  But we're going to throw out any
+    // exceptions that happen during the above read.
     cerr<<"DirectD::read_command() exception."<<endl;
   }
 }
@@ -82,7 +85,7 @@ DirectDServer::read_command(string& cmd) {
 void
 DirectDServer::run_server(int port) {
   nout<<"server"<<endl;
-  
+
   listen_to(port);
 
   while (!_shutdown) {
@@ -91,7 +94,7 @@ DirectDServer::run_server(int port) {
     check_for_datagrams();
 
     // Yield the timeslice before we poll again.
-    //PR_Sleep(PR_MillisecondsToInterval(200));
+    // PR_Sleep(PR_MillisecondsToInterval(200));
     Sleep(200);
   }
 }
@@ -111,6 +114,6 @@ main(int argc, char *argv[]) {
   }
   DirectDServer directd;
   directd.run_server(port);
-  
+
   return 0;
 }

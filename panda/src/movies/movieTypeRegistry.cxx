@@ -1,33 +1,43 @@
-// Filename: movieTypeRegistry.cxx
-// Created by:  rdb (24Aug13)
-//
-////////////////////////////////////////////////////////////////////
-//
-// PANDA 3D SOFTWARE
-// Copyright (c) Carnegie Mellon University.  All rights reserved.
-//
-// All use of this software is subject to the terms of the revised BSD
-// license.  You should have received a copy of this license along
-// with this source code in a file named "LICENSE."
-//
-////////////////////////////////////////////////////////////////////
+/**
+ * PANDA 3D SOFTWARE
+ * Copyright (c) Carnegie Mellon University.  All rights reserved.
+ *
+ * All use of this software is subject to the terms of the revised BSD
+ * license.  You should have received a copy of this license along
+ * with this source code in a file named "LICENSE."
+ *
+ * @file movieTypeRegistry.cxx
+ * @author rdb
+ * @date 2013-08-24
+ */
 
 #include "movieTypeRegistry.h"
+
 #include "string_utils.h"
 #include "config_movies.h"
-#include "config_util.h"
+#include "config_putil.h"
 #include "load_dso.h"
+#include "reMutexHolder.h"
 
-MovieTypeRegistry *MovieTypeRegistry::_global_ptr = NULL;
+using std::endl;
+using std::string;
 
-////////////////////////////////////////////////////////////////////
-//     Function: MovieTypeRegistry::make_audio
-//       Access: Published, Static
-//  Description: Obtains a MovieVideo that references a file.
-////////////////////////////////////////////////////////////////////
+MovieTypeRegistry *MovieTypeRegistry::_global_ptr = nullptr;
+
+/**
+ * Obtains a MovieVideo that references a file.
+ */
 PT(MovieAudio) MovieTypeRegistry::
 make_audio(const Filename &name) {
   string ext = downcase(name.get_extension());
+
+#ifdef HAVE_ZLIB
+  if (ext == "pz" || ext == "gz") {
+    ext = Filename(name.get_basename_wo_extension()).get_extension();
+  }
+#endif
+
+  _audio_lock.lock();
 
   // Make sure that the list of audio types has been read in.
   load_audio_types();
@@ -41,11 +51,12 @@ make_audio(const Filename &name) {
   // Explicit extension is preferred over catch-all.
   if (_audio_type_registry.count(ext)) {
     MakeAudioFunc func = _audio_type_registry[ext];
+    _audio_lock.unlock();
     return (*func)(name);
   }
 
-  // If we didn't find it, see if there was a type registered
-  // with '*' as extension.  This is a catch-all loader.
+  // If we didn't find it, see if there was a type registered with '*' as
+  // extension.  This is a catch-all loader.
   if (_deferred_audio_types.count("*")) {
     load_movie_library(_deferred_audio_types["*"]);
     _deferred_audio_types.erase("*");
@@ -53,24 +64,24 @@ make_audio(const Filename &name) {
 
   if (_audio_type_registry.count("*")) {
     MakeAudioFunc func = _audio_type_registry["*"];
+    _audio_lock.unlock();
     return (*func)(name);
   }
 
   movies_cat.error()
     << "Support for audio files with extension ." << ext << " was not enabled.\n";
 
+  _audio_lock.unlock();
   return new MovieAudio("Load-Failure Stub");
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: MovieTypeRegistry::register_audio_type
-//       Access: Published, Static
-//  Description: Registers a MovieAudio type, so that files with
-//               any of the given extensions will be loaded as this
-//               type.  You may use * as a catch-all extension.
-////////////////////////////////////////////////////////////////////
+/**
+ * Registers a MovieAudio type, so that files with any of the given extensions
+ * will be loaded as this type.  You may use * as a catch-all extension.
+ */
 void MovieTypeRegistry::
 register_audio_type(MakeAudioFunc func, const string &extensions) {
+  ReMutexHolder holder(_audio_lock);
   vector_string words;
   extract_words(downcase(extensions), words);
 
@@ -79,7 +90,7 @@ register_audio_type(MakeAudioFunc func, const string &extensions) {
     if (_audio_type_registry.count(*wi)) {
       movies_cat->warning()
         << "Attempt to register multiple audio types with extension " << (*wi) << "\n";
-    } else {
+    } else if (movies_cat->is_debug()) {
       movies_cat->debug()
         << "Registered audio type with extension " << (*wi) << "\n";
     }
@@ -87,14 +98,12 @@ register_audio_type(MakeAudioFunc func, const string &extensions) {
   }
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: MovieTypeRegistry::load_audio_types
-//       Access: Published, Static
-//  Description: Loads the list with audio types, if we haven't
-//               already.
-////////////////////////////////////////////////////////////////////
+/**
+ * Loads the list with audio types, if we haven't already.
+ */
 void MovieTypeRegistry::
 load_audio_types() {
+  ReMutexHolder holder(_audio_lock);
   static bool audio_types_loaded = false;
 
   if (!audio_types_loaded) {
@@ -113,19 +122,20 @@ load_audio_types() {
         movies_cat.info()
           << "loading audio type module: " << name << endl;
         void *tmp = load_dso(get_plugin_path().get_value(), dlname);
-        if (tmp == (void *)NULL) {
+        if (tmp == nullptr) {
+          std::string error = load_dso_error();
           movies_cat.warning()
             << "Unable to load " << dlname.to_os_specific()
-            << ": " << load_dso_error() << endl;
+            << ": " << error << endl;
         } else if (movies_cat.is_debug()) {
           movies_cat.debug()
             << "done loading audio type module: " << name << endl;
         }
 
       } else if (words.size() > 1) {
-        // Multiple words: the first n words are filename extensions,
-        // and the last word is the name of the library to load should
-        // any of those filename extensions be encountered.
+        // Multiple words: the first n words are filename extensions, and the
+        // last word is the name of the library to load should any of those
+        // filename extensions be encountered.
         size_t num_extensions = words.size() - 1;
         string library_name = words[num_extensions];
 
@@ -144,14 +154,20 @@ load_audio_types() {
   }
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: MovieTypeRegistry::make_video
-//       Access: Published, Static
-//  Description: Obtains a MovieVideo that references a file.
-////////////////////////////////////////////////////////////////////
+/**
+ * Obtains a MovieVideo that references a file.
+ */
 PT(MovieVideo) MovieTypeRegistry::
 make_video(const Filename &name) {
   string ext = downcase(name.get_extension());
+
+#ifdef HAVE_ZLIB
+  if (ext == "pz" || ext == "gz") {
+    ext = Filename(name.get_basename_wo_extension()).get_extension();
+  }
+#endif
+
+  _video_lock.lock();
 
   // Make sure that the list of video types has been read in.
   load_video_types();
@@ -165,11 +181,12 @@ make_video(const Filename &name) {
   // Explicit extension is preferred over catch-all.
   if (_video_type_registry.count(ext)) {
     MakeVideoFunc func = _video_type_registry[ext];
+    _video_lock.unlock();
     return (*func)(name);
   }
 
-  // If we didn't find it, see if there was a type registered
-  // with '*' as extension.  This is a catch-all loader.
+  // If we didn't find it, see if there was a type registered with '*' as
+  // extension.  This is a catch-all loader.
   if (_deferred_video_types.count("*")) {
     load_movie_library(_deferred_video_types["*"]);
     _deferred_video_types.erase("*");
@@ -177,24 +194,24 @@ make_video(const Filename &name) {
 
   if (_video_type_registry.count("*")) {
     MakeVideoFunc func = _video_type_registry["*"];
+    _video_lock.unlock();
     return (*func)(name);
   }
 
   movies_cat.error()
     << "Support for video files with extension ." << ext << " was not enabled.\n";
 
+  _video_lock.unlock();
   return new MovieVideo("Load-Failure Stub");
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: MovieTypeRegistry::register_video_type
-//       Access: Published, Static
-//  Description: Registers a MovieVideo type, so that files with
-//               any of the given extensions will be loaded as this
-//               type.  You may use * as a catch-all extension.
-////////////////////////////////////////////////////////////////////
+/**
+ * Registers a MovieVideo type, so that files with any of the given extensions
+ * will be loaded as this type.  You may use * as a catch-all extension.
+ */
 void MovieTypeRegistry::
 register_video_type(MakeVideoFunc func, const string &extensions) {
+  ReMutexHolder holder(_video_lock);
   vector_string words;
   extract_words(downcase(extensions), words);
 
@@ -203,7 +220,7 @@ register_video_type(MakeVideoFunc func, const string &extensions) {
     if (_video_type_registry.count(*wi)) {
       movies_cat->warning()
         << "Attempt to register multiple video types with extension " << (*wi) << "\n";
-    } else {
+    } else if (movies_cat->is_debug()) {
       movies_cat->debug()
         << "Registered video type with extension " << (*wi) << "\n";
     }
@@ -211,14 +228,12 @@ register_video_type(MakeVideoFunc func, const string &extensions) {
   }
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: MovieTypeRegistry::load_video_types
-//       Access: Published, Static
-//  Description: Loads the list with video types, if we haven't
-//               already.
-////////////////////////////////////////////////////////////////////
+/**
+ * Loads the list with video types, if we haven't already.
+ */
 void MovieTypeRegistry::
 load_video_types() {
+  ReMutexHolder holder(_video_lock);
   static bool video_types_loaded = false;
 
   if (!video_types_loaded) {
@@ -237,19 +252,20 @@ load_video_types() {
         movies_cat.info()
           << "loading video type module: " << name << endl;
         void *tmp = load_dso(get_plugin_path().get_value(), dlname);
-        if (tmp == (void *)NULL) {
+        if (tmp == nullptr) {
+          std::string error = load_dso_error();
           movies_cat.warning()
             << "Unable to load " << dlname.to_os_specific()
-            << ": " << load_dso_error() << endl;
+            << ": " << error << endl;
         } else if (movies_cat.is_debug()) {
           movies_cat.debug()
             << "done loading video type module: " << name << endl;
         }
 
       } else if (words.size() > 1) {
-        // Multiple words: the first n words are filename extensions,
-        // and the last word is the name of the library to load should
-        // any of those filename extensions be encountered.
+        // Multiple words: the first n words are filename extensions, and the
+        // last word is the name of the library to load should any of those
+        // filename extensions be encountered.
         size_t num_extensions = words.size() - 1;
         string library_name = words[num_extensions];
 
@@ -268,22 +284,22 @@ load_video_types() {
   }
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: MovieTypeRegistry::load_library
-//       Access: Published, Static
-//  Description: Loads the module.
-////////////////////////////////////////////////////////////////////
+/**
+ * Loads the module.
+ */
 void MovieTypeRegistry::
 load_movie_library(const string &name) {
+  ReMutexHolder holder(_video_lock);
   Filename dlname = Filename::dso_filename("lib" + name + ".so");
   movies_cat.info()
     << "loading video type module: " << name << endl;
   void *tmp = load_dso(get_plugin_path().get_value(), dlname);
 
-  if (tmp == (void *)NULL) {
+  if (tmp == nullptr) {
+    std::string error = load_dso_error();
     movies_cat.warning()
       << "Unable to load " << dlname.to_os_specific()
-      << ": " << load_dso_error() << endl;
+      << ": " << error << endl;
   } else if (movies_cat.is_debug()) {
     movies_cat.debug()
       << "done loading video type module: " << name << endl;

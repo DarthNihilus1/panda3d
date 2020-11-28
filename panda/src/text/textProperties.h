@@ -1,16 +1,15 @@
-// Filename: textProperties.h
-// Created by:  drose (06Apr04)
-//
-////////////////////////////////////////////////////////////////////
-//
-// PANDA 3D SOFTWARE
-// Copyright (c) Carnegie Mellon University.  All rights reserved.
-//
-// All use of this software is subject to the terms of the revised BSD
-// license.  You should have received a copy of this license along
-// with this source code in a file named "LICENSE."
-//
-////////////////////////////////////////////////////////////////////
+/**
+ * PANDA 3D SOFTWARE
+ * Copyright (c) Carnegie Mellon University.  All rights reserved.
+ *
+ * All use of this software is subject to the terms of the revised BSD
+ * license.  You should have received a copy of this license along
+ * with this source code in a file named "LICENSE."
+ *
+ * @file textProperties.h
+ * @author drose
+ * @date 2004-04-06
+ */
 
 #ifndef TEXTPROPERTIES_H
 #define TEXTPROPERTIES_H
@@ -23,27 +22,22 @@
 #include "pointerTo.h"
 #include "renderState.h"
 
-////////////////////////////////////////////////////////////////////
-//       Class : TextProperties
-// Description : This defines the set of visual properties that may be
-//               assigned to the individual characters of the text.
-//               (Properties which affect the overall block of text
-//               can only be specified on the TextNode directly).
-//
-//               Typically, there is just one set of properties on a
-//               given block of text, which is set directly on the
-//               TextNode (TextNode inherits from TextProperties).
-//               That makes all of the text within a particular block
-//               have the same appearance.
-//
-//               This separate class exists in order to implement
-//               multiple different kinds of text appearing within one
-//               block.  The text string itself may reference a
-//               TextProperties structure by name using the \1 and \2
-//               tokens embedded within the string; each nested
-//               TextProperties structure modifies the appearance of
-//               subsequent text within the block.
-////////////////////////////////////////////////////////////////////
+/**
+ * This defines the set of visual properties that may be assigned to the
+ * individual characters of the text.  (Properties which affect the overall
+ * block of text can only be specified on the TextNode directly).
+ *
+ * Typically, there is just one set of properties on a given block of text,
+ * which is set directly on the TextNode (TextNode inherits from
+ * TextProperties). That makes all of the text within a particular block have
+ * the same appearance.
+ *
+ * This separate class exists in order to implement multiple different kinds
+ * of text appearing within one block.  The text string itself may reference a
+ * TextProperties structure by name using the \1 and \2 tokens embedded within
+ * the string; each nested TextProperties structure modifies the appearance of
+ * subsequent text within the block.
+ */
 class EXPCL_PANDA_TEXT TextProperties {
 PUBLISHED:
   enum Alignment {
@@ -53,6 +47,11 @@ PUBLISHED:
     A_boxed_left,
     A_boxed_right,
     A_boxed_center
+  };
+
+  enum Direction {
+    D_ltr,
+    D_rtl,
   };
 
   TextProperties();
@@ -136,10 +135,10 @@ PUBLISHED:
   INLINE bool has_shadow() const;
   INLINE LVector2 get_shadow() const;
 
-  INLINE void set_bin(const string &bin);
+  INLINE void set_bin(const std::string &bin);
   INLINE void clear_bin();
   INLINE bool has_bin() const;
-  INLINE const string &get_bin() const;
+  INLINE const std::string &get_bin() const;
 
   INLINE int set_draw_order(int draw_order);
   INLINE void clear_draw_order();
@@ -166,9 +165,14 @@ PUBLISHED:
   INLINE bool has_text_scale() const;
   INLINE PN_stdfloat get_text_scale() const;
 
+  INLINE void set_direction(Direction direction);
+  INLINE void clear_direction();
+  INLINE bool has_direction() const;
+  INLINE Direction get_direction() const;
+
   void add_properties(const TextProperties &other);
 
-  void write(ostream &out, int indent_level = 0) const;
+  void write(std::ostream &out, int indent_level = 0) const;
 
 PUBLISHED:
   MAKE_PROPERTY2(font, has_font, get_font, set_font, clear_font);
@@ -203,6 +207,8 @@ PUBLISHED:
                               set_glyph_shift, clear_glyph_shift);
   MAKE_PROPERTY2(text_scale, has_text_scale, get_text_scale,
                              set_text_scale, clear_text_scale);
+  MAKE_PROPERTY2(direction, has_direction, get_direction,
+                            set_direction, clear_direction);
 
 public:
   const RenderState *get_text_state() const;
@@ -231,6 +237,7 @@ private:
     F_has_underscore                   = 0x00010000,
     F_has_underscore_height            = 0x00020000,
     F_has_text_scale                   = 0x00040000,
+    F_has_direction                    = 0x00080000,
   };
 
   int _specified;
@@ -248,12 +255,13 @@ private:
   LColor _text_color;
   LColor _shadow_color;
   LVector2 _shadow_offset;
-  string _bin;
+  std::string _bin;
   int _draw_order;
   PN_stdfloat _tab_width;
   PN_stdfloat _glyph_scale;
   PN_stdfloat _glyph_shift;
   PN_stdfloat _text_scale;
+  Direction _direction;
 
   mutable CPT(RenderState) _text_state;
   mutable CPT(RenderState) _shadow_state;

@@ -1,19 +1,28 @@
 """Inspectors allow you to visually browse through the members of
-various python objects.  To open an inspector, import this module, and
-execute inspector.inspect(anObject) I start IDLE with this command
-line: idle.py -c "from inspector import inspect"
-so that I can just type: inspect(anObject) any time."""
+various Python objects.  To open an inspector, import this module, and
+execute ``inspector.inspect(anObject)``.
+
+I start IDLE with this command line::
+
+   idle.py -c "from inspector import inspect"
+
+so that I can just type: ``inspect(anObject)`` any time.
+
+See :ref:`inspection-utilities` for more information.
+"""
 
 
 __all__ = ['inspect', 'inspectorFor', 'Inspector', 'ModuleInspector', 'ClassInspector', 'InstanceInspector', 'FunctionInspector', 'InstanceMethodInspector', 'CodeInspector', 'ComplexInspector', 'DictionaryInspector', 'SequenceInspector', 'SliceInspector', 'InspectorWindow']
 
 from direct.showbase.TkGlobal import *
-from Tkinter import *
 import Pmw
 
 ### public API
 
 def inspect(anObject):
+    """Opens up a window for visually inspecting the details of a given Python
+    object.  See :ref:`inspection-utilities`.
+    """
     inspector = inspectorFor(anObject)
     inspectorWindow = InspectorWindow(inspector)
     inspectorWindow.open()
@@ -26,7 +35,7 @@ def inspectorFor(anObject):
     if typeName in _InspectorMap:
         inspectorName = _InspectorMap[typeName]
     else:
-        print("Can't find an inspector for " + typeName)
+        print(("Can't find an inspector for " + typeName))
         inspectorName = 'Inspector'
     inspector = globals()[inspectorName](anObject)
     return inspector
@@ -147,7 +156,7 @@ class ModuleInspector(Inspector):
 
 class ClassInspector(Inspector):
     def namedParts(self):
-        return ['__bases__'] + self.object.__dict__.keys()
+        return ['__bases__'] + list(self.object.__dict__.keys())
 
     def title(self):
         return self.object.__name__ + ' Class'
@@ -166,7 +175,7 @@ class FunctionInspector(Inspector):
 
 class InstanceMethodInspector(Inspector):
     def title(self):
-        return str(self.object.im_class) + "." + self.object.__name__ + "()"
+        return str(self.object.__self__.__class__) + "." + self.object.__name__ + "()"
 
 class CodeInspector(Inspector):
     def title(self):
@@ -184,7 +193,7 @@ class DictionaryInspector(Inspector):
 
     def initializePartsList(self):
         Inspector.initializePartsList(self)
-        keys = self.object.keys()
+        keys = list(self.object.keys())
         keys.sort()
         for each in keys:
             self._partsList.append(each)
@@ -391,10 +400,10 @@ class InspectorWindow:
 
     #Private
     def selectedIndex(self):
-        indicies = map(int, self.listWidget.curselection())
-        if len(indicies) == 0:
+        indices = list(map(int, self.listWidget.curselection()))
+        if len(indices) == 0:
             return None
-        partNumber = indicies[0]
+        partNumber = indices[0]
         return partNumber
 
     def inspectorForSelectedPart(self):
@@ -422,7 +431,7 @@ class InspectorWindow:
                  ('Place', NodePath.place),
                  ('Set Color', NodePath.rgbPanel)])
         elif isinstance(part, ClassicFSM.ClassicFSM):
-            import FSMInspector
+            from . import FSMInspector
             popupMenu = self.createPopupMenu(
                 part,
                 [('Inspect ClassicFSM', FSMInspector.FSMInspector)])
@@ -438,7 +447,3 @@ class InspectorWindow:
                 label = item,
                 command = lambda p = part, f = func: f(p))
         return popupMenu
-
-
-
-

@@ -1,22 +1,23 @@
-// Filename: test_bam.cxx
-// Created by:  jason (13Jun00)
-//
-////////////////////////////////////////////////////////////////////
-//
-// PANDA 3D SOFTWARE
-// Copyright (c) Carnegie Mellon University.  All rights reserved.
-//
-// All use of this software is subject to the terms of the revised BSD
-// license.  You should have received a copy of this license along
-// with this source code in a file named "LICENSE."
-//
-////////////////////////////////////////////////////////////////////
+/**
+ * PANDA 3D SOFTWARE
+ * Copyright (c) Carnegie Mellon University.  All rights reserved.
+ *
+ * All use of this software is subject to the terms of the revised BSD
+ * license.  You should have received a copy of this license along
+ * with this source code in a file named "LICENSE."
+ *
+ * @file test_bam.cxx
+ * @author jason
+ * @date 2000-06-13
+ */
 
 #include "pandabase.h"
 #include "pnotify.h"
 #include "dconfig.h"
 
 #include "test_bam.h"
+
+using std::endl;
 
 
 TypeHandle Person::_type_handle;
@@ -39,9 +40,9 @@ ConfigureFn(config_test_bam)
 void Person::
 write_datagram(BamWriter* manager, Datagram &me)
 {
-  //Write out name
+  // Write out name
   me.add_string(_name);
-  //Write out gender
+  // Write out gender
   me.add_uint8(myGender);
   manager->write_pointer(me, _bro);
   manager->write_pointer(me, _sis);
@@ -80,9 +81,9 @@ complete_pointers(TypedWritable **p_list, BamReader *manager)
 void Person::
 print_relationships(){
   nout << "My name is " << _name << endl;
-  if (_bro != NULL)
+  if (_bro != nullptr)
     nout << "My brother is " << _bro->name() << endl;
-  if (_sis != NULL)
+  if (_sis != nullptr)
     nout << "My sister is " << _sis->name() << endl;
 }
 
@@ -138,9 +139,9 @@ setDaughter(Child* daughter)
 void Parent::
 print_relationships(){
   Person::print_relationships();
-  if (_son != NULL)
+  if (_son != nullptr)
     nout << "My son is " << _son->name() << endl;
-  if (_daughter != NULL)
+  if (_daughter != nullptr)
     nout << "My daughter is " << _daughter->name() << endl;
 }
 
@@ -198,8 +199,8 @@ setMother(Parent* mom)
 void Child::
 print_relationships(){
   Person::print_relationships();
-  if (_dad != NULL)
+  if (_dad != nullptr)
       nout << "My dad is " << _dad->name() << endl;
-  if (_mom != NULL)
+  if (_mom != nullptr)
     nout << "My mom is " << _mom->name() << endl;
 }

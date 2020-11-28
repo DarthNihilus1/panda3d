@@ -1,16 +1,15 @@
-// Filename: iPhoneGraphicsPipe.h
-// Created by:  drose (08Apr09)
-//
-////////////////////////////////////////////////////////////////////
-//
-// PANDA 3D SOFTWARE
-// Copyright (c) Carnegie Mellon University.  All rights reserved.
-//
-// All use of this software is subject to the terms of the revised BSD
-// license.  You should have received a copy of this license along
-// with this source code in a file named "LICENSE."
-//
-////////////////////////////////////////////////////////////////////
+/**
+ * PANDA 3D SOFTWARE
+ * Copyright (c) Carnegie Mellon University.  All rights reserved.
+ *
+ * All use of this software is subject to the terms of the revised BSD
+ * license.  You should have received a copy of this license along
+ * with this source code in a file named "LICENSE."
+ *
+ * @file iPhoneGraphicsPipe.h
+ * @author drose
+ * @date 2009-04-08
+ */
 
 #ifndef IPHONEGRAPHICSPIPE_H
 #define IPHONEGRAPHICSPIPE_H
@@ -25,25 +24,23 @@ class IPhoneGraphicsStateGuardian;
 class IPhoneGraphicsWindow;
 class PNMImage;
 
-////////////////////////////////////////////////////////////////////
-//       Class : IPhoneGraphicsPipe
-// Description : This graphics pipe represents the interface for
-//               creating OpenGL graphics windows on the various
-//               IPHONE's.
-////////////////////////////////////////////////////////////////////
+/**
+ * This graphics pipe represents the interface for creating OpenGL graphics
+ * windows on the various IPHONE's.
+ */
 class EXPCL_MISC IPhoneGraphicsPipe : public GraphicsPipe {
 public:
   IPhoneGraphicsPipe();
   virtual ~IPhoneGraphicsPipe();
 
-  virtual string get_interface_name() const;
+  virtual std::string get_interface_name() const;
   static PT(GraphicsPipe) pipe_constructor();
   virtual PreferredWindowThread get_preferred_window_thread() const;
 
   void rotate_windows();
 
 protected:
-  virtual PT(GraphicsOutput) make_output(const string &name,
+  virtual PT(GraphicsOutput) make_output(const std::string &name,
                                          const FrameBufferProperties &fb_prop,
                                          const WindowProperties &win_prop,
                                          int flags,
@@ -54,7 +51,7 @@ protected:
                                          bool &precertify);
 
 public:
-  UIWindow *_window; 
+  UIWindow *_window;
   ControllerDemoViewController *_view_controller;
 
   typedef pset<IPhoneGraphicsWindow *> GraphicsWindows;

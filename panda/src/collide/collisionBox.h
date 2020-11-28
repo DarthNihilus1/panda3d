@@ -1,17 +1,15 @@
-
-// Filename: collisionBox.h
-// Created by:  amith tudur( 31Jul09 )
-//
-////////////////////////////////////////////////////////////////////
-//
-// PANDA 3D SOFTWARE
-// Copyright (c) Carnegie Mellon University.  All rights reserved.
-//
-// All use of this software is subject to the terms of the revised BSD
-// license.  You should have received a copy of this license along
-// with this source code in a file named "LICENSE."
-//
-////////////////////////////////////////////////////////////////////
+/**
+ * PANDA 3D SOFTWARE
+ * Copyright (c) Carnegie Mellon University.  All rights reserved.
+ *
+ * All use of this software is subject to the terms of the revised BSD
+ * license.  You should have received a copy of this license along
+ * with this source code in a file named "LICENSE."
+ *
+ * @file collisionBox.h
+ * @author amith tudur
+ * @date 2009-07-31
+ */
 
 #ifndef COLLISIONBOX_H
 #define COLLISIONBOX_H
@@ -23,15 +21,14 @@
 #include "look_at.h"
 #include "clipPlaneAttrib.h"
 
-////////////////////////////////////////////////////////////////////
-//       Class : CollisionBox
-// Description : A cuboid collision volume or object.
-////////////////////////////////////////////////////////////////////
+/**
+ * A cuboid collision volume or object.
+ */
 class EXPCL_PANDA_COLLIDE CollisionBox : public CollisionSolid {
 PUBLISHED:
-  INLINE CollisionBox(const LPoint3 &center, 
-                      PN_stdfloat x, PN_stdfloat y, PN_stdfloat z);
-  INLINE CollisionBox(const LPoint3 &min, const LPoint3 &max);
+  INLINE explicit CollisionBox(const LPoint3 &center,
+                               PN_stdfloat x, PN_stdfloat y, PN_stdfloat z);
+  INLINE explicit CollisionBox(const LPoint3 &min, const LPoint3 &max);
 
   virtual LPoint3 get_collision_origin() const;
 
@@ -49,7 +46,7 @@ public:
   virtual PStatCollector &get_volume_pcollector();
   virtual PStatCollector &get_test_pcollector();
 
-  virtual void output(ostream &out) const;
+  virtual void output(std::ostream &out) const;
 
   INLINE static void flush_level();
   void setup_box();
@@ -79,13 +76,24 @@ protected:
   virtual PT(CollisionEntry)
     test_intersection_from_sphere(const CollisionEntry &entry) const;
   virtual PT(CollisionEntry)
+    test_intersection_from_line(const CollisionEntry &entry) const;
+  virtual PT(CollisionEntry)
     test_intersection_from_ray(const CollisionEntry &entry) const;
   virtual PT(CollisionEntry)
     test_intersection_from_segment(const CollisionEntry &entry) const;
   virtual PT(CollisionEntry)
+    test_intersection_from_parabola(const CollisionEntry &entry) const;
+  virtual PT(CollisionEntry)
+    test_intersection_from_capsule(const CollisionEntry &entry) const;
+  virtual PT(CollisionEntry)
     test_intersection_from_box(const CollisionEntry &entry) const;
-  
+
   virtual void fill_viz_geom();
+
+protected:
+  bool intersects_line(double &t1, double &t2,
+                       const LPoint3 &from, const LVector3 &delta,
+                       PN_stdfloat inflate_size=0) const;
 
 private:
   LPoint3 _center;
@@ -94,9 +102,9 @@ private:
   PN_stdfloat _x, _y, _z, _radius;
   LPoint3 _vertex[8]; // Each of the Eight Vertices of the Box
   LPlane _planes[6]; //Points to each of the six sides of the Box
-  
+
   static const int plane_def[6][4];
-  
+
   static PStatCollector _volume_pcollector;
   static PStatCollector _test_pcollector;
 
@@ -107,7 +115,7 @@ private:
   static PN_stdfloat dist_to_line_segment(const LPoint2 &p,
                                     const LPoint2 &f, const LPoint2 &t,
                                     const LVector2 &v);
-  
+
 public:
   class PointDef {
   public:
@@ -133,7 +141,6 @@ public:
   INLINE void calc_to_3d_mat(LMatrix4 &to_3d_mat, int plane) const;
   INLINE void rederive_to_3d_mat(LMatrix4 &to_3d_mat, int plane) const;
   INLINE static LPoint3 to_3d(const LVecBase2 &point2d, const LMatrix4 &to_3d_mat);
-  LPoint3 legacy_to_3d(const LVecBase2 &point2d, int axis) const;
   bool clip_polygon(Points &new_points, const Points &source_points,
                     const LPlane &plane,int plane_no) const;
   bool apply_clip_plane(Points &new_points, const ClipPlaneAttrib *cpa,
@@ -141,7 +148,7 @@ public:
 
 private:
   Points _points[6]; // one set of points for each of the six planes that make up the box
-  LMatrix4 _to_2d_mat[6]; 
+  LMatrix4 _to_2d_mat[6];
 
 public:
   INLINE Points get_plane_points( int n );

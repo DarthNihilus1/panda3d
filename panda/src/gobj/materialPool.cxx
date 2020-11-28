@@ -1,40 +1,34 @@
-// Filename: materialPool.cxx
-// Created by:  drose (30Apr01)
-//
-////////////////////////////////////////////////////////////////////
-//
-// PANDA 3D SOFTWARE
-// Copyright (c) Carnegie Mellon University.  All rights reserved.
-//
-// All use of this software is subject to the terms of the revised BSD
-// license.  You should have received a copy of this license along
-// with this source code in a file named "LICENSE."
-//
-////////////////////////////////////////////////////////////////////
+/**
+ * PANDA 3D SOFTWARE
+ * Copyright (c) Carnegie Mellon University.  All rights reserved.
+ *
+ * All use of this software is subject to the terms of the revised BSD
+ * license.  You should have received a copy of this license along
+ * with this source code in a file named "LICENSE."
+ *
+ * @file materialPool.cxx
+ * @author drose
+ * @date 2001-04-30
+ */
 
 #include "materialPool.h"
 #include "config_gobj.h"
 #include "lightMutexHolder.h"
 
-MaterialPool *MaterialPool::_global_ptr = (MaterialPool *)NULL;
+MaterialPool *MaterialPool::_global_ptr = nullptr;
 
 
-////////////////////////////////////////////////////////////////////
-//     Function: MaterialPool::write
-//       Access: Published, Static
-//  Description: Lists the contents of the material pool to the
-//               indicated output stream.
-////////////////////////////////////////////////////////////////////
+/**
+ * Lists the contents of the material pool to the indicated output stream.
+ */
 void MaterialPool::
-write(ostream &out) {
+write(std::ostream &out) {
   get_global_ptr()->ns_list_contents(out);
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: MaterialPool::ns_get_material
-//       Access: Public
-//  Description: The nonstatic implementation of get_material().
-////////////////////////////////////////////////////////////////////
+/**
+ * The nonstatic implementation of get_material().
+ */
 Material *MaterialPool::
 ns_get_material(Material *temp) {
   LightMutexHolder holder(_lock);
@@ -45,19 +39,16 @@ ns_get_material(Material *temp) {
     mi = _materials.insert(Materials::value_type(new Material(*temp), temp)).first;
   } else {
     if (*(*mi).first != *(*mi).second) {
-      // The pointer no longer matches its original value.  Save a new
-      // one.
+      // The pointer no longer matches its original value.  Save a new one.
       (*mi).second = temp;
     }
   }
   return (*mi).second;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: MaterialPool::ns_release_material
-//       Access: Private
-//  Description: The nonstatic implementation of release_material().
-////////////////////////////////////////////////////////////////////
+/**
+ * The nonstatic implementation of release_material().
+ */
 void MaterialPool::
 ns_release_material(Material *temp) {
   LightMutexHolder holder(_lock);
@@ -66,11 +57,9 @@ ns_release_material(Material *temp) {
   _materials.erase(cpttemp);
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: MaterialPool::ns_release_all_materials
-//       Access: Private
-//  Description: The nonstatic implementation of release_all_materials().
-////////////////////////////////////////////////////////////////////
+/**
+ * The nonstatic implementation of release_all_materials().
+ */
 void MaterialPool::
 ns_release_all_materials() {
   LightMutexHolder holder(_lock);
@@ -78,11 +67,9 @@ ns_release_all_materials() {
   _materials.clear();
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: MaterialPool::ns_garbage_collect
-//       Access: Private
-//  Description: The nonstatic implementation of garbage_collect().
-////////////////////////////////////////////////////////////////////
+/**
+ * The nonstatic implementation of garbage_collect().
+ */
 int MaterialPool::
 ns_garbage_collect() {
   LightMutexHolder holder(_lock);
@@ -109,13 +96,11 @@ ns_garbage_collect() {
   return num_released;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: MaterialPool::ns_list_contents
-//       Access: Private
-//  Description: The nonstatic implementation of list_contents().
-////////////////////////////////////////////////////////////////////
+/**
+ * The nonstatic implementation of list_contents().
+ */
 void MaterialPool::
-ns_list_contents(ostream &out) const {
+ns_list_contents(std::ostream &out) const {
   LightMutexHolder holder(_lock);
 
   out << _materials.size() << " materials:\n";
@@ -128,15 +113,13 @@ ns_list_contents(ostream &out) const {
   }
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: MaterialPool::get_global_ptr
-//       Access: Private, Static
-//  Description: Initializes and/or returns the global pointer to the
-//               one MaterialPool object in the system.
-////////////////////////////////////////////////////////////////////
+/**
+ * Initializes and/or returns the global pointer to the one MaterialPool
+ * object in the system.
+ */
 MaterialPool *MaterialPool::
 get_global_ptr() {
-  if (_global_ptr == (MaterialPool *)NULL) {
+  if (_global_ptr == nullptr) {
     _global_ptr = new MaterialPool;
   }
   return _global_ptr;

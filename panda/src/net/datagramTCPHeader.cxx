@@ -1,16 +1,15 @@
-// Filename: datagramTCPHeader.cxx
-// Created by:  drose (08Feb00)
-//
-////////////////////////////////////////////////////////////////////
-//
-// PANDA 3D SOFTWARE
-// Copyright (c) Carnegie Mellon University.  All rights reserved.
-//
-// All use of this software is subject to the terms of the revised BSD
-// license.  You should have received a copy of this license along
-// with this source code in a file named "LICENSE."
-//
-////////////////////////////////////////////////////////////////////
+/**
+ * PANDA 3D SOFTWARE
+ * Copyright (c) Carnegie Mellon University.  All rights reserved.
+ *
+ * All use of this software is subject to the terms of the revised BSD
+ * license.  You should have received a copy of this license along
+ * with this source code in a file named "LICENSE."
+ *
+ * @file datagramTCPHeader.cxx
+ * @author drose
+ * @date 2000-02-08
+ */
 
 #include "datagramTCPHeader.h"
 #include "netDatagram.h"
@@ -19,61 +18,54 @@
 
 #include "pnotify.h"
 
-////////////////////////////////////////////////////////////////////
-//     Function: DatagramTCPHeader::Constructor
-//       Access: Public
-//  Description: This constructor creates a header based on an
-//               already-constructed NetDatagram.
-////////////////////////////////////////////////////////////////////
+/**
+ * This constructor creates a header based on an already-constructed
+ * NetDatagram.
+ */
 DatagramTCPHeader::
 DatagramTCPHeader(const NetDatagram &datagram, int header_size) {
-  const string &str = datagram.get_message();
+  size_t length = datagram.get_length();
   switch (header_size) {
   case 0:
     break;
 
   case datagram_tcp16_header_size:
     {
-      PN_uint16 size = str.length();
-      nassertv(size == str.length());
+      uint16_t size = (uint16_t)length;
+      nassertv((size_t)size == length);
       _header.add_uint16(size);
     }
     break;
 
   case datagram_tcp32_header_size:
     {
-      PN_uint32 size = str.length();
-      nassertv(size == str.length());
+      uint32_t size = (uint32_t)length;
+      nassertv((size_t)size == length);
       _header.add_uint32(size);
     }
     break;
 
   default:
-    nassertv(false);
+    nassert_raise("invalid header size");
+    return;
   }
 
   nassertv((int)_header.get_length() == header_size);
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: DatagramTCPHeader::Constructor
-//       Access: Public
-//  Description: This constructor decodes a header from a block of
-//               data of length datagram_tcp_header_size, presumably
-//               just read from a socket.
-////////////////////////////////////////////////////////////////////
+/**
+ * This constructor decodes a header from a block of data of length
+ * datagram_tcp_header_size, presumably just read from a socket.
+ */
 DatagramTCPHeader::
-DatagramTCPHeader(const void *data, int header_size) : 
-  _header(data, header_size) 
+DatagramTCPHeader(const void *data, int header_size) :
+  _header(data, header_size)
 {
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: DatagramTCPHeader::get_datagram_size
-//       Access: Public
-//  Description: Returns the number of bytes in the associated
-//               datagram.
-////////////////////////////////////////////////////////////////////
+/**
+ * Returns the number of bytes in the associated datagram.
+ */
 int DatagramTCPHeader::
 get_datagram_size(int header_size) const {
   DatagramIterator di(_header);
@@ -91,13 +83,10 @@ get_datagram_size(int header_size) const {
   return -1;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: DatagramTCPHeader::verify_datagram
-//       Access: Public
-//  Description: Verifies that the indicated datagram has the
-//               appropriate length.  Returns true if it matches,
-//               false otherwise.
-////////////////////////////////////////////////////////////////////
+/**
+ * Verifies that the indicated datagram has the appropriate length.  Returns
+ * true if it matches, false otherwise.
+ */
 bool DatagramTCPHeader::
 verify_datagram(const NetDatagram &datagram, int header_size) const {
   if (header_size == 0) {
@@ -105,8 +94,7 @@ verify_datagram(const NetDatagram &datagram, int header_size) const {
     return true;
   }
 
-  const string &str = datagram.get_message();
-  int actual_size = str.length();
+  int actual_size = (int)datagram.get_length();
   int expected_size = get_datagram_size(header_size);
   if (actual_size == expected_size) {
     return true;
@@ -117,10 +105,10 @@ verify_datagram(const NetDatagram &datagram, int header_size) const {
       << "Invalid datagram!  Size is " << actual_size
       << " bytes, header reports " << expected_size << "\n";
 
-    // We write the hex dump into a ostringstream first, to guarantee
-    // an atomic write to the output stream in case we're threaded.
+    // We write the hex dump into a ostringstream first, to guarantee an
+    // atomic write to the output stream in case we're threaded.
 
-    ostringstream hex;
+    std::ostringstream hex;
     datagram.dump_hex(hex);
     hex << "\n";
     net_cat.debug() << hex.str();

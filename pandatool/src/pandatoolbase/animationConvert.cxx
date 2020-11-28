@@ -1,27 +1,25 @@
-// Filename: animationConvert.cxx
-// Created by:  drose (21Jan03)
-//
-////////////////////////////////////////////////////////////////////
-//
-// PANDA 3D SOFTWARE
-// Copyright (c) Carnegie Mellon University.  All rights reserved.
-//
-// All use of this software is subject to the terms of the revised BSD
-// license.  You should have received a copy of this license along
-// with this source code in a file named "LICENSE."
-//
-////////////////////////////////////////////////////////////////////
+/**
+ * PANDA 3D SOFTWARE
+ * Copyright (c) Carnegie Mellon University.  All rights reserved.
+ *
+ * All use of this software is subject to the terms of the revised BSD
+ * license.  You should have received a copy of this license along
+ * with this source code in a file named "LICENSE."
+ *
+ * @file animationConvert.cxx
+ * @author drose
+ * @date 2003-01-21
+ */
 
 #include "animationConvert.h"
 
 #include "string_utils.h"
 #include "pnotify.h"
 
-////////////////////////////////////////////////////////////////////
-//     Function: format_animation_convert
-//  Description: Returns the string corresponding to this method.
-////////////////////////////////////////////////////////////////////
-string
+/**
+ * Returns the string corresponding to this method.
+ */
+std::string
 format_animation_convert(AnimationConvert convert) {
   switch (convert) {
   case AC_invalid:
@@ -52,23 +50,20 @@ format_animation_convert(AnimationConvert convert) {
   return "**";
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: AnimationConvert output operator
-//  Description:
-////////////////////////////////////////////////////////////////////
-ostream &
-operator << (ostream &out, AnimationConvert convert) {
+/**
+ *
+ */
+std::ostream &
+operator << (std::ostream &out, AnimationConvert convert) {
   return out << format_animation_convert(convert);
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: string_animation_convert
-//  Description: Converts from a string, as might be input by the
-//               user, to one of the known AnimationConvert types.
-//               Returns AC_invalid if the string is unknown.
-////////////////////////////////////////////////////////////////////
+/**
+ * Converts from a string, as might be input by the user, to one of the known
+ * AnimationConvert types.  Returns AC_invalid if the string is unknown.
+ */
 AnimationConvert
-string_animation_convert(const string &str) {
+string_animation_convert(const std::string &str) {
   if (cmp_nocase(str, "none") == 0) {
     return AC_none;
 

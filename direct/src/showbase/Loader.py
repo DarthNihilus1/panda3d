@@ -1,4 +1,6 @@
-"""Loader module: contains the Loader class"""
+"""This module contains a high-level interface for loading models, textures,
+sound, music, shaders and fonts from disk.
+"""
 
 __all__ = ['Loader']
 
@@ -6,7 +8,6 @@ from panda3d.core import *
 from panda3d.core import Loader as PandaLoader
 from direct.directnotify.DirectNotifyGlobal import *
 from direct.showbase.DirectObject import DirectObject
-import types
 
 # You can specify a phaseChecker callback to check
 # a modelPath to see if it is being loaded in the correct
@@ -21,34 +22,136 @@ class Loader(DirectObject):
     notify = directNotify.newCategory("Loader")
     loaderIndex = 0
 
-    class Callback:
-        def __init__(self, numObjects, gotList, callback, extraArgs):
+    _loadedPythonFileTypes = False
+
+    class _Callback:
+        """Returned by loadModel when used asynchronously.  This class is
+        modelled after Future, and can be awaited."""
+
+        # This indicates that this class behaves like a Future.
+        _asyncio_future_blocking = False
+
+        class _ResultAwaiter(object):
+            """Reinvents generators because of PEP 479, sigh.  See #513."""
+
+            __slots__ = 'requestList', 'index'
+
+            def __init__(self, requestList):
+                self.requestList = requestList
+                self.index = 0
+
+            def __await__(self):
+                return self
+
+            def __anext__(self):
+                if self.index >= len(self.requestList):
+                    raise StopAsyncIteration
+                return self
+
+            def __iter__(self):
+                return self
+
+            def __next__(self):
+                i = self.index
+                request = self.requestList[i]
+                if not request.done():
+                    return request
+
+                self.index = i + 1
+
+                result = request.result()
+                if isinstance(result, PandaNode):
+                    result = NodePath(result)
+
+                exc = StopIteration(result)
+                exc.value = result
+                raise exc
+
+        def __init__(self, loader, numObjects, gotList, callback, extraArgs):
+            self._loader = loader
             self.objects = [None] * numObjects
             self.gotList = gotList
             self.callback = callback
             self.extraArgs = extraArgs
-            self.numRemaining = numObjects
-            self.cancelled = False
-            self.requests = {}
+            self.requests = set()
+            self.requestList = []
 
         def gotObject(self, index, object):
             self.objects[index] = object
-            self.numRemaining -= 1
 
-            if self.numRemaining == 0:
-                if self.gotList:
-                    self.callback(self.objects, *self.extraArgs)
-                else:
-                    self.callback(*(self.objects + self.extraArgs))
+            if not self.requests:
+                self._loader = None
+                if self.callback:
+                    if self.gotList:
+                        self.callback(self.objects, *self.extraArgs)
+                    else:
+                        self.callback(*(self.objects + self.extraArgs))
+
+        def cancel(self):
+            "Cancels the request.  Callback won't be called."
+            if self._loader:
+                for request in self.requests:
+                    self._loader.loader.remove(request)
+                    del self._loader._requests[request]
+                self._loader = None
+                self.requests = None
+                self.requestList = None
+
+        def cancelled(self):
+            "Returns true if the request was cancelled."
+            return self.requestList is None
+
+        def done(self):
+            "Returns true if all the requests were finished or cancelled."
+            return not self.requests
+
+        def result(self):
+            "Returns the results, suspending the thread to wait if necessary."
+            for r in list(self.requests):
+                r.wait()
+            if self.gotList:
+                return self.objects
+            else:
+                return self.objects[0]
+
+        def exception(self):
+            assert self.done() and not self.cancelled()
+            return None
+
+        def __await__(self):
+            """ Returns a generator that raises StopIteration when the loading
+            is complete.  This allows this class to be used with 'await'."""
+
+            if self.requests:
+                self._asyncio_future_blocking = True
+
+            if self.gotList:
+                return self._ResultAwaiter([self])
+            else:
+                return self._ResultAwaiter(self.requestList)
+
+        def __aiter__(self):
+            """ This allows using `async for` to iterate asynchronously over
+            the results of this class.  It does guarantee to return the
+            results in order, though, even though they may not be loaded in
+            that order. """
+            requestList = self.requestList
+            assert requestList is not None, "Request was cancelled."
+
+            return self._ResultAwaiter(requestList)
 
     # special methods
     def __init__(self, base):
         self.base = base
         self.loader = PandaLoader.getGlobalPtr()
 
+        self._requests = {}
+
         self.hook = "async_loader_%s" % (Loader.loaderIndex)
         Loader.loaderIndex += 1
         self.accept(self.hook, self.__gotAsyncObject)
+
+        self._loadPythonFileTypes()
 
     def destroy(self):
         self.ignore(self.hook)
@@ -56,31 +159,54 @@ class Loader(DirectObject):
         del self.base
         del self.loader
 
+    @classmethod
+    def _loadPythonFileTypes(cls):
+        if cls._loadedPythonFileTypes:
+            return
+
+        if not ConfigVariableBool('loader-support-entry-points', True):
+            return
+
+        import importlib
+        try:
+            pkg_resources = importlib.import_module('pkg_resources')
+        except ImportError:
+            pkg_resources = None
+
+        if pkg_resources:
+            registry = LoaderFileTypeRegistry.getGlobalPtr()
+
+            for entry_point in pkg_resources.iter_entry_points('panda3d.loaders'):
+                registry.register_deferred_type(entry_point)
+
+            cls._loadedPythonFileTypes = True
+
     # model loading funcs
     def loadModel(self, modelPath, loaderOptions = None, noCache = None,
                   allowInstance = False, okMissing = None,
-                  callback = None, extraArgs = [], priority = None):
+                  callback = None, extraArgs = [], priority = None,
+                  blocking = None):
         """
         Attempts to load a model or models from one or more relative
         pathnames.  If the input modelPath is a string (a single model
         pathname), the return value will be a NodePath to the model
         loaded if the load was successful, or None otherwise.  If the
         input modelPath is a list of pathnames, the return value will
-        be a list of NodePaths and/or Nones.
+        be a list of `.NodePath` objects and/or Nones.
 
         loaderOptions may optionally be passed in to control details
         about the way the model is searched and loaded.  See the
-        LoaderOptions class for more.
+        `.LoaderOptions` class for more.
 
-        The default is to look in the ModelPool (RAM) cache first, and
-        return a copy from that if the model can be found there.  If
-        the bam cache is enabled (via the model-cache-dir config
+        The default is to look in the `.ModelPool` (RAM) cache first,
+        and return a copy from that if the model can be found there.
+        If the bam cache is enabled (via the `model-cache-dir` config
         variable), then that will be consulted next, and if both
         caches fail, the file will be loaded from disk.  If noCache is
         True, then neither cache will be consulted or updated.
 
         If allowInstance is True, a shared instance may be returned
-        from the ModelPool.  This is dangerous, since it is easy to
+        from the `.ModelPool`.  This is dangerous, since it is easy to
         accidentally modify the shared instance, and invalidate future
         load attempts of the same model.  Normally, you should leave
         allowInstance set to False, which will always return a unique
@@ -88,18 +214,18 @@ class Loader(DirectObject):
 
         If okMissing is True, None is returned if the model is not
         found or cannot be read, and no error message is printed.
-        Otherwise, an IOError is raised if the model is not found or
+        Otherwise, an `IOError` is raised if the model is not found or
         cannot be read (similar to attempting to open a nonexistent
-        file).  (If modelPath is a list of filenames, then IOError is
-        raised if *any* of the models could not be loaded.)
+        file).  (If modelPath is a list of filenames, then `IOError`
+        is raised if *any* of the models could not be loaded.)
 
         If callback is not None, then the model load will be performed
         asynchronously.  In this case, loadModel() will initiate a
         background load and return immediately.  The return value will
-        be an object that may later be passed to
-        loader.cancelRequest() to cancel the asynchronous request.  At
-        some later point, when the requested model(s) have finished
-        loading, the callback function will be invoked with the n
+        be an object that can be used to check the status, cancel the
+        request, or use it in an `await` expression.  Unless callback
+        is the special value True, when the requested model(s) have
+        finished loading, it will be invoked with the n
         loaded models passed as its parameter list.  It is possible
         that the callback will be invoked immediately, even before
         loadModel() returns.  If you use callback, you may also
@@ -109,15 +235,15 @@ class Loader(DirectObject):
 
         True asynchronous model loading requires Panda to have been
         compiled with threading support enabled (you can test
-        Thread.isThreadingSupported()).  In the absence of threading
+        `.Thread.isThreadingSupported()`).  In the absence of threading
         support, the asynchronous interface still exists and still
         behaves exactly as described, except that loadModel() might
         not return immediately.
 
         """
 
-        assert Loader.notify.debug("Loading model: %s" % (modelPath))
-        if loaderOptions == None:
+        assert Loader.notify.debug("Loading model: %s" % (modelPath,))
+        if loaderOptions is None:
             loaderOptions = LoaderOptions()
         else:
             loaderOptions = LoaderOptions(loaderOptions)
@@ -139,8 +265,7 @@ class Loader(DirectObject):
         if allowInstance:
             loaderOptions.setFlags(loaderOptions.getFlags() | LoaderOptions.LFAllowInstance)
 
-        if isinstance(modelPath, types.StringTypes) or \
-           isinstance(modelPath, Filename):
+        if not isinstance(modelPath, (tuple, list, set)):
             # We were given a single model pathname.
             modelList = [modelPath]
             if phaseChecker:
@@ -152,13 +277,16 @@ class Loader(DirectObject):
             modelList = modelPath
             gotList = True
 
-        if callback is None:
+        if blocking is None:
+            blocking = callback is None
+
+        if blocking:
             # We got no callback, so it's a synchronous load.
 
             result = []
             for modelPath in modelList:
                 node = self.loader.loadSync(Filename(modelPath), loaderOptions)
-                if (node != None):
+                if node is not None:
                     nodePath = NodePath(node)
                 else:
                     nodePath = None
@@ -180,34 +308,35 @@ class Loader(DirectObject):
             # requested models have been loaded, we'll invoke the
             # callback (passing it the models on the parameter list).
 
-            cb = Loader.Callback(len(modelList), gotList, callback, extraArgs)
-            i=0
+            cb = Loader._Callback(self, len(modelList), gotList, callback, extraArgs)
+            i = 0
             for modelPath in modelList:
                 request = self.loader.makeAsyncRequest(Filename(modelPath), loaderOptions)
                 if priority is not None:
                     request.setPriority(priority)
                 request.setDoneEvent(self.hook)
-                request.setPythonObject((cb, i))
-                i+=1
                 self.loader.loadAsync(request)
-                cb.requests[request] = True
+                cb.requests.add(request)
+                cb.requestList.append(request)
+                self._requests[request] = (cb, i)
+                i += 1
             return cb
 
     def cancelRequest(self, cb):
         """Cancels an aysynchronous loading or flatten request issued
         earlier.  The callback associated with the request will not be
-        called after cancelRequest() has been performed. """
+        called after cancelRequest() has been performed.
 
-        if not cb.cancelled:
-            cb.cancelled = True
-            for request in cb.requests:
-                self.loader.remove(request)
-            cb.requests = None
+        This is now deprecated: call cb.cancel() instead. """
+
+        cb.cancel()
 
     def isRequestPending(self, cb):
         """ Returns true if an asynchronous loading or flatten request
         issued earlier is still pending, or false if it has completed or
-        been cancelled. """
+        been cancelled.
+
+        This is now deprecated: call cb.done() instead. """
 
         return bool(cb.requests)
 
@@ -270,13 +399,12 @@ class Loader(DirectObject):
             # Maybe we were given a node
             modelNode = model
 
-        elif isinstance(model, types.StringTypes) or \
-             isinstance(model, Filename):
+        elif isinstance(model, (str, Filename)):
             # If we were given a filename, we have to ask the loader
             # to resolve it for us.
             options = LoaderOptions(LoaderOptions.LFSearch | LoaderOptions.LFNoDiskCache | LoaderOptions.LFCacheOnly)
             modelNode = self.loader.loadSync(Filename(model), options)
-            if modelNode == None:
+            if modelNode is None:
                 # Model not found.
                 assert Loader.notify.debug("Unloading model not loaded: %s" % (model))
                 return
@@ -284,25 +412,25 @@ class Loader(DirectObject):
             assert Loader.notify.debug("%s resolves to %s" % (model, modelNode.getFullpath()))
 
         else:
-            raise 'Invalid parameter to unloadModel: %s' % (model)
+            raise TypeError('Invalid parameter to unloadModel: %s' % (model))
 
         assert Loader.notify.debug("Unloading model: %s" % (modelNode.getFullpath()))
         ModelPool.releaseModel(modelNode)
 
     def saveModel(self, modelPath, node, loaderOptions = None,
-                  callback = None, extraArgs = [], priority = None):
-        """ Saves the model (a NodePath or PandaNode) to the indicated
+                  callback = None, extraArgs = [], priority = None,
+                  blocking = None):
+        """ Saves the model (a `NodePath` or `PandaNode`) to the indicated
         filename path.  Returns true on success, false on failure.  If
         a callback is used, the model is saved asynchronously, and the
         true/false status is passed to the callback function. """
 
-        if loaderOptions == None:
+        if loaderOptions is None:
             loaderOptions = LoaderOptions()
         else:
             loaderOptions = LoaderOptions(loaderOptions)
 
-        if isinstance(modelPath, types.StringTypes) or \
-           isinstance(modelPath, Filename):
+        if not isinstance(modelPath, (tuple, list, set)):
             # We were given a single model pathname.
             modelList = [modelPath]
             nodeList = [node]
@@ -324,9 +452,12 @@ class Loader(DirectObject):
                 nodeList[i] = nodeList[i].node()
 
         # From here on, we deal with a list of (filename, node) pairs.
-        modelList = zip(modelList, nodeList)
+        modelList = list(zip(modelList, nodeList))
 
-        if callback is None:
+        if blocking is None:
+            blocking = callback is None
+
+        if blocking:
             # We got no callback, so it's a synchronous save.
 
             result = []
@@ -345,17 +476,18 @@ class Loader(DirectObject):
             # requested models have been saved, we'll invoke the
             # callback (passing it the models on the parameter list).
 
-            cb = Loader.Callback(len(modelList), gotList, callback, extraArgs)
-            i=0
+            cb = Loader._Callback(self, len(modelList), gotList, callback, extraArgs)
+            i = 0
             for modelPath, node in modelList:
                 request = self.loader.makeAsyncSaveRequest(Filename(modelPath), loaderOptions, node)
                 if priority is not None:
                     request.setPriority(priority)
                 request.setDoneEvent(self.hook)
-                request.setPythonObject((cb, i))
-                i+=1
                 self.loader.saveAsync(request)
-                cb.requests[request] = True
+                cb.requests.add(request)
+                cb.requestList.append(request)
+                self._requests[request] = (cb, i)
+                i += 1
             return cb
 
 
@@ -376,8 +508,8 @@ class Loader(DirectObject):
         """
         modelPath is a string.
 
-        This loads a special model as a TextFont object, for rendering
-        text with a TextNode.  A font file must be either a special
+        This loads a special model as a `TextFont` object, for rendering
+        text with a `TextNode`.  A font file must be either a special
         egg file (or bam file) generated with egg-mkfont, which is
         considered a static font, or a standard font file (like a TTF
         file) that is supported by FreeType, which is considered a
@@ -441,7 +573,7 @@ class Loader(DirectObject):
 
         If color is not None, it should be a VBase4 specifying the
         foreground color of the font.  Specifying this option breaks
-        TextNode.setColor(), so you almost never want to use this
+        `TextNode.setColor()`, so you almost never want to use this
         option; the default (white) is the most appropriate for a
         font, as it allows text to have any arbitrary color assigned
         at generation time.  However, if you want to use a colored
@@ -500,7 +632,7 @@ class Loader(DirectObject):
             phaseChecker(modelPath, loaderOptions)
 
         font = FontPool.loadFont(modelPath)
-        if font == None:
+        if font is None:
             if not okMissing:
                 message = 'Could not load font file: %s' % (modelPath)
                 raise IOError(message)
@@ -510,21 +642,21 @@ class Loader(DirectObject):
 
         # The following properties may only be set for dynamic fonts.
         if hasattr(font, "setPointSize"):
-            if pointSize != None:
+            if pointSize is not None:
                 font.setPointSize(pointSize)
-            if pixelsPerUnit != None:
+            if pixelsPerUnit is not None:
                 font.setPixelsPerUnit(pixelsPerUnit)
-            if scaleFactor != None:
+            if scaleFactor is not None:
                 font.setScaleFactor(scaleFactor)
-            if textureMargin != None:
+            if textureMargin is not None:
                 font.setTextureMargin(textureMargin)
-            if polyMargin != None:
+            if polyMargin is not None:
                 font.setPolyMargin(polyMargin)
-            if minFilter != None:
+            if minFilter is not None:
                 font.setMinfilter(minFilter)
-            if magFilter != None:
+            if magFilter is not None:
                 font.setMagfilter(magFilter)
-            if anisotropicDegree != None:
+            if anisotropicDegree is not None:
                 font.setAnisotropicDegree(anisotropicDegree)
             if color:
                 font.setFg(color)
@@ -563,7 +695,8 @@ class Loader(DirectObject):
         texturePath is a string.
 
         Attempt to load a texture from the given file path using
-        TexturePool class.
+        `TexturePool` class.  Returns a `Texture` object, or raises
+        `IOError` if the file could not be loaded.
 
         okMissing should be True to indicate the method should return
         None if the texture file is not found.  If it is False, the
@@ -581,17 +714,17 @@ class Loader(DirectObject):
         the texture and the number of expected mipmap images.
 
         If minfilter or magfilter is not None, they should be a symbol
-        like Texture.FTLinear or Texture.FTNearest.  (minfilter may be
-        further one of the Mipmap filter type symbols.)  These specify
-        the filter mode that will automatically be applied to the
-        texture when it is loaded.  Note that this setting may
+        like `SamplerState.FTLinear` or `SamplerState.FTNearest`.
+        (minfilter may be further one of the Mipmap filter type symbols.)
+        These specify the filter mode that will automatically be applied
+        to the texture when it is loaded.  Note that this setting may
         override the texture's existing settings, even if it has
-        already been loaded.  See egg-texture-cards for a more robust
+        already been loaded.  See `egg-texture-cards` for a more robust
         way to apply per-texture filter types and settings.
 
         If anisotropicDegree is not None, it specifies the anisotropic degree
         to apply to the texture when it is loaded.  Like minfilter and
-        magfilter, egg-texture-cards may be a more robust way to apply
+        magfilter, `egg-texture-cards` may be a more robust way to apply
         this setting.
 
         If multiview is true, it indicates to load a multiview or
@@ -600,7 +733,7 @@ class Loader(DirectObject):
         left image and '1' for the right image.  Larger numbers are
         also allowed if you need more than two views.
         """
-        if loaderOptions == None:
+        if loaderOptions is None:
             loaderOptions = LoaderOptions()
         else:
             loaderOptions = LoaderOptions(loaderOptions)
@@ -637,7 +770,7 @@ class Loader(DirectObject):
         """
         texturePattern is a string that contains a sequence of one or
         more hash characters ('#'), which will be filled in with the
-        z-height number.  Returns a 3-D Texture object, suitable for
+        z-height number.  Returns a 3-D `Texture` object, suitable for
         rendering volumetric textures.
 
         okMissing should be True to indicate the method should return
@@ -661,7 +794,7 @@ class Loader(DirectObject):
         numbered 8 - 15 will be part of the right eye view.
         """
         assert Loader.notify.debug("Loading 3-D texture: %s" % (texturePattern))
-        if loaderOptions == None:
+        if loaderOptions is None:
             loaderOptions = LoaderOptions()
         else:
             loaderOptions = LoaderOptions(loaderOptions)
@@ -688,6 +821,63 @@ class Loader(DirectObject):
 
         return texture
 
+    def load2DTextureArray(self, texturePattern, readMipmaps = False, okMissing = False,
+                      minfilter = None, magfilter = None, anisotropicDegree = None,
+                      loaderOptions = None, multiview = None, numViews = 2):
+        """
+        texturePattern is a string that contains a sequence of one or
+        more hash characters ('#'), which will be filled in with the
+        z-height number.  Returns a 2-D `Texture` array object, suitable
+        for rendering array of textures.
+
+        okMissing should be True to indicate the method should return
+        None if the texture file is not found.  If it is False, the
+        method will raise an exception if the texture file is not
+        found or cannot be loaded.
+
+        If readMipmaps is True, then the filename string must contain
+        two sequences of hash characters; the first group is filled in
+        with the z-height number, and the second group with the mipmap
+        index number.
+
+        If multiview is true, it indicates to load a multiview or
+        stereo texture.  In this case, numViews should also be
+        specified (the default is 2), and the sequence of texture
+        images will be divided into numViews views.  The total
+        z-height will be (numImages / numViews).  For instance, if you
+        read 16 images with numViews = 2, then you have created a
+        stereo multiview image, with z = 8.  In this example, images
+        numbered 0 - 7 will be part of the left eye view, and images
+        numbered 8 - 15 will be part of the right eye view.
+        """
+        assert Loader.notify.debug("Loading 2-D texture array: %s" % (texturePattern))
+        if loaderOptions is None:
+            loaderOptions = LoaderOptions()
+        else:
+            loaderOptions = LoaderOptions(loaderOptions)
+        if multiview is not None:
+            flags = loaderOptions.getTextureFlags()
+            if multiview:
+                flags |= LoaderOptions.TFMultiview
+            else:
+                flags &= ~LoaderOptions.TFMultiview
+            loaderOptions.setTextureFlags(flags)
+            loaderOptions.setTextureNumViews(numViews)
+
+        texture = TexturePool.load2dTextureArray(texturePattern, readMipmaps, loaderOptions)
+        if not texture and not okMissing:
+            message = 'Could not load 2-D texture array: %s' % (texturePattern)
+            raise IOError(message)
+
+        if minfilter is not None:
+            texture.setMinfilter(minfilter)
+        if magfilter is not None:
+            texture.setMagfilter(magfilter)
+        if anisotropicDegree is not None:
+            texture.setAnisotropicDegree(anisotropicDegree)
+
+        return texture
+
     def loadCubeMap(self, texturePattern, readMipmaps = False, okMissing = False,
                     minfilter = None, magfilter = None, anisotropicDegree = None,
                     loaderOptions = None, multiview = None):
@@ -695,7 +885,7 @@ class Loader(DirectObject):
         texturePattern is a string that contains a sequence of one or
         more hash characters ('#'), which will be filled in with the
         face index number (0 through 6).  Returns a six-face cube map
-        Texture object.
+        `Texture` object.
 
         okMissing should be True to indicate the method should return
         None if the texture file is not found.  If it is False, the
@@ -715,7 +905,7 @@ class Loader(DirectObject):
         and each six images will define a new view.
         """
         assert Loader.notify.debug("Loading cube map: %s" % (texturePattern))
-        if loaderOptions == None:
+        if loaderOptions is None:
             loaderOptions = LoaderOptions()
         else:
             loaderOptions = LoaderOptions(loaderOptions)
@@ -762,8 +952,8 @@ class Loader(DirectObject):
         """Loads one or more sound files, specifically designated as a
         "sound effect" file (that is, uses the sfxManager to load the
         sound).  There is no distinction between sound effect files
-        and music files other than the particular AudioManager used to
-        load the sound file, but this distinction allows the sound
+        and music files other than the particular `AudioManager` used
+        to load the sound file, but this distinction allows the sound
         effects and/or the music files to be adjusted as a group,
         independently of the other group."""
 
@@ -776,8 +966,8 @@ class Loader(DirectObject):
         """Loads one or more sound files, specifically designated as a
         "music" file (that is, uses the musicManager to load the
         sound).  There is no distinction between sound effect files
-        and music files other than the particular AudioManager used to
-        load the sound file, but this distinction allows the sound
+        and music files other than the particular `AudioManager` used
+        to load the sound file, but this distinction allows the sound
         effects and/or the music files to be adjusted as a group,
         independently of the other group."""
         if(self.base.musicManager):
@@ -795,12 +985,8 @@ class Loader(DirectObject):
         just as in loadModel(); otherwise, the loading happens before
         loadSound() returns."""
 
-        if isinstance(soundPath, types.StringTypes) or \
-           isinstance(soundPath, Filename):
-            # We were given a single sound pathname.
-            soundList = [soundPath]
-            gotList = False
-        elif isinstance(soundPath, MovieAudio):
+        if not isinstance(soundPath, (tuple, list, set)):
+            # We were given a single sound pathname or a MovieAudio instance.
             soundList = [soundPath]
             gotList = False
         else:
@@ -828,14 +1014,14 @@ class Loader(DirectObject):
             # requested sounds have been loaded, we'll invoke the
             # callback (passing it the sounds on the parameter list).
 
-            cb = Loader.Callback(len(soundList), gotList, callback, extraArgs)
-            for i in range(len(soundList)):
-                soundPath = soundList[i]
+            cb = Loader._Callback(self, len(soundList), gotList, callback, extraArgs)
+            for i, soundPath in enumerate(soundList):
                 request = AudioLoadRequest(manager, soundPath, positional)
                 request.setDoneEvent(self.hook)
-                request.setPythonObject((cb, i))
                 self.loader.loadAsync(request)
-                cb.requests[request] = True
+                cb.requests.add(request)
+                cb.requestList.append(request)
+                self._requests[request] = (cb, i)
             return cb
 
     def unloadSfx(self, sfx):
@@ -860,14 +1046,14 @@ class Loader(DirectObject):
         return shader
 
     def unloadShader(self, shaderPath):
-        if (shaderPath != None):
+        if shaderPath is not None:
             ShaderPool.releaseShader(shaderPath)
 
     def asyncFlattenStrong(self, model, inPlace = True,
                            callback = None, extraArgs = []):
         """ Performs a model.flattenStrong() operation in a sub-thread
         (if threading is compiled into Panda).  The model may be a
-        single NodePath, or it may be a list of NodePaths.
+        single `.NodePath`, or it may be a list of NodePaths.
 
         Each model is duplicated and flattened in the sub-thread.
 
@@ -893,15 +1079,16 @@ class Loader(DirectObject):
             callback = self.__asyncFlattenDone
             gotList = True
 
-        cb = Loader.Callback(len(modelList), gotList, callback, extraArgs)
-        i=0
+        cb = Loader._Callback(self, len(modelList), gotList, callback, extraArgs)
+        i = 0
         for model in modelList:
             request = ModelFlattenRequest(model.node())
             request.setDoneEvent(self.hook)
-            request.setPythonObject((cb, i))
-            i+=1
             self.loader.loadAsync(request)
-            cb.requests[request] = True
+            cb.requests.add(request)
+            cb.requestList.append(request)
+            self._requests[request] = (cb, i)
+            i += 1
         return cb
 
     def __asyncFlattenDone(self, models,
@@ -915,7 +1102,7 @@ class Loader(DirectObject):
             orig = origModelList[i].node()
             flat = models[i].node()
             orig.copyAllProperties(flat)
-            orig.replaceNode(flat)
+            flat.replaceNode(orig)
 
         if callback:
             if gotList:
@@ -929,29 +1116,26 @@ class Loader(DirectObject):
         of loaded objects, and call the appropriate callback when it's
         time."""
 
-        cb, i = request.getPythonObject()
-        if cb.cancelled:
+        if request not in self._requests:
             return
 
-        del cb.requests[request]
+        cb, i = self._requests[request]
+        if cb.cancelled() or request.cancelled():
+            # Shouldn't be here.
+            del self._requests[request]
+            return
 
-        object = None
-        if hasattr(request, "getModel"):
-            node = request.getModel()
-            if (node != None):
-                object = NodePath(node)
+        cb.requests.discard(request)
+        if not cb.requests:
+            del self._requests[request]
 
-        elif hasattr(request, "getSound"):
-            object = request.getSound()
+        result = request.result()
+        if isinstance(result, PandaNode):
+            result = NodePath(result)
 
-        elif hasattr(request, "getSuccess"):
-            object = request.getSuccess()
-
-        cb.gotObject(i, object)
+        cb.gotObject(i, result)
 
     load_model = loadModel
-    cancel_request = cancelRequest
-    is_request_pending = isRequestPending
     unload_model = unloadModel
     save_model = saveModel
     load_font = loadFont

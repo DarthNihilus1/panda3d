@@ -1,32 +1,33 @@
-// Filename: test_task.cxx
-// Created by:  drose (16Sep08)
-//
-////////////////////////////////////////////////////////////////////
-//
-// PANDA 3D SOFTWARE
-// Copyright (c) Carnegie Mellon University.  All rights reserved.
-//
-// All use of this software is subject to the terms of the revised BSD
-// license.  You should have received a copy of this license along
-// with this source code in a file named "LICENSE."
-//
-////////////////////////////////////////////////////////////////////
+/**
+ * PANDA 3D SOFTWARE
+ * Copyright (c) Carnegie Mellon University.  All rights reserved.
+ *
+ * All use of this software is subject to the terms of the revised BSD
+ * license.  You should have received a copy of this license along
+ * with this source code in a file named "LICENSE."
+ *
+ * @file test_task.cxx
+ * @author drose
+ * @date 2008-09-16
+ */
 
 #include "pandabase.h"
 #include "asyncTask.h"
 #include "asyncTaskManager.h"
 #include "perlinNoise2.h"
 
+using std::cerr;
+
 class MyTask : public AsyncTask {
 public:
-  MyTask(const string &name, double length, int repeat_count) :
+  MyTask(const std::string &name, double length, int repeat_count) :
     AsyncTask(name),
     _length(length),
     _repeat_count(repeat_count)
   {
   }
   ALLOC_DELETED_CHAIN(MyTask);
-    
+
   virtual DoneStatus do_task() {
     cerr << "Doing " << *this << ", sort = " << get_sort()
          << ", priority = " << get_priority()
@@ -63,12 +64,12 @@ main(int argc, char *argv[]) {
   cerr << "Making tasks.\n";
   for (int yi = 0; yi < grid_size; ++yi) {
     for (int xi = 0; xi < grid_size; ++xi) {
-      ostringstream namestrm;
+      std::ostringstream namestrm;
       namestrm << "task_" << xi << "_" << yi;
 
-      double length = max(length_noise.noise(xi, yi) + 1.0, 0.0);
-      double delay = max(delay_noise.noise(xi, yi), 0.0) * 3.0;
-      int repeat_count = (int)floor(max(repeat_count_noise.noise(xi, yi) + 1.0, 0.0) * 1.5);
+      double length = std::max(length_noise.noise(xi, yi) + 1.0, 0.0);
+      double delay = std::max(delay_noise.noise(xi, yi), 0.0) * 3.0;
+      int repeat_count = (int)floor(std::max(repeat_count_noise.noise(xi, yi) + 1.0, 0.0) * 1.5);
       int sort = (int)floor(sort_noise.noise(xi, yi) * 2.0);
       int priority = (int)floor(priority_noise.noise(xi, yi) * 5.0);
 

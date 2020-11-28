@@ -1,23 +1,22 @@
-// Filename: displayRegion.h
-// Created by:  mike (09Jan97)
-//
-////////////////////////////////////////////////////////////////////
-//
-// PANDA 3D SOFTWARE
-// Copyright (c) Carnegie Mellon University.  All rights reserved.
-//
-// All use of this software is subject to the terms of the revised BSD
-// license.  You should have received a copy of this license along
-// with this source code in a file named "LICENSE."
-//
-////////////////////////////////////////////////////////////////////
+/**
+ * PANDA 3D SOFTWARE
+ * Copyright (c) Carnegie Mellon University.  All rights reserved.
+ *
+ * All use of this software is subject to the terms of the revised BSD
+ * license.  You should have received a copy of this license along
+ * with this source code in a file named "LICENSE."
+ *
+ * @file displayRegion.h
+ * @author mike
+ * @date 1997-01-09
+ */
 
 #ifndef DISPLAYREGION_H
 #define DISPLAYREGION_H
 
 #include "pandabase.h"
 
-#include "displayRegionBase.h"
+#include "typedReferenceCount.h"
 #include "drawableRegion.h"
 #include "referenceCount.h"
 #include "nodePath.h"
@@ -47,24 +46,19 @@ class Camera;
 class PNMImage;
 class CullTraverser;
 
-////////////////////////////////////////////////////////////////////
-//       Class : DisplayRegion
-// Description : A rectangular subregion within a window for rendering
-//               into.  Typically, there is one DisplayRegion that
-//               covers the whole window, but you may also create
-//               smaller DisplayRegions for having different regions
-//               within the window that represent different scenes.
-//               You may also stack up DisplayRegions like panes of
-//               glass, usually for layering 2-d interfaces on top of
-//               a 3-d scene.
-////////////////////////////////////////////////////////////////////
-class EXPCL_PANDA_DISPLAY DisplayRegion : public DisplayRegionBase, public DrawableRegion {
+/**
+ * A rectangular subregion within a window for rendering into.  Typically,
+ * there is one DisplayRegion that covers the whole window, but you may also
+ * create smaller DisplayRegions for having different regions within the
+ * window that represent different scenes.  You may also stack up
+ * DisplayRegions like panes of glass, usually for layering 2-d interfaces on
+ * top of a 3-d scene.
+ */
+class EXPCL_PANDA_DISPLAY DisplayRegion : public TypedReferenceCount, public DrawableRegion {
 protected:
   DisplayRegion(GraphicsOutput *window, const LVecBase4 &dimensions);
-
-private:
-  DisplayRegion(const DisplayRegion &copy);
-  void operator = (const DisplayRegion &copy);
+  DisplayRegion(const DisplayRegion &copy) = delete;
+  void operator = (const DisplayRegion &copy) = delete;
 
 public:
   virtual ~DisplayRegion();
@@ -156,13 +150,13 @@ PUBLISHED:
   INLINE LVecBase2i get_pixel_size(int i = 0) const;
   MAKE_PROPERTY(pixel_size, get_pixel_size);
 
-  virtual void output(ostream &out) const;
+  virtual void output(std::ostream &out) const;
 
   static Filename make_screenshot_filename(
-    const string &prefix = "screenshot");
-  Filename save_screenshot_default(const string &prefix = "screenshot");
+    const std::string &prefix = "screenshot");
+  Filename save_screenshot_default(const std::string &prefix = "screenshot");
   bool save_screenshot(
-    const Filename &filename, const string &image_comment = "");
+    const Filename &filename, const std::string &image_comment = "");
   bool get_screenshot(PNMImage &image);
   PT(Texture) get_screenshot();
 
@@ -190,6 +184,8 @@ public:
   INLINE PStatCollector &get_cull_region_pcollector();
   INLINE PStatCollector &get_draw_region_pcollector();
 
+  INLINE const std::string &get_debug_name() const;
+
   struct Region {
     INLINE Region();
 
@@ -211,8 +207,8 @@ protected:
                        GraphicsStateGuardian *gsg, Thread *current_thread);
 
 protected:
-  // The associated window is a permanent property of the
-  // DisplayRegion.  It doesn't need to be cycled.
+  // The associated window is a permanent property of the DisplayRegion.  It
+  // doesn't need to be cycled.
   GraphicsOutput *_window;
 
   bool _incomplete_render;
@@ -222,10 +218,9 @@ protected:
   PT(CullTraverser) _trav;
 
 private:
-  // This is the data that is associated with the DisplayRegion that
-  // needs to be cycled every frame, but represents the parameters as
-  // specified by the user, and which probably will not change that
-  // often.
+  // This is the data that is associated with the DisplayRegion that needs to
+  // be cycled every frame, but represents the parameters as specified by the
+  // user, and which probably will not change that often.
   class EXPCL_PANDA_DISPLAY CData : public CycleData {
   public:
     CData();
@@ -260,12 +255,11 @@ private:
   typedef CycleDataWriter<CData> CDWriter;
   typedef CycleDataStageWriter<CData> CDStageWriter;
 
-  // This is a special cycler created to hold the results from the
-  // cull traversal, for (a) the draw traversal, and (b) the next
-  // frame's cull traversal.  It needs to be cycled, but it gets its
-  // own cycler because it will certainly change every frame, so we
-  // don't need to lump all the heavy data above in with this
-  // lightweight cycler.
+  // This is a special cycler created to hold the results from the cull
+  // traversal, for (a) the draw traversal, and (b) the next frame's cull
+  // traversal.  It needs to be cycled, but it gets its own cycler because it
+  // will certainly change every frame, so we don't need to lump all the heavy
+  // data above in with this lightweight cycler.
   class EXPCL_PANDA_DISPLAY CDataCull : public CycleData {
   public:
     CDataCull();
@@ -285,15 +279,16 @@ private:
 
   PStatCollector _cull_region_pcollector;
   PStatCollector _draw_region_pcollector;
+  std::string _debug_name;
 
 public:
   static TypeHandle get_class_type() {
     return _type_handle;
   }
   static void init_type() {
-    DisplayRegionBase::init_type();
+    TypedReferenceCount::init_type();
     register_type(_type_handle, "DisplayRegion",
-                  DisplayRegionBase::get_class_type());
+                  TypedReferenceCount::get_class_type());
   }
   virtual TypeHandle get_type() const {
     return get_class_type();
@@ -309,17 +304,15 @@ private:
   friend class DisplayRegionPipelineReader;
 };
 
-////////////////////////////////////////////////////////////////////
-//       Class : DisplayRegionPipelineReader
-// Description : Encapsulates the data from a DisplayRegion,
-//               pre-fetched for one stage of the pipeline.
-////////////////////////////////////////////////////////////////////
+/**
+ * Encapsulates the data from a DisplayRegion, pre-fetched for one stage of
+ * the pipeline.
+ */
 class EXPCL_PANDA_DISPLAY DisplayRegionPipelineReader {
 public:
   INLINE DisplayRegionPipelineReader(DisplayRegion *object, Thread *current_thread);
-private:
-  INLINE DisplayRegionPipelineReader(const DisplayRegionPipelineReader &copy);
-  INLINE void operator = (const DisplayRegionPipelineReader &copy);
+  DisplayRegionPipelineReader(const DisplayRegionPipelineReader &copy) = delete;
+  void operator = (const DisplayRegionPipelineReader &copy) = delete;
 
 public:
   INLINE ~DisplayRegionPipelineReader();
@@ -380,6 +373,8 @@ public:
 private:
   static TypeHandle _type_handle;
 };
+
+INLINE std::ostream &operator << (std::ostream &out, const DisplayRegion &dr);
 
 #include "displayRegion.I"
 

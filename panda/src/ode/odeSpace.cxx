@@ -1,16 +1,15 @@
-// Filename: odeSpace.cxx
-// Created by:  joswilso (27Dec06)
-//
-////////////////////////////////////////////////////////////////////
-//
-// PANDA 3D SOFTWARE
-// Copyright (c) Carnegie Mellon University.  All rights reserved.
-//
-// All use of this software is subject to the terms of the revised BSD
-// license.  You should have received a copy of this license along
-// with this source code in a file named "LICENSE."
-//
-////////////////////////////////////////////////////////////////////
+/**
+ * PANDA 3D SOFTWARE
+ * Copyright (c) Carnegie Mellon University.  All rights reserved.
+ *
+ * All use of this software is subject to the terms of the revised BSD
+ * license.  You should have received a copy of this license along
+ * with this source code in a file named "LICENSE."
+ *
+ * @file odeSpace.cxx
+ * @author joswilso
+ * @date 2006-12-27
+ */
 
 #include "config_ode.h"
 #include "odeSpace.h"
@@ -24,16 +23,16 @@
 
 TypeHandle OdeSpace::_type_handle;
 // this data is used in auto_collide
-const int OdeSpace::MAX_CONTACTS = 16; 
-OdeWorld* OdeSpace::_static_auto_collide_world; 
-OdeSpace* OdeSpace::_static_auto_collide_space; 
-dJointGroupID OdeSpace::_static_auto_collide_joint_group; 
+const int OdeSpace::MAX_CONTACTS = 16;
+OdeWorld* OdeSpace::_static_auto_collide_world;
+OdeSpace* OdeSpace::_static_auto_collide_space;
+dJointGroupID OdeSpace::_static_auto_collide_joint_group;
 
 OdeSpace::
-OdeSpace(dSpaceID id) : 
+OdeSpace(dSpaceID id) :
   _id(id) {
-  _auto_collide_world = NULL;
-  _auto_collide_joint_group = NULL;
+  _auto_collide_world = nullptr;
+  _auto_collide_joint_group = nullptr;
 }
 
 OdeSpace::
@@ -90,19 +89,19 @@ clean() {
 
 OdeGeom  OdeSpace::
 get_geom(int i) {
-  nassertr(_id, OdeGeom(0));
+  nassertr(_id, OdeGeom(nullptr));
   return OdeGeom(dSpaceGetGeom(_id, i));
 }
 
 
 void OdeSpace::
-write(ostream &out, unsigned int indent) const {
+write(std::ostream &out, unsigned int indent) const {
   out.width(indent); out << "" << get_type() << "(id = " << _id << ")";
 }
 
 OdeSpace::
 operator bool () const {
-  return (_id != NULL);
+  return (_id != nullptr);
 }
 
 void OdeSpace::
@@ -117,10 +116,10 @@ set_auto_collide_joint_group(OdeJointGroup &joint_group) {
 
 void OdeSpace::
 auto_collide() {
-  if (_auto_collide_world == NULL) {
+  if (_auto_collide_world == nullptr) {
     odespace_cat.error() << "No collide world has been set!\n";
   } else {
-    nassertv(_id != NULL);
+    nassertv(_id != nullptr);
     _static_auto_collide_space = this;
     _static_auto_collide_world = _auto_collide_world;
     _static_auto_collide_joint_group = _auto_collide_joint_group;
@@ -130,7 +129,8 @@ auto_collide() {
 
 void OdeSpace::
 auto_callback(void *data, dGeomID o1, dGeomID o2) {
-// uses data stored on the world to resolve collisions so you don't have to use near_callbacks in python
+// uses data stored on the world to resolve collisions so you don't have to
+// use near_callbacks in python
   int i;
   dBodyID b1 = dGeomGetBody(o1);
   dBodyID b2 = dGeomGetBody(o2);
@@ -140,7 +140,7 @@ auto_callback(void *data, dGeomID o1, dGeomID o2) {
   int surface1 = _static_auto_collide_space->get_surface_type(o1);
   int surface2 = _static_auto_collide_space->get_surface_type(o2);
 
-  nassertv(_static_auto_collide_world != NULL);
+  nassertv(_static_auto_collide_world != nullptr);
   sSurfaceParams collide_params;
   collide_params = _static_auto_collide_world->get_surface(surface1, surface2);
 
@@ -157,9 +157,11 @@ auto_callback(void *data, dGeomID o1, dGeomID o2) {
   numc = dCollide(o1, o2, OdeSpace::MAX_CONTACTS, &contact[0].geom, sizeof(dContact));
 
   if (numc) {
-    odespace_cat.debug() << "collision between geoms " << o1 << " and " << o2 << "\n";
-    odespace_cat.debug() << "collision between body " << b1 << " and " << b2 << "\n";
-    odespace_cat.debug() << "surface1= "<< surface1 << " surface2=" << surface2 << "\n";
+    if (odespace_cat.is_debug()) {
+      odespace_cat.debug() << "collision between geoms " << o1 << " and " << o2 << "\n";
+      odespace_cat.debug() << "collision between body " << b1 << " and " << b2 << "\n";
+      odespace_cat.debug() << "surface1= "<< surface1 << " surface2=" << surface2 << "\n";
+    }
 
     PT(OdeCollisionEntry) entry;
     if (!_static_auto_collide_space->_collision_event.empty()) {
@@ -191,22 +193,22 @@ auto_callback(void *data, dGeomID o1, dGeomID o2) {
 
 OdeSimpleSpace OdeSpace::
 convert_to_simple_space() const {
-  nassertr(_id != 0, OdeSimpleSpace((dSpaceID)0));
-  nassertr(get_class() == OdeGeom::GC_simple_space, OdeSimpleSpace((dSpaceID)0));
+  nassertr(_id != nullptr, OdeSimpleSpace(nullptr));
+  nassertr(get_class() == OdeGeom::GC_simple_space, OdeSimpleSpace(nullptr));
   return OdeSimpleSpace(_id);
 }
 
 OdeHashSpace OdeSpace::
 convert_to_hash_space() const {
-  nassertr(_id != 0, OdeHashSpace((dSpaceID)0));
-  nassertr(get_class() == OdeGeom::GC_hash_space, OdeHashSpace((dSpaceID)0));
+  nassertr(_id != nullptr, OdeHashSpace(nullptr));
+  nassertr(get_class() == OdeGeom::GC_hash_space, OdeHashSpace(nullptr));
   return OdeHashSpace(_id);
 }
 
 OdeQuadTreeSpace OdeSpace::
 convert_to_quad_tree_space() const {
-  nassertr(_id != 0, OdeQuadTreeSpace((dSpaceID)0));
-  nassertr(get_class() == OdeGeom::GC_quad_tree_space, OdeQuadTreeSpace((dSpaceID)0));
+  nassertr(_id != nullptr, OdeQuadTreeSpace(nullptr));
+  nassertr(get_class() == OdeGeom::GC_quad_tree_space, OdeQuadTreeSpace(nullptr));
   return OdeQuadTreeSpace(_id);
 }
 

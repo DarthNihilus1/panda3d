@@ -1,16 +1,15 @@
-// Filename: config_bullet.cxx
-// Created by:  enn0x (23Jan10)
-//
-////////////////////////////////////////////////////////////////////
-//
-// PANDA 3D SOFTWARE
-// Copyright (c) Carnegie Mellon University.  All rights reserved.
-//
-// All use of this software is subject to the terms of the revised BSD
-// license.  You should have received a copy of this license along
-// with this source code in a file named "LICENSE."
-//
-////////////////////////////////////////////////////////////////////
+/**
+ * PANDA 3D SOFTWARE
+ * Copyright (c) Carnegie Mellon University.  All rights reserved.
+ *
+ * All use of this software is subject to the terms of the revised BSD
+ * license.  You should have received a copy of this license along
+ * with this source code in a file named "LICENSE."
+ *
+ * @file config_bullet.cxx
+ * @author enn0x
+ * @date 2010-01-23
+ */
 
 #include "config_bullet.h"
 
@@ -56,6 +55,10 @@ extern ContactDestroyedCallback gContactDestroyedCallback;
 
 #include "dconfig.h"
 #include "pandaSystem.h"
+
+#if !defined(CPPPARSER) && !defined(LINK_ALL_STATIC) && !defined(BUILDING_PANDABULLET)
+  #error Buildsystem error: BUILDING_PANDABULLET not defined
+#endif
 
 Configure(config_bullet);
 NotifyCategoryDef(bullet, "");
@@ -130,14 +133,12 @@ ConfigVariableDouble bullet_additional_damping_angular_threshold
 PRC_DESC("Only used when bullet-additional-damping is set to TRUE. "
          "Default value is 0.01."));
 
-////////////////////////////////////////////////////////////////////
-//     Function: init_libbullet
-//  Description: Initializes the library. This must be called at
-//               least once before any of the functions or classes in
-//               this library can be used. Normally it will be
-//               called by the static initializers and need not be
-//               called explicitly, but special cases exist.
-////////////////////////////////////////////////////////////////////
+/**
+ * Initializes the library.  This must be called at least once before any of
+ * the functions or classes in this library can be used.  Normally it will be
+ * called by the static initializers and need not be called explicitly, but
+ * special cases exist.
+ */
 void
 init_libbullet() {
 
@@ -191,6 +192,13 @@ init_libbullet() {
   BulletSphereShape::register_with_read_factory();
   BulletTriangleMesh::register_with_read_factory();
   BulletTriangleMeshShape::register_with_read_factory();
+  BulletCylinderShape::register_with_read_factory();
+  BulletCapsuleShape::register_with_read_factory();
+  BulletConeShape::register_with_read_factory();
+  BulletHeightfieldShape::register_with_read_factory();
+  BulletConvexPointCloudShape::register_with_read_factory();
+  BulletMinkowskiSumShape::register_with_read_factory();
+  BulletMultiSphereShape::register_with_read_factory();
 
   // Custom contact callbacks
   gContactAddedCallback = contact_added_callback;
@@ -199,10 +207,11 @@ init_libbullet() {
 
   // Initialize notification category
   bullet_cat.init();
-  bullet_cat.debug() << "initialize module" << endl;
+  if (bullet_cat.is_debug()) {
+    bullet_cat.debug() << "initialize module" << std::endl;
+  }
 
   // Register the Bullet system
   PandaSystem *ps = PandaSystem::get_global_ptr();
   ps->add_system("Bullet");
 }
-

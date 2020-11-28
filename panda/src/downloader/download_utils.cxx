@@ -1,16 +1,15 @@
-// Filename: download_utils.cxx
-// Created by:  mike (18Jan99)
-//
-////////////////////////////////////////////////////////////////////
-//
-// PANDA 3D SOFTWARE
-// Copyright (c) Carnegie Mellon University.  All rights reserved.
-//
-// All use of this software is subject to the terms of the revised BSD
-// license.  You should have received a copy of this license along
-// with this source code in a file named "LICENSE."
-//
-////////////////////////////////////////////////////////////////////
+/**
+ * PANDA 3D SOFTWARE
+ * Copyright (c) Carnegie Mellon University.  All rights reserved.
+ *
+ * All use of this software is subject to the terms of the revised BSD
+ * license.  You should have received a copy of this license along
+ * with this source code in a file named "LICENSE."
+ *
+ * @file download_utils.cxx
+ * @author mike
+ * @date 1999-01-18
+ */
 
 #include "pandabase.h"
 
@@ -20,13 +19,15 @@
 #include "config_downloader.h"
 #include <zlib.h>
 
+using std::ios;
+
 unsigned long
 check_crc(Filename name) {
   pifstream read_stream;
   name.set_binary();
   if (!name.open_read(read_stream)) {
     downloader_cat.error()
-      << "check_crc() - Failed to open input file: " << name << endl;
+      << "check_crc() - Failed to open input file: " << name << std::endl;
     return 0;
   }
 
@@ -41,7 +42,7 @@ check_crc(Filename name) {
   unsigned long crc = crc32(0L, Z_NULL, 0);
   crc = crc32(crc, (unsigned char *)buffer, buffer_length);
 
-  delete buffer;
+  delete[] buffer;
 
   return crc;
 }
@@ -52,7 +53,7 @@ check_adler(Filename name) {
   name.set_binary();
   if (!name.open_read(read_stream)) {
     downloader_cat.error()
-      << "check_adler() - Failed to open input file: " << name << endl;
+      << "check_adler() - Failed to open input file: " << name << std::endl;
     return 0;
   }
 
@@ -67,7 +68,7 @@ check_adler(Filename name) {
   unsigned long adler = adler32(0L, Z_NULL, 0);
   adler = adler32(adler, (unsigned char *)buffer, buffer_length);
 
-  delete buffer;
+  delete[] buffer;
 
   return adler;
 }

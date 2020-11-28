@@ -1,16 +1,15 @@
-// Filename: test_spam_client.cxx
-// Created by:  drose (24Feb00)
-//
-////////////////////////////////////////////////////////////////////
-//
-// PANDA 3D SOFTWARE
-// Copyright (c) Carnegie Mellon University.  All rights reserved.
-//
-// All use of this software is subject to the terms of the revised BSD
-// license.  You should have received a copy of this license along
-// with this source code in a file named "LICENSE."
-//
-////////////////////////////////////////////////////////////////////
+/**
+ * PANDA 3D SOFTWARE
+ * Copyright (c) Carnegie Mellon University.  All rights reserved.
+ *
+ * All use of this software is subject to the terms of the revised BSD
+ * license.  You should have received a copy of this license along
+ * with this source code in a file named "LICENSE."
+ *
+ * @file test_spam_client.cxx
+ * @author drose
+ * @date 2000-02-24
+ */
 
 #include "queuedConnectionManager.h"
 #include "queuedConnectionReader.h"
@@ -29,7 +28,7 @@ main(int argc, char *argv[]) {
     exit(1);
   }
 
-  string hostname = argv[1];
+  std::string hostname = argv[1];
   int port = atoi(argv[2]);
 
   NetAddress host;
@@ -55,8 +54,8 @@ main(int argc, char *argv[]) {
   bool lost_connection = false;
 
   NetDatagram datagram;
-  cout << "Enter a datagram.\n";
-  cin >> datagram;
+  std::cout << "Enter a datagram.\n";
+  std::cin >> datagram;
 
   nout << "Read datagram " << datagram << "\n";
   datagram.dump_hex(nout);
@@ -109,8 +108,3 @@ main(int argc, char *argv[]) {
 
   return (0);
 }
-
-
-
-
-

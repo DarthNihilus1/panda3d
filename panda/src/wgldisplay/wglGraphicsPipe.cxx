@@ -1,16 +1,15 @@
-// Filename: wglGraphicsPipe.cxx
-// Created by:  drose (20Dec02)
-//
-////////////////////////////////////////////////////////////////////
-//
-// PANDA 3D SOFTWARE
-// Copyright (c) Carnegie Mellon University.  All rights reserved.
-//
-// All use of this software is subject to the terms of the revised BSD
-// license.  You should have received a copy of this license along
-// with this source code in a file named "LICENSE."
-//
-////////////////////////////////////////////////////////////////////
+/**
+ * PANDA 3D SOFTWARE
+ * Copyright (c) Carnegie Mellon University.  All rights reserved.
+ *
+ * All use of this software is subject to the terms of the revised BSD
+ * license.  You should have received a copy of this license along
+ * with this source code in a file named "LICENSE."
+ *
+ * @file wglGraphicsPipe.cxx
+ * @author drose
+ * @date 2002-12-20
+ */
 
 #include "wglGraphicsPipe.h"
 #include "config_wgldisplay.h"
@@ -19,48 +18,43 @@
 #include "wglGraphicsBuffer.h"
 #include "wglGraphicsStateGuardian.h"
 
-typedef enum {Software, MCD, ICD} OGLDriverType;
-
 TypeHandle wglGraphicsPipe::_type_handle;
 bool    wglGraphicsPipe::_current_valid;
 HDC     wglGraphicsPipe::_current_hdc;
 HGLRC   wglGraphicsPipe::_current_hglrc;
-  
-////////////////////////////////////////////////////////////////////
-//     Function: wglGraphicsPipe::Constructor
-//       Access: Public
-//  Description: 
-////////////////////////////////////////////////////////////////////
+Thread *wglGraphicsPipe::_current_thread;
+
+/**
+ *
+ */
 wglGraphicsPipe::
 wglGraphicsPipe() {
   _current_valid = false;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: wglGraphicsPipe::Destructor
-//       Access: Public, Virtual
-//  Description: 
-////////////////////////////////////////////////////////////////////
+/**
+ *
+ */
 wglGraphicsPipe::
 ~wglGraphicsPipe() {
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: wglGraphicsWindow::wgl_make_current
-//       Access: Private, Static
-//  Description: a thin wrapper around wglMakeCurrent to avoid
-//               unnecessary OS-call overhead.
-////////////////////////////////////////////////////////////////////
-void wglGraphicsPipe::
+/**
+ * a thin wrapper around wglMakeCurrent to avoid unnecessary OS-call overhead.
+ */
+bool wglGraphicsPipe::
 wgl_make_current(HDC hdc, HGLRC hglrc, PStatCollector *collector) {
+  Thread *thread = Thread::get_current_thread();
   if ((_current_valid) &&
       (_current_hdc == hdc) &&
-      (_current_hglrc == hglrc)) {
-    return;
+      (_current_hglrc == hglrc) &&
+      (_current_thread == thread)) {
+    return true;
   }
   _current_valid = true;
   _current_hdc = hdc;
   _current_hglrc = hglrc;
+  _current_thread = thread;
   BOOL res;
   if (collector) {
     PStatTimer timer(*collector);
@@ -68,43 +62,35 @@ wgl_make_current(HDC hdc, HGLRC hglrc, PStatCollector *collector) {
   } else {
     res = wglMakeCurrent(hdc, hglrc);
   }
+  return (res != 0);
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: wglGraphicsPipe::get_interface_name
-//       Access: Published, Virtual
-//  Description: Returns the name of the rendering interface
-//               associated with this GraphicsPipe.  This is used to
-//               present to the user to allow him/her to choose
-//               between several possible GraphicsPipes available on a
-//               particular platform, so the name should be meaningful
-//               and unique for a given platform.
-////////////////////////////////////////////////////////////////////
-string wglGraphicsPipe::
+/**
+ * Returns the name of the rendering interface associated with this
+ * GraphicsPipe.  This is used to present to the user to allow him/her to
+ * choose between several possible GraphicsPipes available on a particular
+ * platform, so the name should be meaningful and unique for a given platform.
+ */
+std::string wglGraphicsPipe::
 get_interface_name() const {
   return "OpenGL";
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: wglGraphicsPipe::pipe_constructor
-//       Access: Public, Static
-//  Description: This function is passed to the GraphicsPipeSelection
-//               object to allow the user to make a default
-//               wglGraphicsPipe.
-////////////////////////////////////////////////////////////////////
+/**
+ * This function is passed to the GraphicsPipeSelection object to allow the
+ * user to make a default wglGraphicsPipe.
+ */
 PT(GraphicsPipe) wglGraphicsPipe::
 pipe_constructor() {
   return new wglGraphicsPipe;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: wglGraphicsPipe::make_output
-//       Access: Protected, Virtual
-//  Description: Creates a new window or buffer on the pipe, if possible.
-//               This routine is only called from GraphicsEngine::make_output.
-////////////////////////////////////////////////////////////////////
+/**
+ * Creates a new window or buffer on the pipe, if possible.  This routine is
+ * only called from GraphicsEngine::make_output.
+ */
 PT(GraphicsOutput) wglGraphicsPipe::
-make_output(const string &name,
+make_output(const std::string &name,
             const FrameBufferProperties &fb_prop,
             const WindowProperties &win_prop,
             int flags,
@@ -113,21 +99,21 @@ make_output(const string &name,
             GraphicsOutput *host,
             int retry,
             bool &precertify) {
-  
+
   if (!_is_valid) {
-    return NULL;
+    return nullptr;
   }
 
   wglGraphicsStateGuardian *wglgsg = 0;
   if (gsg != 0) {
-    DCAST_INTO_R(wglgsg, gsg, NULL);
+    DCAST_INTO_R(wglgsg, gsg, nullptr);
   }
 
   bool support_rtt;
   support_rtt = false;
   if (wglgsg) {
-     support_rtt = 
-      wglgsg -> get_supports_wgl_render_texture() && 
+     support_rtt =
+      wglgsg -> get_supports_wgl_render_texture() &&
       support_render_texture;
   }
 
@@ -142,13 +128,13 @@ make_output(const string &name,
         ((flags&BF_can_bind_color)!=0)||
         ((flags&BF_can_bind_every)!=0)||
         ((flags&BF_can_bind_layered)!=0)) {
-      return NULL;
+      return nullptr;
     }
     if ((flags & BF_fb_props_optional)==0) {
       if ((fb_prop.get_aux_rgba() > 0)||
           (fb_prop.get_aux_hrgba() > 0)||
           (fb_prop.get_aux_float() > 0)) {
-        return NULL;
+        return nullptr;
       }
     }
     return new wglGraphicsWindow(engine, this, name, fb_prop, win_prop,
@@ -158,68 +144,68 @@ make_output(const string &name,
   // Second thing to try: a GLGraphicsBuffer
 
   if (retry == 1) {
-    if (!gl_support_fbo || host == NULL ||
+    if (!gl_support_fbo || host == nullptr ||
         (flags & (BF_require_parasite | BF_require_window)) != 0) {
-      return NULL;
+      return nullptr;
     }
-    // Early failure - if we are sure that this buffer WONT
-    // meet specs, we can bail out early.
+    // Early failure - if we are sure that this buffer WONT meet specs, we can
+    // bail out early.
     if ((flags & BF_fb_props_optional) == 0) {
       if (fb_prop.get_indexed_color() ||
           fb_prop.get_back_buffers() > 0 ||
           fb_prop.get_accum_bits() > 0) {
-        return NULL;
+        return nullptr;
       }
     }
-    if (wglgsg != NULL && wglgsg->is_valid() && !wglgsg->needs_reset()) {
+    if (wglgsg != nullptr && wglgsg->is_valid() && !wglgsg->needs_reset()) {
       if (!wglgsg->_supports_framebuffer_object ||
-          wglgsg->_glDrawBuffers == NULL) {
-        return NULL;
+          wglgsg->_glDrawBuffers == nullptr) {
+        return nullptr;
       } else {
-        // Early success - if we are sure that this buffer WILL
-        // meet specs, we can precertify it.
+        // Early success - if we are sure that this buffer WILL meet specs, we
+        // can precertify it.
         precertify = true;
       }
     }
     return new GLGraphicsBuffer(engine, this, name, fb_prop, win_prop,
                                 flags, gsg, host);
   }
-  
+
   // Third thing to try: a wglGraphicsBuffer
-  
+
   if (retry == 2) {
     if (((flags&BF_require_parasite)!=0)||
         ((flags&BF_require_window)!=0)||
         ((flags&BF_can_bind_layered)!=0)) {
-      return NULL;
+      return nullptr;
     }
     if ((wglgsg != 0) &&
         (wglgsg->is_valid()) &&
         (!wglgsg->needs_reset()) &&
-	!wglgsg->_supports_pbuffer) {
-      return NULL;
+  !wglgsg->_supports_pbuffer) {
+      return nullptr;
     }
 
     if (!support_rtt) {
       if (((flags&BF_rtt_cumulative)!=0)||
           ((flags&BF_can_bind_every)!=0)) {
-        // If we require Render-to-Texture, but can't be sure we
-        // support it, bail.
-        return NULL;
+        // If we require Render-to-Texture, but can't be sure we support it,
+        // bail.
+        return nullptr;
       }
     }
 
-    // Early failure - if we are sure that this buffer WONT
-    // meet specs, we can bail out early.
+    // Early failure - if we are sure that this buffer WONT meet specs, we can
+    // bail out early.
     if ((flags & BF_fb_props_optional) == 0) {
       if ((fb_prop.get_aux_rgba() > 0)||
           (fb_prop.get_aux_rgba() > 0)||
           (fb_prop.get_aux_float() > 0)) {
-        return NULL;
+        return nullptr;
       }
     }
-    // Early success - if we are sure that this buffer WILL
-    // meet specs, we can precertify the window.
+    // Early success - if we are sure that this buffer WILL meet specs, we can
+    // precertify the window.
     if ((wglgsg != 0) &&
         (wglgsg->is_valid()) &&
         (!wglgsg->needs_reset()) &&
@@ -231,33 +217,27 @@ make_output(const string &name,
     return new wglGraphicsBuffer(engine, this, name, fb_prop, win_prop,
                                  flags, gsg, host);
   }
-  
+
   // Nothing else left to try.
-  return NULL;
+  return nullptr;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: wglGraphicsPipe::make_callback_gsg
-//       Access: Protected, Virtual
-//  Description: This is called when make_output() is used to create a
-//               CallbackGraphicsWindow.  If the GraphicsPipe can
-//               construct a GSG that's not associated with any
-//               particular window object, do so now, assuming the
-//               correct graphics context has been set up externally.
-////////////////////////////////////////////////////////////////////
+/**
+ * This is called when make_output() is used to create a
+ * CallbackGraphicsWindow.  If the GraphicsPipe can construct a GSG that's not
+ * associated with any particular window object, do so now, assuming the
+ * correct graphics context has been set up externally.
+ */
 PT(GraphicsStateGuardian) wglGraphicsPipe::
 make_callback_gsg(GraphicsEngine *engine) {
-  return new wglGraphicsStateGuardian(engine, this, NULL);
+  return new wglGraphicsStateGuardian(engine, this, nullptr);
 }
 
 
-////////////////////////////////////////////////////////////////////
-//     Function: wglGraphicsPipe::format_pfd_flags
-//       Access: Private, Static
-//  Description: Returns pfd_flags formatted as a string in a
-//               user-friendly way.
-////////////////////////////////////////////////////////////////////
-string wglGraphicsPipe::
+/**
+ * Returns pfd_flags formatted as a string in a user-friendly way.
+ */
+std::string wglGraphicsPipe::
 format_pfd_flags(DWORD pfd_flags) {
   struct FlagDef {
     DWORD flag;
@@ -280,7 +260,7 @@ format_pfd_flags(DWORD pfd_flags) {
   };
   static const int num_flag_defs = sizeof(flag_def) / sizeof(FlagDef);
 
-  ostringstream out;
+  std::ostringstream out;
 
   const char *sep = "";
   bool got_any = false;
@@ -294,7 +274,7 @@ format_pfd_flags(DWORD pfd_flags) {
   }
 
   if (pfd_flags != 0 || !got_any) {
-    out << sep << hex << "0x" << pfd_flags << dec;
+    out << sep << std::hex << "0x" << pfd_flags << std::dec;
   }
 
   return out.str();

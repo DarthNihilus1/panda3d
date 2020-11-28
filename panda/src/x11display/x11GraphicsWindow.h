@@ -1,16 +1,15 @@
-// Filename: x11GraphicsWindow.h
-// Created by:  rdb (07Jul09)
-//
-////////////////////////////////////////////////////////////////////
-//
-// PANDA 3D SOFTWARE
-// Copyright (c) Carnegie Mellon University.  All rights reserved.
-//
-// All use of this software is subject to the terms of the revised BSD
-// license.  You should have received a copy of this license along
-// with this source code in a file named "LICENSE."
-//
-////////////////////////////////////////////////////////////////////
+/**
+ * PANDA 3D SOFTWARE
+ * Copyright (c) Carnegie Mellon University.  All rights reserved.
+ *
+ * All use of this software is subject to the terms of the revised BSD
+ * license.  You should have received a copy of this license along
+ * with this source code in a file named "LICENSE."
+ *
+ * @file x11GraphicsWindow.h
+ * @author rdb
+ * @date 2009-07-07
+ */
 
 #ifndef X11GRAPHICSWINDOW_H
 #define X11GRAPHICSWINDOW_H
@@ -21,19 +20,13 @@
 #include "graphicsWindow.h"
 #include "buttonHandle.h"
 
-#ifdef HAVE_XRANDR
-typedef unsigned short Rotation;
-typedef unsigned short SizeID;
-#endif
-
-////////////////////////////////////////////////////////////////////
-//       Class : x11GraphicsWindow
-// Description : Interfaces to the X11 window system.
-////////////////////////////////////////////////////////////////////
+/**
+ * Interfaces to the X11 window system.
+ */
 class x11GraphicsWindow : public GraphicsWindow {
 public:
   x11GraphicsWindow(GraphicsEngine *engine, GraphicsPipe *pipe,
-                    const string &name,
+                    const std::string &name,
                     const FrameBufferProperties &fb_prop,
                     const WindowProperties &win_prop,
                     int flags,
@@ -41,7 +34,10 @@ public:
                     GraphicsOutput *host);
   virtual ~x11GraphicsWindow();
 
+  virtual MouseData get_pointer(int device) const;
   virtual bool move_pointer(int device, int x, int y);
+
+  virtual void clear(Thread *current_thread);
   virtual bool begin_frame(FrameMode mode, Thread *current_thread);
   virtual void end_frame(FrameMode mode, Thread *current_thread);
 
@@ -74,13 +70,10 @@ protected:
   static Bool check_event(X11_Display *display, XEvent *event, char *arg);
 
   void open_raw_mice();
-  void poll_raw_mice();
 
 private:
   X11_Cursor get_cursor(const Filename &filename);
-#ifdef HAVE_XCURSOR
-  X11_Cursor read_ico(istream &ico);
-#endif
+  X11_Cursor read_ico(std::istream &ico);
 
 protected:
   X11_Display *_display;
@@ -89,27 +82,22 @@ protected:
   Colormap _colormap;
   XIC _ic;
   XVisualInfo *_visual_info;
-
-  bool _have_xrandr;
-#ifdef HAVE_XRANDR
   Rotation _orig_rotation;
   SizeID _orig_size_id;
-#endif
 
   LVecBase2i _fixed_size;
+
+  GraphicsWindowInputDevice *_input;
 
   long _event_mask;
   bool _awaiting_configure;
   bool _dga_mouse_enabled;
+  bool _raw_mouse_enabled;
   Bool _override_redirect;
   Atom _wm_delete_window;
 
-  struct MouseDeviceInfo {
-    int    _fd;
-    int    _input_device_index;
-    string _io_buffer;
-  };
-  pvector<MouseDeviceInfo> _mouse_device_info;
+  x11GraphicsPipe::pfn_XRRGetScreenInfo _XRRGetScreenInfo;
+  x11GraphicsPipe::pfn_XRRSetScreenConfig _XRRSetScreenConfig;
 
 public:
   static TypeHandle get_class_type() {
@@ -128,9 +116,9 @@ public:
 private:
   static TypeHandle _type_handle;
 
-  // Since the Panda API requests icons and cursors by filename, we
-  // need a table mapping filenames to handles, so we can avoid
-  // re-reading the file each time we change icons.
+  // Since the Panda API requests icons and cursors by filename, we need a
+  // table mapping filenames to handles, so we can avoid re-reading the file
+  // each time we change icons.
   pmap<Filename, X11_Cursor> _cursor_filenames;
 };
 

@@ -1,16 +1,15 @@
-// Filename: odeUtil_ext.cxx
-// Created by:  rdb (10Dec13)
-//
-////////////////////////////////////////////////////////////////////
-//
-// PANDA 3D SOFTWARE
-// Copyright (c) Carnegie Mellon University.  All rights reserved.
-//
-// All use of this software is subject to the terms of the revised BSD
-// license.  You should have received a copy of this license along
-// with this source code in a file named "LICENSE."
-//
-////////////////////////////////////////////////////////////////////
+/**
+ * PANDA 3D SOFTWARE
+ * Copyright (c) Carnegie Mellon University.  All rights reserved.
+ *
+ * All use of this software is subject to the terms of the revised BSD
+ * license.  You should have received a copy of this license along
+ * with this source code in a file named "LICENSE."
+ *
+ * @file odeUtil_ext.cxx
+ * @author rdb
+ * @date 2013-12-10
+ */
 
 #include "odeUtil_ext.h"
 #include "config_ode.h"
@@ -19,18 +18,15 @@
 
 #ifdef HAVE_PYTHON
 
-PyObject *Extension<OdeUtil>::_python_callback = NULL;
+PyObject *Extension<OdeUtil>::_python_callback = nullptr;
 
-////////////////////////////////////////////////////////////////////
-//     Function: OdeUtil::collide2
-//       Access: Public, Static
-//  Description: Calls the callback for all potentially intersecting
-//               pairs that contain one geom from geom1 and one geom
-//               from geom2.
-////////////////////////////////////////////////////////////////////
+/**
+ * Calls the callback for all potentially intersecting pairs that contain one
+ * geom from geom1 and one geom from geom2.
+ */
 int Extension<OdeUtil>::
 collide2(const OdeGeom &geom1, const OdeGeom &geom2, PyObject* arg, PyObject* callback) {
-  nassertr(callback != NULL, -1);
+  nassertr(callback != nullptr, -1);
   if (!PyCallable_Check(callback)) {
     PyErr_Format(PyExc_TypeError, "'%s' object is not callable", callback->ob_type->tp_name);
     return -1;
@@ -54,7 +50,7 @@ near_callback(void *data, dGeomID o1, dGeomID o2) {
   OdeGeom g2 (o2);
   PyObject* p1 = invoke_extension(&g1).convert();
   PyObject* p2 = invoke_extension(&g2).convert();
-  PyObject* result = PyObject_CallFunctionObjArgs(_python_callback, (PyObject*) data, p1, p2, NULL);
+  PyObject* result = PyObject_CallFunctionObjArgs(_python_callback, (PyObject*) data, p1, p2, nullptr);
   if (!result) {
     ode_cat.error() << "An error occurred while calling python function!\n";
     PyErr_Print();

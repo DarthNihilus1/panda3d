@@ -1,243 +1,263 @@
-// Filename: cppTypedefType.cxx
-// Created by:  rdb (01Aug14)
-//
-////////////////////////////////////////////////////////////////////
-//
-// PANDA 3D SOFTWARE
-// Copyright (c) Carnegie Mellon University.  All rights reserved.
-//
-// All use of this software is subject to the terms of the revised BSD
-// license.  You should have received a copy of this license along
-// with this source code in a file named "LICENSE."
-//
-////////////////////////////////////////////////////////////////////
+/**
+ * PANDA 3D SOFTWARE
+ * Copyright (c) Carnegie Mellon University.  All rights reserved.
+ *
+ * All use of this software is subject to the terms of the revised BSD
+ * license.  You should have received a copy of this license along
+ * with this source code in a file named "LICENSE."
+ *
+ * @file cppTypedefType.cxx
+ * @author rdb
+ * @date 2014-08-01
+ */
 
 #include "cppTypedefType.h"
 #include "cppIdentifier.h"
 #include "cppInstanceIdentifier.h"
+#include "cppTemplateScope.h"
+#include "indent.h"
 
-////////////////////////////////////////////////////////////////////
-//     Function: CPPTypedefType::Constructor
-//       Access: Public
-//  Description:
-////////////////////////////////////////////////////////////////////
+using std::string;
+
+/**
+ *
+ */
 CPPTypedefType::
 CPPTypedefType(CPPType *type, const string &name, CPPScope *current_scope) :
   CPPType(CPPFile()),
   _type(type),
-  _ident(new CPPIdentifier(name))
+  _ident(new CPPIdentifier(name)),
+  _using(false)
 {
-  if (_ident != NULL) {
+  if (_ident != nullptr) {
     _ident->_native_scope = current_scope;
   }
 
   _subst_decl_recursive_protect = false;
 
-  //assert(_type != NULL);
-  //if (global) {
-  //  _type->_typedefs.push_back(this);
-  //  CPPType::record_alt_name_for(_type, inst->get_local_name());
-  //}
+  // assert(_type != NULL); if (global) { _type->_typedefs.push_back(this);
+  // CPPType::record_alt_name_for(_type, inst->get_local_name()); }
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: CPPTypedefType::Constructor
-//       Access: Public
-//  Description:
-////////////////////////////////////////////////////////////////////
+/**
+ *
+ */
 CPPTypedefType::
 CPPTypedefType(CPPType *type, CPPIdentifier *ident, CPPScope *current_scope) :
   CPPType(CPPFile()),
   _type(type),
-  _ident(ident)
+  _ident(ident),
+  _using(false)
 {
-  if (_ident != NULL) {
+  if (_ident != nullptr) {
     _ident->_native_scope = current_scope;
   }
   _subst_decl_recursive_protect = false;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: CPPTypedefType::Constructor
-//       Access: Public
-//  Description: Constructs a new CPPTypedefType object that defines a
-//               typedef to the indicated type according to the type
-//               and the InstanceIdentifier.  The InstanceIdentifier
-//               pointer is deallocated.
-////////////////////////////////////////////////////////////////////
+/**
+ * Constructs a new CPPTypedefType object that defines a typedef to the
+ * indicated type according to the type and the InstanceIdentifier.  The
+ * InstanceIdentifier pointer is deallocated.
+ */
 CPPTypedefType::
 CPPTypedefType(CPPType *type, CPPInstanceIdentifier *ii,
                CPPScope *current_scope, const CPPFile &file) :
-  CPPType(file)
+  CPPType(file),
+  _using(false)
 {
+  assert(ii != nullptr);
   _type = ii->unroll_type(type);
   _ident = ii->_ident;
-  ii->_ident = NULL;
+  ii->_ident = nullptr;
   delete ii;
 
-  if (_ident != NULL) {
+  if (_ident != nullptr) {
     _ident->_native_scope = current_scope;
   }
 
   _subst_decl_recursive_protect = false;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: CPPTypedefType::is_scoped
-//       Access: Public
-//  Description:
-////////////////////////////////////////////////////////////////////
+/**
+ *
+ */
 bool CPPTypedefType::
 is_scoped() const {
-  if (_ident == NULL) {
+  if (_ident == nullptr) {
     return false;
   } else {
     return _ident->is_scoped();
   }
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: CPPTypedefType::get_scope
-//       Access: Public
-//  Description:
-////////////////////////////////////////////////////////////////////
+/**
+ *
+ */
 CPPScope *CPPTypedefType::
 get_scope(CPPScope *current_scope, CPPScope *global_scope,
           CPPPreprocessor *error_sink) const {
-  if (_ident == NULL) {
+  if (_ident == nullptr) {
     return current_scope;
   } else {
     return _ident->get_scope(current_scope, global_scope, error_sink);
   }
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: CPPTypedefType::get_simple_name
-//       Access: Public, Virtual
-//  Description:
-////////////////////////////////////////////////////////////////////
+/**
+ *
+ */
 string CPPTypedefType::
 get_simple_name() const {
-  if (_ident == NULL) {
+  if (_ident == nullptr) {
     return "";
   }
   return _ident->get_simple_name();
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: CPPTypedefType::get_local_name
-//       Access: Public, Virtual
-//  Description:
-////////////////////////////////////////////////////////////////////
+/**
+ *
+ */
 string CPPTypedefType::
 get_local_name(CPPScope *scope) const {
-  if (_ident == NULL) {
+  if (_ident == nullptr) {
     return "";
   }
   return _ident->get_local_name(scope);
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: CPPTypedefType::get_fully_scoped_name
-//       Access: Public, Virtual
-//  Description:
-////////////////////////////////////////////////////////////////////
+/**
+ *
+ */
 string CPPTypedefType::
 get_fully_scoped_name() const {
-  if (_ident == NULL) {
+  if (_ident == nullptr) {
     return "";
   }
   return _ident->get_fully_scoped_name();
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: CPPTypedefType::is_incomplete
-//       Access: Public, Virtual
-//  Description: Returns true if the type has not yet been fully
-//               specified, false if it has.
-////////////////////////////////////////////////////////////////////
+/**
+ * Returns true if the type has not yet been fully specified, false if it has.
+ */
 bool CPPTypedefType::
 is_incomplete() const {
   return false;
-  //return _type->is_incomplete();
+  // return _type->is_incomplete();
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: CPPTypedefType::is_tbd
-//       Access: Public, Virtual
-//  Description: Returns true if the type, or any nested type within
-//               the type, is a CPPTBDType and thus isn't fully
-//               determined right now.  In this case, calling
-//               resolve_type() may or may not resolve the type.
-////////////////////////////////////////////////////////////////////
+/**
+ * Returns true if the type, or any nested type within the type, is a
+ * CPPTBDType and thus isn't fully determined right now.  In this case,
+ * calling resolve_type() may or may not resolve the type.
+ */
 bool CPPTypedefType::
 is_tbd() const {
-  if (_ident != NULL && _ident->is_tbd()) {
+  if (_ident != nullptr && _ident->is_tbd()) {
     return true;
   }
   return _type->is_tbd();
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: CPPTypedefType::is_trivial
-//       Access: Public, Virtual
-//  Description: Returns true if the type is considered a Plain Old
-//               Data (POD) type.
-////////////////////////////////////////////////////////////////////
+/**
+ * Returns true if the type is considered a fundamental type.
+ */
+bool CPPTypedefType::
+is_fundamental() const {
+  return _type->is_fundamental();
+}
+
+/**
+ * Returns true if the type is considered a standard layout type.
+ */
+bool CPPTypedefType::
+is_standard_layout() const {
+  return _type->is_standard_layout();
+}
+
+/**
+ * Returns true if the type is considered a Plain Old Data (POD) type.
+ */
 bool CPPTypedefType::
 is_trivial() const {
   return _type->is_trivial();
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: CPPTypedefType::is_default_constructible
-//       Access: Public, Virtual
-//  Description: Returns true if the type is default-constructible.
-////////////////////////////////////////////////////////////////////
+/**
+ * Returns true if the type can be constructed using the given argument.
+ */
+bool CPPTypedefType::
+is_constructible(const CPPType *given_type) const {
+  return _type->is_constructible(given_type);
+}
+
+/**
+ * Returns true if the type is default-constructible.
+ */
 bool CPPTypedefType::
 is_default_constructible() const {
   return _type->is_default_constructible();
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: CPPTypedefType::is_copy_constructible
-//       Access: Public, Virtual
-//  Description: Returns true if the type is copy-constructible.
-////////////////////////////////////////////////////////////////////
+/**
+ * Returns true if the type is copy-constructible.
+ */
 bool CPPTypedefType::
 is_copy_constructible() const {
   return _type->is_copy_constructible();
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: CPPTypedefType::is_fully_specified
-//       Access: Public, Virtual
-//  Description: Returns true if this declaration is an actual,
-//               factual declaration, or false if some part of the
-//               declaration depends on a template parameter which has
-//               not yet been instantiated.
-////////////////////////////////////////////////////////////////////
+/**
+ * Returns true if the type is copy-assignable.
+ */
+bool CPPTypedefType::
+is_copy_assignable() const {
+  return _type->is_copy_assignable();
+}
+
+/**
+ * Returns true if the type is destructible.
+ */
+bool CPPTypedefType::
+is_destructible() const {
+  return _type->is_destructible();
+}
+
+/**
+ * Returns true if this declaration is an actual, factual declaration, or
+ * false if some part of the declaration depends on a template parameter which
+ * has not yet been instantiated.
+ */
 bool CPPTypedefType::
 is_fully_specified() const {
-  if (_ident != NULL && !_ident->is_fully_specified()) {
+  if (_ident != nullptr && !_ident->is_fully_specified()) {
     return false;
   }
   return CPPDeclaration::is_fully_specified() &&
     _type->is_fully_specified();
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: CPPTypedefType::substitute_decl
-//       Access: Public, Virtual
-//  Description:
-////////////////////////////////////////////////////////////////////
+/**
+ *
+ */
+CPPDeclaration *CPPTypedefType::
+instantiate(const CPPTemplateParameterList *actual_params,
+            CPPScope *current_scope, CPPScope *global_scope,
+            CPPPreprocessor *error_sink) const {
+
+  return _type->instantiate(actual_params, current_scope, global_scope, error_sink);
+}
+
+/**
+ *
+ */
 CPPDeclaration *CPPTypedefType::
 substitute_decl(CPPDeclaration::SubstDecl &subst,
                 CPPScope *current_scope, CPPScope *global_scope) {
 
-  if (_ident != NULL && _ident->get_scope(current_scope, global_scope) == global_scope) {
-    // Hack... I know that size_t etc is supposed to work fine, so
-    // preserve these top-level typedefs.
+  if (_ident != nullptr && _ident->get_scope(current_scope, global_scope) == global_scope) {
+    // Hack... I know that size_t etc is supposed to work fine, so preserve
+    // these top-level typedefs.
     CPPDeclaration *top =
       CPPType::substitute_decl(subst, current_scope, global_scope);
     if (top != this) {
@@ -250,10 +270,10 @@ substitute_decl(CPPDeclaration::SubstDecl &subst,
 
   return _type->substitute_decl(subst, current_scope, global_scope);
 
-  // Bah, this doesn't seem to work, and I can't figure out why.
-  // Well, for now, let's just substitute it with the type we're
-  // pointing to.  This is not a huge deal for now, until we find
-  // that we need to preserve these typedefs.
+  // Bah, this doesn't seem to work, and I can't figure out why.  Well, for
+  // now, let's just substitute it with the type we're pointing to.  This is
+  // not a huge deal for now, until we find that we need to preserve these
+  // typedefs.
 
   /*
   CPPDeclaration *top =
@@ -263,8 +283,8 @@ substitute_decl(CPPDeclaration::SubstDecl &subst,
   }
 
   if (_subst_decl_recursive_protect) {
-    // We're already executing this block; we'll have to return a
-    // proxy to the type which we'll define later.
+    // We're already executing this block; we'll have to return a proxy to the
+    // type which we'll define later.
     CPPTypeProxy *proxy = new CPPTypeProxy;
     _proxies.push_back(proxy);
     assert(proxy != NULL);
@@ -295,8 +315,7 @@ substitute_decl(CPPDeclaration::SubstDecl &subst,
   subst.insert(SubstDecl::value_type(this, rep));
 
   _subst_decl_recursive_protect = false;
-  // Now fill in all the proxies we created for our recursive
-  // references.
+  // Now fill in all the proxies we created for our recursive references.
   Proxies::iterator pi;
   for (pi = _proxies.begin(); pi != _proxies.end(); ++pi) {
     (*pi)->_actual_type = rep;
@@ -305,14 +324,11 @@ substitute_decl(CPPDeclaration::SubstDecl &subst,
   return rep; */
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: CPPFunctionType::resolve_type
-//       Access: Public, Virtual
-//  Description: If this CPPType object is a forward reference or
-//               other nonspecified reference to a type that might now
-//               be known a real type, returns the real type.
-//               Otherwise returns the type itself.
-////////////////////////////////////////////////////////////////////
+/**
+ * If this CPPType object is a forward reference or other nonspecified
+ * reference to a type that might now be known a real type, returns the real
+ * type.  Otherwise returns the type itself.
+ */
 CPPType *CPPTypedefType::
 resolve_type(CPPScope *current_scope, CPPScope *global_scope) {
   CPPType *ptype = _type->resolve_type(current_scope, global_scope);
@@ -326,15 +342,21 @@ resolve_type(CPPScope *current_scope, CPPScope *global_scope) {
   return this;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: CPPTypedefType::is_equivalent_type
-//       Access: Public, Virtual
-//  Description: This is a little more forgiving than is_equal(): it
-//               returns true if the types appear to be referring to
-//               the same thing, even if they may have different
-//               pointers or somewhat different definitions.  It's
-//               useful for parameter matching, etc.
-////////////////////////////////////////////////////////////////////
+/**
+ * Returns true if variables of this type may be implicitly converted to
+ * the other type.
+ */
+bool CPPTypedefType::
+is_convertible_to(const CPPType *other) const {
+  return _type->is_convertible_to(other);
+}
+
+/**
+ * This is a little more forgiving than is_equal(): it returns true if the
+ * types appear to be referring to the same thing, even if they may have
+ * different pointers or somewhat different definitions.  It's useful for
+ * parameter matching, etc.
+ */
 bool CPPTypedefType::
 is_equivalent(const CPPType &other) const {
   CPPType *ot = (CPPType *)&other;
@@ -344,73 +366,71 @@ is_equivalent(const CPPType &other) const {
     ot = ot->as_typedef_type()->_type;
   }
 
-  // Compare the unwrapped type to what we are pointing to.
-  // If we are pointing to a typedef ourselves, then this will
-  // automatically recurse.
+  // Compare the unwrapped type to what we are pointing to.  If we are
+  // pointing to a typedef ourselves, then this will automatically recurse.
   return _type->is_equivalent(*ot);
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: CPPTypedefType::output
-//       Access: Public, Virtual
-//  Description:
-////////////////////////////////////////////////////////////////////
+/**
+ *
+ */
 void CPPTypedefType::
-output(ostream &out, int indent_level, CPPScope *scope, bool complete) const {
+output(std::ostream &out, int indent_level, CPPScope *scope, bool complete) const {
   string name;
-  if (_ident != NULL) {
+  if (_ident != nullptr) {
     name = _ident->get_local_name(scope);
   }
 
   if (complete) {
-    out << "typedef ";
-    _type->output_instance(out, indent_level, scope, false, "", name);
+    if (_using) {
+      // It was declared using the "using" keyword.
+      if (is_template()) {
+        get_template_scope()->_parameters.write_formal(out, scope);
+        indent(out, indent_level);
+      }
+      out << "using " << name << " = ";
+      _type->output(out, 0, scope, false);
+    } else {
+      out << "typedef ";
+      _type->output_instance(out, indent_level, scope, false, "", name);
+    }
   } else {
     out << name;
   }
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: CPPTypedefType::get_subtype
-//       Access: Public, Virtual
-//  Description:
-////////////////////////////////////////////////////////////////////
+/**
+ *
+ */
 CPPDeclaration::SubType CPPTypedefType::
 get_subtype() const {
   return ST_typedef;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: CPPTypedefType::as_typedef_type
-//       Access: Public, Virtual
-//  Description:
-////////////////////////////////////////////////////////////////////
+/**
+ *
+ */
 CPPTypedefType *CPPTypedefType::
 as_typedef_type() {
   return this;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: CPPTypedefType::is_equal
-//       Access: Protected, Virtual
-//  Description: Called by CPPDeclaration() to determine whether this type is
-//               equivalent to another type of the same type.
-////////////////////////////////////////////////////////////////////
+/**
+ * Called by CPPDeclaration() to determine whether this type is equivalent to
+ * another type of the same type.
+ */
 bool CPPTypedefType::
 is_equal(const CPPDeclaration *other) const {
   const CPPTypedefType *ot = ((CPPDeclaration *)other)->as_typedef_type();
-  assert(ot != NULL);
+  assert(ot != nullptr);
 
-  return (*_type == *ot->_type) && (*_ident == *ot->_ident);
+  return (*_type == *ot->_type) && (*_ident == *ot->_ident) && (_using == ot->_using);
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: CPPTypedefType::is_less
-//       Access: Protected, Virtual
-//  Description: Called by CPPDeclaration() to determine whether this type
-//               should be ordered before another type of the same
-//               type, in an arbitrary but fixed ordering.
-////////////////////////////////////////////////////////////////////
+/**
+ * Called by CPPDeclaration() to determine whether this type should be ordered
+ * before another type of the same type, in an arbitrary but fixed ordering.
+ */
 bool CPPTypedefType::
 is_less(const CPPDeclaration *other) const {
   return CPPDeclaration::is_less(other);

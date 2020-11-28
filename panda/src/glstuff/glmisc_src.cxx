@@ -1,22 +1,26 @@
-// Filename: glmisc_src.cxx
-// Created by:  drose (09Feb04)
-//
-////////////////////////////////////////////////////////////////////
-//
-// PANDA 3D SOFTWARE
-// Copyright (c) Carnegie Mellon University.  All rights reserved.
-//
-// All use of this software is subject to the terms of the revised BSD
-// license.  You should have received a copy of this license along
-// with this source code in a file named "LICENSE."
-//
-////////////////////////////////////////////////////////////////////
+/**
+ * PANDA 3D SOFTWARE
+ * Copyright (c) Carnegie Mellon University.  All rights reserved.
+ *
+ * All use of this software is subject to the terms of the revised BSD
+ * license.  You should have received a copy of this license along
+ * with this source code in a file named "LICENSE."
+ *
+ * @file glmisc_src.cxx
+ * @author drose
+ * @date 2004-02-09
+ */
 
 #include "pandaSystem.h"
 
 ConfigVariableInt gl_version
   ("gl-version", "",
    PRC_DESC("Set this to get an OpenGL context with a specific version."));
+
+ConfigVariableBool gl_forward_compatible
+  ("gl-forward-compatible", false,
+   PRC_DESC("Setting this to true will request a forward-compatible OpenGL "
+            "context, which will not support the fixed-function pipeline."));
 
 ConfigVariableBool gl_support_fbo
   ("gl-support-fbo", true,
@@ -300,6 +304,11 @@ ConfigVariableBool gl_support_shadow_filter
             "cards suffered from a broken implementation of the "
             "shadow map filtering features."));
 
+ConfigVariableBool gl_force_image_bindings_writeonly
+  ("gl-force-image-bindings-writeonly", false,
+   PRC_DESC("Forces all image inputs (not textures!) to be bound as writeonly, "
+            "to read from an image, rebind it as sampler."));
+
 ConfigVariableEnum<CoordinateSystem> gl_coordinate_system
   ("gl-coordinate-system", CS_yup_right,
    PRC_DESC("Which coordinate system to use as the internal "
@@ -308,6 +317,13 @@ ConfigVariableEnum<CoordinateSystem> gl_coordinate_system
             "best to leave this to yup-right.  However, if you are "
             "creating a shader-only application, it may be easier and "
             "more efficient to set this to default."));
+
+ConfigVariableBool gl_depth_zero_to_one
+  ("gl-depth-zero-to-one", false,
+   PRC_DESC("Normally, OpenGL uses an NDC coordinate space wherein the Z "
+            "ranges from -1 to 1.  This setting can be used to instead use a "
+            "range from 0 to 1, matching other graphics APIs.  This setting "
+            "requires OpenGL 4.5, or NVIDIA GeForce 8+ hardware."));
 
 extern ConfigVariableBool gl_parallel_arrays;
 
@@ -327,6 +343,7 @@ void CLP(init_classes)() {
   CLP(SamplerContext)::init_type();
 #endif
   CLP(VertexBufferContext)::init_type();
+  CLP(BufferContext)::init_type();
   CLP(GraphicsBuffer)::init_type();
 
 #ifndef OPENGLES
@@ -338,7 +355,7 @@ void CLP(init_classes)() {
   PandaSystem *ps = PandaSystem::get_global_ptr();
   ps->add_system(GLSYSTEM_NAME);
 
-  // We can't add any tags defining the available OpenGL capabilities,
-  // since we won't know those until we create a graphics context (and
-  // the answer may be different for different contexts).
+  // We can't add any tags defining the available OpenGL capabilities, since
+  // we won't know those until we create a graphics context (and the answer
+  // may be different for different contexts).
 }

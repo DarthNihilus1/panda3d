@@ -1,20 +1,21 @@
-// Filename: shaderAttrib.cxx
-// Created by:  sshodhan (10Jul04)
-// Updated by:  fperazzi, PandaSE (06Apr10) (added more overloads
-//   for set_shader_input)
-// Updated by: weifengh, PandaSE(15Apr10) (added overload for
-//   set_shader_auto)
-//
-////////////////////////////////////////////////////////////////////
-//
-// PANDA 3D SOFTWARE
-// Copyright (c) Carnegie Mellon University.  All rights reserved.
-//
-// All use of this software is subject to the terms of the revised BSD
-// license.  You should have received a copy of this license along
-// with this source code in a file named "LICENSE."
-//
-////////////////////////////////////////////////////////////////////
+/**
+ * PANDA 3D SOFTWARE
+ * Copyright (c) Carnegie Mellon University.  All rights reserved.
+ *
+ * All use of this software is subject to the terms of the revised BSD
+ * license.  You should have received a copy of this license along
+ * with this source code in a file named "LICENSE."
+ *
+ * @file shaderAttrib.cxx
+ * @author sshodhan
+ * @date 2004-07-10
+ * @author fperazzi, PandaSE
+ * @date 2010-04-06
+ *   for set_shader_input)
+ * @author weifengh, PandaSE
+ * @date 2010-04-15
+ *   set_shader_auto)
+ */
 
 #include "pandabase.h"
 #include "shaderAttrib.h"
@@ -24,21 +25,24 @@
 #include "datagram.h"
 #include "datagramIterator.h"
 #include "nodePath.h"
+#include "paramNodePath.h"
+#include "paramTexture.h"
+#include "shaderBuffer.h"
+
+using std::ostream;
+using std::ostringstream;
 
 TypeHandle ShaderAttrib::_type_handle;
 int ShaderAttrib::_attrib_slot;
 
-////////////////////////////////////////////////////////////////////
-//     Function: ShaderAttrib::make_off
-//       Access: Published, Static
-//  Description: Constructs a new ShaderAttrib object that disables
-//               the use of shaders (it does not clear out all shader
-//               data, however.)
-////////////////////////////////////////////////////////////////////
+/**
+ * Constructs a new ShaderAttrib object that disables the use of shaders (it
+ * does not clear out all shader data, however.)
+ */
 CPT(RenderAttrib) ShaderAttrib::
 make_off() {
   static CPT(RenderAttrib) _off_attrib;
-  if (_off_attrib == 0) {
+  if (_off_attrib == nullptr) {
     ShaderAttrib *attrib = new ShaderAttrib;
     attrib->_has_shader = true;
     _off_attrib = return_new(attrib);
@@ -46,44 +50,36 @@ make_off() {
   return _off_attrib;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: ShaderAttrib::make
-//       Access: Published, Static
-//  Description: Constructs a new ShaderAttrib object with nothing
-//               set.
-////////////////////////////////////////////////////////////////////
+/**
+ * Constructs a new ShaderAttrib object with nothing set.
+ */
 CPT(RenderAttrib) ShaderAttrib::
 make(const Shader *shader, int priority) {
   static CPT(RenderAttrib) _null_attrib;
-  if (_null_attrib == 0) {
+  if (_null_attrib == nullptr) {
     ShaderAttrib *attrib = new ShaderAttrib;
     _null_attrib = return_new(attrib);
   }
 
-  if (shader == NULL) {
+  if (shader == nullptr) {
     return _null_attrib;
   } else {
     return DCAST(ShaderAttrib, _null_attrib)->set_shader(shader, priority);
   }
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: ShaderAttrib::make_default
-//       Access: Published, Static
-//  Description: Returns a RenderAttrib that corresponds to whatever
-//               the standard default properties for render attributes
-//               of this type ought to be.
-////////////////////////////////////////////////////////////////////
+/**
+ * Returns a RenderAttrib that corresponds to whatever the standard default
+ * properties for render attributes of this type ought to be.
+ */
 CPT(RenderAttrib) ShaderAttrib::
 make_default() {
   return return_new(new ShaderAttrib);
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: ShaderAttrib::set_shader
-//       Access: Published
-//  Description:
-////////////////////////////////////////////////////////////////////
+/**
+ *
+ */
 CPT(RenderAttrib) ShaderAttrib::
 set_shader(const Shader *s, int priority) const {
   ShaderAttrib *result = new ShaderAttrib(*this);
@@ -94,15 +90,13 @@ set_shader(const Shader *s, int priority) const {
   return return_new(result);
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: ShaderAttrib::set_shader_off
-//       Access: Published
-//  Description:
-////////////////////////////////////////////////////////////////////
+/**
+ *
+ */
 CPT(RenderAttrib) ShaderAttrib::
 set_shader_off(int priority) const {
   ShaderAttrib *result = new ShaderAttrib(*this);
-  result->_shader = NULL;
+  result->_shader = nullptr;
   result->_shader_priority = priority;
   result->_auto_shader = false;
   result->_auto_normal_on = false;
@@ -115,15 +109,13 @@ set_shader_off(int priority) const {
   return return_new(result);
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: ShaderAttrib::set_shader_auto
-//       Access: Published
-//  Description:
-////////////////////////////////////////////////////////////////////
+/**
+ *
+ */
 CPT(RenderAttrib) ShaderAttrib::
 set_shader_auto(int priority) const {
   ShaderAttrib *result = new ShaderAttrib(*this);
-  result->_shader = NULL;
+  result->_shader = nullptr;
   result->_shader_priority = priority;
   result->_auto_shader = true;
   result->_has_shader = true;
@@ -135,17 +127,15 @@ set_shader_auto(int priority) const {
   return return_new(result);
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: ShaderAttrib::set_shader_auto
-//       Access: Published
-//  Description: Set auto shader with bitmask to customize use,
-//  e.g., to keep normal, glow, etc., on or off
-////////////////////////////////////////////////////////////////////
+/**
+ * Set auto shader with bitmask to customize use, e.g., to keep normal, glow,
+ * etc., on or off
+ */
 CPT(RenderAttrib) ShaderAttrib::
 set_shader_auto(BitMask32 shader_switch, int priority) const {
 
   ShaderAttrib *result = new ShaderAttrib(*this);
-  result->_shader = NULL;
+  result->_shader = nullptr;
   result->_shader_priority = priority;
   result->_auto_shader = true;
   result->_has_shader = true;
@@ -158,15 +148,13 @@ set_shader_auto(BitMask32 shader_switch, int priority) const {
   return return_new(result);
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: ShaderAttrib::clear_shader
-//       Access: Published
-//  Description:
-////////////////////////////////////////////////////////////////////
+/**
+ *
+ */
 CPT(RenderAttrib) ShaderAttrib::
 clear_shader() const {
   ShaderAttrib *result = new ShaderAttrib(*this);
-  result->_shader = NULL;
+  result->_shader = nullptr;
   result->_shader_priority = 0;
   result->_auto_shader = false;
   result->_has_shader = false;
@@ -178,63 +166,92 @@ clear_shader() const {
   return return_new(result);
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: ShaderAttrib::set_flag
-//       Access: Published
-//  Description:
-////////////////////////////////////////////////////////////////////
+/**
+ *
+ */
 CPT(RenderAttrib) ShaderAttrib::
 set_flag(int flag, bool value) const {
   ShaderAttrib *result = new ShaderAttrib(*this);
-  int bit = 1<<flag;
   if (value) {
-    result->_flags |= bit;
+    result->_flags |= flag;
   } else {
-    result->_flags &= ~bit;
+    result->_flags &= ~flag;
   }
-  result->_has_flags |= bit;
+  result->_has_flags |= flag;
   return return_new(result);
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: ShaderAttrib::clear_flag
-//       Access: Published
-//  Description:
-////////////////////////////////////////////////////////////////////
+/**
+ *
+ */
 CPT(RenderAttrib) ShaderAttrib::
 clear_flag(int flag) const {
   ShaderAttrib *result = new ShaderAttrib(*this);
-  int bit = 1<<flag;
-  result->_flags &= ~bit;
-  result->_has_flags &= ~bit;
+  result->_flags &= ~flag;
+  result->_has_flags &= ~flag;
   return return_new(result);
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: ShaderAttrib::set_shader_input
-//       Access: Published
-//  Description:
-////////////////////////////////////////////////////////////////////
+/**
+ *
+ */
 CPT(RenderAttrib) ShaderAttrib::
-set_shader_input(const ShaderInput *input) const {
+set_shader_input(const ShaderInput &input) const {
   ShaderAttrib *result = new ShaderAttrib(*this);
-  Inputs::iterator i = result->_inputs.find(input->get_name());
+  Inputs::iterator i = result->_inputs.find(input.get_name());
   if (i == result->_inputs.end()) {
-    result->_inputs.insert(Inputs::value_type(input->get_name(), input));
+    result->_inputs.insert(Inputs::value_type(input.get_name(), input));
   } else {
     i->second = input;
   }
   return return_new(result);
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: ShaderAttrib::set_instance_count
-//       Access: Published
-//  Description: Sets the geometry instance count. Do not confuse
-//               this with instanceTo, which is used for animation
-//               instancing, and has nothing to do with this.
-//               A value of 0 means not to use instancing at all.
-////////////////////////////////////////////////////////////////////
+/**
+ *
+ */
+CPT(RenderAttrib) ShaderAttrib::
+set_shader_input(ShaderInput &&input) const {
+  ShaderAttrib *result = new ShaderAttrib(*this);
+  Inputs::iterator i = result->_inputs.find(input.get_name());
+  if (i == result->_inputs.end()) {
+    result->_inputs.insert(Inputs::value_type(input.get_name(), std::move(input)));
+  } else {
+    i->second = std::move(input);
+  }
+  return return_new(result);
+}
+
+/**
+ * Returns a new ShaderAttrib with the given shader inputs set.  This is a
+ * more efficient way to set multiple shader inputs than calling
+ * set_shader_input multiple times.
+ */
+CPT(RenderAttrib) ShaderAttrib::
+set_shader_inputs(const pvector<ShaderInput> &inputs) const {
+  ShaderAttrib *result = new ShaderAttrib(*this);
+
+  size_t num_inputs = inputs.size();
+  for (size_t i = 0; i < num_inputs; i++) {
+    const ShaderInput &input = inputs[i];
+    Inputs::iterator itr = result->_inputs.find(input.get_name());
+    if (itr == result->_inputs.end()) {
+      result->_inputs.insert(Inputs::value_type(input.get_name(), input));
+    } else {
+      itr->second = input;
+    }
+  }
+
+  return return_new(result);
+}
+
+/**
+ * Sets the geometry instance count.  Do not confuse this with instanceTo,
+ * which is used for animation instancing, and has nothing to do with this.  A
+ * value of 0 means not to use instancing at all.
+ *
+ * This value should not be set if F_hardware_instancing is also set.
+ */
 CPT(RenderAttrib) ShaderAttrib::
 set_instance_count(int instance_count) const {
   ShaderAttrib *result = new ShaderAttrib(*this);
@@ -242,11 +259,9 @@ set_instance_count(int instance_count) const {
   return return_new(result);
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: ShaderAttrib::clear_shader_input
-//       Access: Published
-//  Description:
-////////////////////////////////////////////////////////////////////
+/**
+ *
+ */
 CPT(RenderAttrib) ShaderAttrib::
 clear_shader_input(const InternalName *id) const {
   ShaderAttrib *result = new ShaderAttrib(*this);
@@ -254,21 +269,17 @@ clear_shader_input(const InternalName *id) const {
   return return_new(result);
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: ShaderAttrib::clear_shader_input
-//       Access: Published
-//  Description:
-////////////////////////////////////////////////////////////////////
+/**
+ *
+ */
 CPT(RenderAttrib) ShaderAttrib::
-clear_shader_input(const string &id) const {
+clear_shader_input(const std::string &id) const {
   return clear_shader_input(InternalName::make(id));
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: ShaderAttrib::clear_all_shader_inputs
-//       Access: Published
-//  Description: Clears all the shader inputs on the attrib.
-////////////////////////////////////////////////////////////////////
+/**
+ * Clears all the shader inputs on the attrib.
+ */
 CPT(RenderAttrib) ShaderAttrib::
 clear_all_shader_inputs() const {
   ShaderAttrib *result = new ShaderAttrib(*this);
@@ -276,88 +287,74 @@ clear_all_shader_inputs() const {
   return return_new(result);
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: ShaderAttrib::get_shader_input
-//       Access: Published
-//  Description: Returns the ShaderInput of the given name.  If
-//               no such name is found, this function does not return
-//               NULL --- it returns the "blank" ShaderInput.
-////////////////////////////////////////////////////////////////////
-const ShaderInput *ShaderAttrib::
+/**
+ * Returns the ShaderInput of the given name.  If no such name is found, this
+ * function does not return NULL --- it returns the "blank" ShaderInput.
+ */
+const ShaderInput &ShaderAttrib::
 get_shader_input(const InternalName *id) const {
   Inputs::const_iterator i = _inputs.find(id);
-  if (i == _inputs.end()) {
-    return ShaderInput::get_blank();
-  } else {
+  if (i != _inputs.end()) {
     return (*i).second;
+  } else {
+    return ShaderInput::get_blank();
   }
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: ShaderAttrib::get_shader_input
-//       Access: Published
-//  Description: Returns the ShaderInput of the given name.  If
-//               no such name is found, this function does not return
-//               NULL --- it returns the "blank" ShaderInput.
-////////////////////////////////////////////////////////////////////
-const ShaderInput *ShaderAttrib::
-get_shader_input(const string &id) const {
+/**
+ * Returns the ShaderInput of the given name.  If no such name is found, this
+ * function does not return NULL --- it returns the "blank" ShaderInput.
+ */
+const ShaderInput &ShaderAttrib::
+get_shader_input(const std::string &id) const {
   return get_shader_input(InternalName::make(id));
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: ShaderAttrib::get_shader_input_nodepath
-//       Access: Published
-//  Description: Returns the ShaderInput as a nodepath.  Assertion
-//               fails if there is none, or if it is not a nodepath.
-////////////////////////////////////////////////////////////////////
-const NodePath &ShaderAttrib::
+/**
+ * Returns the ShaderInput as a nodepath.  Assertion fails if there is none,
+ * or if it is not a nodepath.
+ */
+NodePath ShaderAttrib::
 get_shader_input_nodepath(const InternalName *id) const {
   static NodePath resfail;
   Inputs::const_iterator i = _inputs.find(id);
-  if (i == _inputs.end()) {
-    ostringstream strm;
-    strm << "Shader input " << id->get_name() << " is not present.\n";
-    nassert_raise(strm.str());
-    return resfail;
-  } else {
-    const ShaderInput *p = (*i).second;
-    if (p->get_value_type() != ShaderInput::M_nodepath) {
+  if (i != _inputs.end()) {
+    const ShaderInput &p = (*i).second;
+    if (p.get_value_type() == ShaderInput::M_nodepath) {
+      return ((const ParamNodePath *)p.get_value())->get_value();
+    } else {
       ostringstream strm;
       strm << "Shader input " << id->get_name() << " is not a nodepath.\n";
       nassert_raise(strm.str());
       return resfail;
     }
-    return p->get_nodepath();
+  } else {
+    ostringstream strm;
+    strm << "Shader input " << id->get_name() << " is not present.\n";
+    nassert_raise(strm.str());
+    return resfail;
   }
 
   // Satisfy compiler.
   return resfail;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: ShaderAttrib::get_shader_input_vector
-//       Access: Published
-//  Description: Returns the ShaderInput as a vector.  Assertion
-//               fails if there is none, or if it is not a vector.
-////////////////////////////////////////////////////////////////////
+/**
+ * Returns the ShaderInput as a vector.  Assertion fails if there is none, or
+ * if it is not a vector.
+ */
 LVecBase4 ShaderAttrib::
 get_shader_input_vector(InternalName *id) const {
   static LVecBase4 resfail(0,0,0,0);
   Inputs::const_iterator i = _inputs.find(id);
-  if (i == _inputs.end()) {
-    ostringstream strm;
-    strm << "Shader input " << id->get_name() << " is not present.\n";
-    nassert_raise(strm.str());
-    return resfail;
-  } else {
-    const ShaderInput *p = (*i).second;
+  if (i != _inputs.end()) {
+    const ShaderInput &p = (*i).second;
 
-    if (p->get_value_type() == ShaderInput::M_vector) {
-      return p->get_vector();
+    if (p.get_value_type() == ShaderInput::M_vector) {
+      return p.get_vector();
 
-    } else if (p->get_value_type() == ShaderInput::M_numeric && p->get_ptr()._size <= 4) {
-      const Shader::ShaderPtrData &ptr = p->get_ptr();
+    } else if (p.get_value_type() == ShaderInput::M_numeric && p.get_ptr()._size <= 4) {
+      const Shader::ShaderPtrData &ptr = p.get_ptr();
 
       switch (ptr._type) {
       case Shader::SPT_float:
@@ -381,107 +378,166 @@ get_shader_input_vector(InternalName *id) const {
         }
       }
 
-    } else if (p->get_value_type() == ShaderInput::M_param) {
+    } else if (p.get_value_type() == ShaderInput::M_param) {
       // Temporary solution until the new param system
-      ParamValueBase *param = p->get_param();
-      if (param != NULL && param->is_of_type(ParamVecBase4::get_class_type())) {
-        return ((const ParamVecBase4 *) param)->get_value();
+      TypedWritableReferenceCount *param = p.get_value();
+      if (param != nullptr && param->is_of_type(ParamVecBase4::get_class_type())) {
+        return ((const ParamVecBase4 *)param)->get_value();
       }
     }
 
     ostringstream strm;
     strm << "Shader input " << id->get_name() << " is not a vector.\n";
     nassert_raise(strm.str());
-    return resfail;
+  } else {
+    ostringstream strm;
+    strm << "Shader input " << id->get_name() << " is not present.\n";
+    nassert_raise(strm.str());
   }
+  return resfail;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: ShaderAttrib::get_shader_input_ptr
-//       Access: Published
-//  Description: Returns the ShaderInput as a ShaderPtrData struct.
-//               Assertion fails if there is none. or if it is not
-//               a PTA(double/float)
-////////////////////////////////////////////////////////////////////
+/**
+ * Returns the ShaderInput as a ShaderPtrData struct.  Assertion fails if
+ * there is none.  or if it is not a PTA(double/float)
+ */
 const Shader::ShaderPtrData *ShaderAttrib::
 get_shader_input_ptr(const InternalName *id) const {
   Inputs::const_iterator i = _inputs.find(id);
-  if (i == _inputs.end()) {
-    ostringstream strm;
-    strm << "Shader input " << id->get_name() << " is not present.\n";
-    nassert_raise(strm.str());
-    return NULL;
-  } else {
-    const ShaderInput *p = (*i).second;
-    if (p->get_value_type() != ShaderInput::M_numeric &&
-        p->get_value_type() != ShaderInput::M_vector) {
+  if (i != _inputs.end()) {
+    const ShaderInput &p = (*i).second;
+    if (p.get_value_type() != ShaderInput::M_numeric &&
+        p.get_value_type() != ShaderInput::M_vector) {
       ostringstream strm;
       strm << "Shader input " << id->get_name() << " is not a PTA(float/double) type.\n";
       nassert_raise(strm.str());
-      return NULL;
+      return nullptr;
     }
-    return &(p->get_ptr());
+    return &(p.get_ptr());
+  } else {
+    ostringstream strm;
+    strm << "Shader input " << id->get_name() << " is not present.\n";
+    nassert_raise(strm.str());
+    return nullptr;
   }
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: ShaderAttrib::get_shader_input_texture
-//       Access: Published
-//  Description: Returns the ShaderInput as a texture.  Assertion
-//               fails if there is none, or if it is not a texture.
-//
-//               If sampler is not NULL, the sampler state to use
-//               for this texture is assigned to it.
-////////////////////////////////////////////////////////////////////
+/**
+ * Returns the ShaderInput as a ShaderPtrData struct.  Assertion fails if
+ * there is none.  or if it is not a PTA(double/float)
+ */
+bool ShaderAttrib::
+get_shader_input_ptr(const InternalName *id, Shader::ShaderPtrData &data) const {
+  Inputs::const_iterator i = _inputs.find(id);
+  if (i != _inputs.end()) {
+    const ShaderInput &p = (*i).second;
+    if (p.get_value_type() == ShaderInput::M_numeric ||
+        p.get_value_type() == ShaderInput::M_vector) {
+
+      data = p.get_ptr();
+      return (data._ptr != nullptr);
+    }
+    if (p.get_value_type() == ShaderInput::M_param) {
+      // Temporary solution until the new param system
+      TypedWritableReferenceCount *param = p.get_value();
+      if (param != nullptr) {
+        if (param->is_of_type(ParamVecBase4f::get_class_type())) {
+          data._ptr = (void *)((const ParamVecBase4f *)param)->get_value().get_data();
+          data._size = 4;
+          data._type = Shader::SPT_float;
+          return true;
+        }
+        else if (param->is_of_type(ParamVecBase4i::get_class_type())) {
+          data._ptr = (void *)((const ParamVecBase4i *)param)->get_value().get_data();
+          data._size = 4;
+          data._type = Shader::SPT_int;
+          return true;
+        }
+        else if (param->is_of_type(ParamVecBase4d::get_class_type())) {
+          data._ptr = (void *)((const ParamVecBase4d *)param)->get_value().get_data();
+          data._size = 4;
+          data._type = Shader::SPT_float;
+          return true;
+        }
+      }
+    }
+    ostringstream strm;
+    strm << "Shader input " << id->get_name() << " was given an incompatible parameter type.\n";
+    nassert_raise(strm.str());
+    return false;
+  } else {
+    ostringstream strm;
+    strm << "Shader input " << id->get_name() << " is not present.\n";
+    nassert_raise(strm.str());
+    return false;
+  }
+}
+
+/**
+ * Returns the ShaderInput as a texture.  Assertion fails if there is none, or
+ * if it is not a texture.
+ *
+ * If sampler is not NULL, the sampler state to use for this texture is
+ * assigned to it.
+ */
 Texture *ShaderAttrib::
 get_shader_input_texture(const InternalName *id, SamplerState *sampler) const {
   Inputs::const_iterator i = _inputs.find(id);
-  if (i == _inputs.end()) {
-    ostringstream strm;
-    strm << "Shader input " << id->get_name() << " is not present.\n";
-    nassert_raise(strm.str());
-    return NULL;
-  } else {
-    const ShaderInput *p = (*i).second;
-    if (p->get_value_type() != ShaderInput::M_texture &&
-        p->get_value_type() != ShaderInput::M_texture_sampler) {
+  if (i != _inputs.end()) {
+    const ShaderInput &p = (*i).second;
+    switch (p.get_value_type()) {
+    case ShaderInput::M_texture:
+      {
+        Texture *tex = (Texture *)p.get_value();
+        if (sampler) {
+          *sampler = tex->get_default_sampler();
+        }
+        return tex;
+      }
+
+    case ShaderInput::M_texture_sampler:
+      {
+        const ParamTextureSampler *param = (const ParamTextureSampler *)p.get_value();
+        if (sampler) {
+          *sampler = param->get_sampler();
+        }
+        return param->get_texture();
+      }
+
+    default:
       ostringstream strm;
       strm <<  "Shader input " << id->get_name() << " is not a texture.\n";
       nassert_raise(strm.str());
-      return NULL;
+      return nullptr;
     }
-    if (sampler != NULL) {
-      *sampler = p->get_sampler();
-    }
-    return p->get_texture();
-  }
-}
 
-////////////////////////////////////////////////////////////////////
-//     Function: ShaderAttrib::get_shader_input_matrix
-//       Access: Published
-//  Description: Returns the ShaderInput as a matrix.  Assertion
-//               fails if there is none, or if it is not a matrix
-//               or NodePath.
-////////////////////////////////////////////////////////////////////
-const LMatrix4 &ShaderAttrib::
-get_shader_input_matrix(const InternalName *id, LMatrix4 &matrix) const {
-  Inputs::const_iterator i = _inputs.find(id);
-  if (i == _inputs.end()) {
+  } else {
     ostringstream strm;
     strm << "Shader input " << id->get_name() << " is not present.\n";
     nassert_raise(strm.str());
-    return LMatrix4::ident_mat();
-  } else {
-    const ShaderInput *p = (*i).second;
+    return nullptr;
+  }
+}
 
-    if (p->get_value_type() == ShaderInput::M_nodepath) {
-      const NodePath &np = p->get_nodepath();
+/**
+ * Returns the ShaderInput as a matrix.  Assertion fails if there is none, or
+ * if it is not a matrix or NodePath.
+ */
+const LMatrix4 &ShaderAttrib::
+get_shader_input_matrix(const InternalName *id, LMatrix4 &matrix) const {
+  Inputs::const_iterator i = _inputs.find(id);
+  if (i != _inputs.end()) {
+    const ShaderInput &p = (*i).second;
+
+    if (p.get_value_type() == ShaderInput::M_nodepath) {
+      const NodePath &np = p.get_nodepath();
       nassertr(!np.is_empty(), LMatrix4::ident_mat());
-      return np.get_transform()->get_mat();
+      matrix = np.get_transform()->get_mat();
+      return matrix;
 
-    } else if (p->get_value_type() == ShaderInput::M_numeric && p->get_ptr()._size == 16) {
-      const Shader::ShaderPtrData &ptr = p->get_ptr();
+    } else if (p.get_value_type() == ShaderInput::M_numeric &&
+               p.get_ptr()._size >= 16 && (p.get_ptr()._size & 15) == 0) {
+      const Shader::ShaderPtrData &ptr = p.get_ptr();
 
       switch (ptr._type) {
         case Shader::SPT_float: {
@@ -506,62 +562,87 @@ get_shader_input_matrix(const InternalName *id, LMatrix4 &matrix) const {
     }
 
     ostringstream strm;
-    strm << "Shader input " << id->get_name() << " is not a NodePath or LMatrix4.\n";
+    strm << "Shader input " << id->get_name() << " is not a NodePath, LMatrix4 or PTA_LMatrix4.\n";
+    nassert_raise(strm.str());
+    return LMatrix4::ident_mat();
+  } else {
+    ostringstream strm;
+    strm << "Shader input " << id->get_name() << " is not present.\n";
     nassert_raise(strm.str());
     return LMatrix4::ident_mat();
   }
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: ShaderAttrib::get_shader
-//       Access: Published
-//  Description: Returns the shader object associated with the node.
-//               If get_override returns true, but get_shader
-//               returns NULL, that means that this attribute should
-//               disable the shader.
-////////////////////////////////////////////////////////////////////
+/**
+ * Returns the ShaderInput as a ShaderBuffer.  Assertion fails if there is
+ * none, or if it is not a ShaderBuffer.
+ */
+ShaderBuffer *ShaderAttrib::
+get_shader_input_buffer(const InternalName *id) const {
+  Inputs::const_iterator i = _inputs.find(id);
+  if (i == _inputs.end()) {
+    ostringstream strm;
+    strm << "Shader input " << id->get_name() << " is not present.\n";
+    nassert_raise(strm.str());
+    return nullptr;
+  } else {
+    const ShaderInput &p = (*i).second;
+
+    if (p.get_value_type() == ShaderInput::M_buffer) {
+      ShaderBuffer *value;
+      DCAST_INTO_R(value, p._value, nullptr);
+      return value;
+    }
+
+    ostringstream strm;
+    strm << "Shader input " << id->get_name() << " is not a ShaderBuffer.\n";
+    nassert_raise(strm.str());
+    return nullptr;
+  }
+}
+
+/**
+ * Returns the shader object associated with the node.  If get_override
+ * returns true, but get_shader returns NULL, that means that this attribute
+ * should disable the shader.
+ */
 const Shader *ShaderAttrib::
 get_shader() const {
   return _shader;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: ShaderAttrib::output
-//       Access: Public, Virtual
-//  Description:
-////////////////////////////////////////////////////////////////////
+/**
+ *
+ */
 void ShaderAttrib::
 output(ostream &out) const {
   out << "ShaderAttrib:";
 
-  if (_has_shader) {
-    if (_shader == NULL) {
+  if (_auto_shader) {
+    out << "auto";
+    return;
+  } else if (_has_shader) {
+    if (_shader == nullptr) {
       out << "off";
     } else {
       out << _shader->get_filename().get_basename();
     }
-  } else if (_auto_shader) {
-    out << "auto";
   }
 
   out << "," << _inputs.size() << " inputs";
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: ShaderAttrib::compare_to_impl
-//       Access: Protected, Virtual
-//  Description: Intended to be overridden by derived ShaderAttrib
-//               types to return a unique number indicating whether
-//               this ShaderAttrib is equivalent to the other one.
-//
-//               This should return 0 if the two ShaderAttrib objects
-//               are equivalent, a number less than zero if this one
-//               should be sorted before the other one, and a number
-//               greater than zero otherwise.
-//
-//               This will only be called with two ShaderAttrib
-//               objects whose get_type() functions return the same.
-////////////////////////////////////////////////////////////////////
+/**
+ * Intended to be overridden by derived ShaderAttrib types to return a unique
+ * number indicating whether this ShaderAttrib is equivalent to the other one.
+ *
+ * This should return 0 if the two ShaderAttrib objects are equivalent, a
+ * number less than zero if this one should be sorted before the other one,
+ * and a number greater than zero otherwise.
+ *
+ * This will only be called with two ShaderAttrib objects whose get_type()
+ * functions return the same.
+ */
 int ShaderAttrib::
 compare_to_impl(const RenderAttrib *other) const {
   const ShaderAttrib *that = (const ShaderAttrib *)other;
@@ -622,16 +703,12 @@ compare_to_impl(const RenderAttrib *other) const {
   return 0;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: ShaderAttrib::get_hash_impl
-//       Access: Protected, Virtual
-//  Description: Intended to be overridden by derived RenderAttrib
-//               types to return a unique hash for these particular
-//               properties.  RenderAttribs that compare the same with
-//               compare_to_impl(), above, should return the same
-//               hash; RenderAttribs that compare differently should
-//               return a different hash.
-////////////////////////////////////////////////////////////////////
+/**
+ * Intended to be overridden by derived RenderAttrib types to return a unique
+ * hash for these particular properties.  RenderAttribs that compare the same
+ * with compare_to_impl(), above, should return the same hash; RenderAttribs
+ * that compare differently should return a different hash.
+ */
 size_t ShaderAttrib::
 get_hash_impl() const {
   size_t hash = 0;
@@ -649,18 +726,15 @@ get_hash_impl() const {
 
   Inputs::const_iterator ii;
   for (ii = _inputs.begin(); ii != _inputs.end(); ++ii) {
-    hash = pointer_hash::add_hash(hash, (*ii).first);
-    hash = pointer_hash::add_hash(hash, (*ii).second);
+    hash = (*ii).second.add_hash(hash);
   }
 
   return hash;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: ShaderAttrib::compose_impl
-//       Access: Public, Virtual
-//  Description:
-////////////////////////////////////////////////////////////////////
+/**
+ *
+ */
 CPT(RenderAttrib) ShaderAttrib::
 compose_impl(const RenderAttrib *other) const {
   ShaderAttrib *attr = new ShaderAttrib(*this);
@@ -685,13 +759,13 @@ compose_impl(const RenderAttrib *other) const {
   Inputs::const_iterator iover;
   for (iover=over->_inputs.begin(); iover!=over->_inputs.end(); ++iover) {
     const InternalName *id = (*iover).first;
-    const ShaderInput *dover = (*iover).second;
+    const ShaderInput &dover = (*iover).second;
     Inputs::iterator iattr = attr->_inputs.find(id);
     if (iattr == attr->_inputs.end()) {
       attr->_inputs.insert(Inputs::value_type(id,dover));
     } else {
-      const ShaderInput *dattr = (*iattr).second;
-      if (dattr->get_priority() <= dover->get_priority()) {
+      const ShaderInput &dattr = (*iattr).second;
+      if (dattr.get_priority() <= dover.get_priority()) {
         iattr->second = iover->second;
       }
     }
@@ -701,8 +775,9 @@ compose_impl(const RenderAttrib *other) const {
   if (attr->_instance_count == 0) {
     attr->_instance_count = over->_instance_count;
   } else {
-    // If an instance count is set, check if the other attrib has an instance count set,
-    // if so, override it, otherwise just keep the current instance count
+    // If an instance count is set, check if the other attrib has an instance
+    // count set, if so, override it, otherwise just keep the current instance
+    // count
     if (over->_instance_count > 0) {
       attr->_instance_count = over->_instance_count;
     }
@@ -715,35 +790,10 @@ compose_impl(const RenderAttrib *other) const {
   return return_new(attr);
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: ShaderAttrib::get_auto_shader_attrib_impl
-//       Access: Protected, Virtual
-//  Description:
-////////////////////////////////////////////////////////////////////
-CPT(RenderAttrib) ShaderAttrib::
-get_auto_shader_attrib_impl(const RenderState *state) const {
-  // For a ShaderAttrib, we only need to preserve the auto-shader
-  // flags.  Custom shaders, and custom shader inputs, aren't relevant
-  // to the shader generator.
-  ShaderAttrib *attrib = new ShaderAttrib;
-  attrib->_auto_shader = _auto_shader;
-  attrib->_has_shader = _has_shader;
-  attrib->_auto_normal_on = _auto_normal_on;
-  attrib->_auto_glow_on = _auto_glow_on;
-  attrib->_auto_gloss_on = _auto_gloss_on;
-  attrib->_auto_ramp_on = _auto_ramp_on;
-  attrib->_auto_shadow_on = _auto_shadow_on;
-  attrib->_flags = _flags;
-  return return_new(attrib);
-}
-
-////////////////////////////////////////////////////////////////////
-//     Function: ShaderAttrib::register_with_read_factory
-//       Access: Public, Static
-//  Description: Factory method to generate a Shader object
-////////////////////////////////////////////////////////////////////
+/**
+ * Factory method to generate a Shader object
+ */
 void ShaderAttrib::
 register_with_read_factory() {
   // IMPLEMENT ME
 }
-

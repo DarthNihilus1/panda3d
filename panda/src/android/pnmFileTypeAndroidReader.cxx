@@ -1,16 +1,15 @@
-// Filename: pnmFileTypeAndroidReader.cxx
-// Created by:  rdb (22Jan13)
-//
-////////////////////////////////////////////////////////////////////
-//
-// PANDA 3D SOFTWARE
-// Copyright (c) Carnegie Mellon University.  All rights reserved.
-//
-// All use of this software is subject to the terms of the revised BSD
-// license.  You should have received a copy of this license along
-// with this source code in a file named "LICENSE."
-//
-////////////////////////////////////////////////////////////////////
+/**
+ * PANDA 3D SOFTWARE
+ * Copyright (c) Carnegie Mellon University.  All rights reserved.
+ *
+ * All use of this software is subject to the terms of the revised BSD
+ * license.  You should have received a copy of this license along
+ * with this source code in a file named "LICENSE."
+ *
+ * @file pnmFileTypeAndroidReader.cxx
+ * @author rdb
+ * @date 2013-01-22
+ */
 
 #include "pnmFileTypeAndroid.h"
 
@@ -57,17 +56,15 @@ static void conv_rgba4444(uint16_t in, xel &rgb, xelval &alpha) {
   alpha = scale_table_4[in & 0xF];
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: PNMFileTypeAndroid::Reader::Constructor
-//       Access: Public
-//  Description:
-////////////////////////////////////////////////////////////////////
+/**
+ *
+ */
 PNMFileTypeAndroid::Reader::
-Reader(PNMFileType *type, istream *file, bool owns_file, string magic_number) :
-  PNMReader(type, file, owns_file), _bitmap(NULL)
+Reader(PNMFileType *type, std::istream *file, bool owns_file, std::string magic_number) :
+  PNMReader(type, file, owns_file), _bitmap(nullptr)
 {
   // Hope we can putback() more than one character.
-  for (string::reverse_iterator mi = magic_number.rbegin();
+  for (std::string::reverse_iterator mi = magic_number.rbegin();
        mi != magic_number.rend(); ++mi) {
     _file->putback(*mi);
   };
@@ -78,11 +75,19 @@ Reader(PNMFileType *type, istream *file, bool owns_file, string magic_number) :
     return;
   }
 
-  streampos pos = _file->tellg();
-  _env = get_jni_env();
+  std::streampos pos = _file->tellg();
+
+  Thread *current_thread = Thread::get_current_thread();
+  _env = current_thread->get_jni_env();
+  nassertd(_env != nullptr) {
+    _is_valid = false;
+    return;
+  }
+
   jobject opts = _env->CallStaticObjectMethod(jni_PandaActivity,
                                               jni_PandaActivity_readBitmapSize,
                                               (jlong) _file);
+  _file->clear();
   _file->seekg(pos);
   if (_file->tellg() != pos) {
     android_cat.error()
@@ -110,30 +115,24 @@ Reader(PNMFileType *type, istream *file, bool owns_file, string magic_number) :
   }
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: PNMFileTypeAndroid::Reader::Destructor
-//       Access: Public, Virtual
-//  Description:
-////////////////////////////////////////////////////////////////////
+/**
+ *
+ */
 PNMFileTypeAndroid::Reader::
 ~Reader() {
-  if (_bitmap != NULL) {
+  if (_bitmap != nullptr) {
     _env->DeleteGlobalRef(_bitmap);
   }
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: PNMFileTypeAndroid::Reader::prepare_read
-//       Access: Public, Virtual
-//  Description: This method will be called before read_data() or
-//               read_row() is called.  It instructs the reader to
-//               initialize its data structures as necessary to
-//               actually perform the read operation.  
-//
-//               After this call, _x_size and _y_size should reflect
-//               the actual size that will be filled by read_data()
-//               (as possibly modified by set_read_size()).
-////////////////////////////////////////////////////////////////////
+/**
+ * This method will be called before read_data() or read_row() is called.  It
+ * instructs the reader to initialize its data structures as necessary to
+ * actually perform the read operation.
+ *
+ * After this call, _x_size and _y_size should reflect the actual size that
+ * will be filled by read_data() (as possibly modified by set_read_size()).
+ */
 void PNMFileTypeAndroid::Reader::
 prepare_read() {
   _sample_size = 2;
@@ -144,14 +143,14 @@ prepare_read() {
     int x_reduction = _orig_x_size / _read_x_size;
     int y_reduction = _orig_y_size / _read_y_size;
 
-    _sample_size = max(min(x_reduction, y_reduction), 1);
+    _sample_size = std::max(std::min(x_reduction, y_reduction), 1);
   }
 
   _bitmap = _env->CallStaticObjectMethod(jni_PandaActivity,
                                          jni_PandaActivity_readBitmap,
                                          (jlong) _file, _sample_size);
 
-  if (_bitmap == NULL) {
+  if (_bitmap == nullptr) {
     android_cat.error()
       << "Failed to read " << *this << "\n";
     _is_valid = false;
@@ -173,9 +172,9 @@ prepare_read() {
   _format = info.format;
   _stride = info.stride;
 
-  // Note: we could be setting maxval more appropriately,
-  // but this only causes texture.cxx to end up rescaling it later.
-  // Best to do the scaling ourselves, using efficient tables.
+  // Note: we could be setting maxval more appropriately, but this only causes
+  // texture.cxx to end up rescaling it later.  Best to do the scaling
+  // ourselves, using efficient tables.
   _maxval = 255;
 
   switch (info.format) {
@@ -208,19 +207,15 @@ prepare_read() {
   }
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: PNMFileTypeAndroid::Reader::read_data
-//       Access: Public, Virtual
-//  Description: Reads in an entire image all at once, storing it in
-//               the pre-allocated _x_size * _y_size array and alpha
-//               pointers.  (If the image type has no alpha channel,
-//               alpha is ignored.)  Returns the number of rows
-//               correctly read.
-//
-//               Derived classes need not override this if they
-//               instead provide supports_read_row() and read_row(),
-//               below.
-////////////////////////////////////////////////////////////////////
+/**
+ * Reads in an entire image all at once, storing it in the pre-allocated
+ * _x_size * _y_size array and alpha pointers.  (If the image type has no
+ * alpha channel, alpha is ignored.)  Returns the number of rows correctly
+ * read.
+ *
+ * Derived classes need not override this if they instead provide
+ * supports_read_row() and read_row(), below.
+ */
 int PNMFileTypeAndroid::Reader::
 read_data(xel *rgb, xelval *alpha) {
   if (!_is_valid) {

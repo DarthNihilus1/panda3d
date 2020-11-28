@@ -1,26 +1,23 @@
-// Filename: documentSpec.cxx
-// Created by:  drose (28Jan03)
-//
-////////////////////////////////////////////////////////////////////
-//
-// PANDA 3D SOFTWARE
-// Copyright (c) Carnegie Mellon University.  All rights reserved.
-//
-// All use of this software is subject to the terms of the revised BSD
-// license.  You should have received a copy of this license along
-// with this source code in a file named "LICENSE."
-//
-////////////////////////////////////////////////////////////////////
+/**
+ * PANDA 3D SOFTWARE
+ * Copyright (c) Carnegie Mellon University.  All rights reserved.
+ *
+ * All use of this software is subject to the terms of the revised BSD
+ * license.  You should have received a copy of this license along
+ * with this source code in a file named "LICENSE."
+ *
+ * @file documentSpec.cxx
+ * @author drose
+ * @date 2003-01-28
+ */
 
 #include "documentSpec.h"
 #include "indent.h"
 
 
-////////////////////////////////////////////////////////////////////
-//     Function: DocumentSpec::compare_to
-//       Access: Published
-//  Description: 
-////////////////////////////////////////////////////////////////////
+/**
+ *
+ */
 int DocumentSpec::
 compare_to(const DocumentSpec &other) const {
   if (_flags != other._flags) {
@@ -43,21 +40,18 @@ compare_to(const DocumentSpec &other) const {
     }
   }
 
-  // We don't consider _request_mode or _cache_control significant in
-  // the comparison.
+  // We don't consider _request_mode or _cache_control significant in the
+  // comparison.
 
   return 0;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: DocumentSpec::input
-//       Access: Published
-//  Description: Can be used to read in the DocumentSpec from a stream
-//               generated either by output() or write().  Returns
-//               true on success, false on failure.
-////////////////////////////////////////////////////////////////////
+/**
+ * Can be used to read in the DocumentSpec from a stream generated either by
+ * output() or write().  Returns true on success, false on failure.
+ */
 bool DocumentSpec::
-input(istream &in) {
+input(std::istream &in) {
   // First, clear the spec.
   (*this) = DocumentSpec();
 
@@ -70,9 +64,9 @@ input(istream &in) {
   in >> ch;
   if (ch == '(') {
     // Scan the tag, up to but not including the closing paren.
-    string tag;
+    std::string tag;
     in >> ch;
-    while (!in.fail() && !in.eof() && ch != ')') {
+    while (!in.fail() && ch != ')') {
       tag += ch;
       // We want to include embedded whitespace, so we use get().
       ch = in.get();
@@ -86,8 +80,8 @@ input(istream &in) {
 
   // Scan the date, up to but not including the closing bracket.
   if (ch != ']') {
-    string date;
-    while (!in.fail() && !in.eof() && ch != ']') {
+    std::string date;
+    while (!in.fail() && ch != ']') {
       date += ch;
       ch = in.get();
     }
@@ -101,13 +95,11 @@ input(istream &in) {
   return true;
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: DocumentSpec::output
-//       Access: Published
-//  Description: 
-////////////////////////////////////////////////////////////////////
+/**
+ *
+ */
 void DocumentSpec::
-output(ostream &out) const {
+output(std::ostream &out) const {
   out << "[ " << get_url();
   if (has_tag()) {
     out << " (" << get_tag() << ")";
@@ -118,13 +110,11 @@ output(ostream &out) const {
   out << " ]";
 }
 
-////////////////////////////////////////////////////////////////////
-//     Function: DocumentSpec::write
-//       Access: Published
-//  Description: 
-////////////////////////////////////////////////////////////////////
+/**
+ *
+ */
 void DocumentSpec::
-write(ostream &out, int indent_level) const {
+write(std::ostream &out, int indent_level) const {
   indent(out, indent_level)
     << "[ " << get_url();
   if (has_tag()) {
